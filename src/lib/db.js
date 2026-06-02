@@ -338,6 +338,43 @@ export async function saveCategorias(arr) {
   return arr;
 }
 
+// ── WHITELIST ─────────────────────────────────────────────
+
+export async function isEmailAllowed(email) {
+  if (!useSupabase()) return true;
+  const { data, error } = await supabase
+    .from('allowed_emails')
+    .select('email')
+    .eq('email', email.toLowerCase().trim())
+    .maybeSingle();
+  if (error) return false;
+  return !!data;
+}
+
+export async function getAllowedEmails() {
+  if (!useSupabase()) return [];
+  const { data, error } = await supabase
+    .from('allowed_emails')
+    .select('id, email, created_at')
+    .order('created_at', { ascending: true });
+  if (error) return [];
+  return data;
+}
+
+export async function addAllowedEmail(email) {
+  const { error } = await supabase
+    .from('allowed_emails')
+    .insert({ email: email.toLowerCase().trim() });
+  if (error) throw error;
+  return getAllowedEmails();
+}
+
+export async function removeAllowedEmail(id) {
+  const { error } = await supabase.from('allowed_emails').delete().eq('id', id);
+  if (error) throw error;
+  return getAllowedEmails();
+}
+
 // ── CUOTAS AUTOMÁTICAS ────────────────────────────────────
 
 export async function procesarCuotasVencidas(pedidos) {

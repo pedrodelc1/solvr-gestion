@@ -102,13 +102,10 @@ export function LoginScreen({ onOfflineMode }) {
                   {loading ? 'Enviando...' : 'Enviar acceso'}
                 </button>
               </form>
-              <div style={{ marginTop: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              <div style={{ marginTop: 'var(--space-4)' }}>
                 <p className="login-hint">
                   Te enviaremos un link de acceso a tu email.<br />Sin contraseña.
                 </p>
-                <button className="login-offline-btn" onClick={onOfflineMode}>
-                  Continuar sin cuenta (datos locales)
-                </button>
               </div>
             </motion.div>
           ) : (

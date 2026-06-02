@@ -33,40 +33,24 @@ export function LoginScreen({ onOfflineMode }) {
     }
   }
 
-  const container = {
-    hidden: {},
-    visible: { transition: { staggerChildren: 0.08, delayChildren: 0 } },
-  };
-  const letter = {
-    hidden: { y: -60, opacity: 0 },
-    visible: { y: 0, opacity: 1, transition: { type: 'spring', stiffness: 350, damping: 10 } },
-  };
-
   return (
     <div className="login-screen">
       <div className="login-card">
         <div>
-          <motion.div
-            className="login-logo"
-            style={{ display: 'flex', letterSpacing: '-0.04em', overflow: 'visible' }}
-            variants={container}
-            initial="hidden"
-            animate="visible"
-          >
+          <div className="login-logo">
             {'Solvr.'.split('').map((char, i) => (
-              <motion.span key={i} variants={letter} style={{ display: 'inline-block' }}>
+              <span
+                key={i}
+                className="login-logo-letter"
+                style={{ animationDelay: `${i * 0.08}s` }}
+              >
                 {char}
-              </motion.span>
+              </span>
             ))}
-          </motion.div>
-          <motion.div
-            className="login-tagline"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.7, duration: 0.4 }}
-          >
+          </div>
+          <div className="login-tagline login-tagline-anim">
             Gestión simple para tu negocio.
-          </motion.div>
+          </div>
         </div>
 
         <AnimatePresence mode="wait">
@@ -138,3 +122,4 @@ export function LoginScreen({ onOfflineMode }) {
     </div>
   );
 }
+

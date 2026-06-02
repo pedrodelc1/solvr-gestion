@@ -8,6 +8,7 @@ import {
   getGastos, saveGasto, deleteGasto,
   getCategorias,
   procesarCuotasVencidas,
+  isOwnerEmail,
 } from './lib/db.js';
 import { inRange } from './lib/utils.js';
 
@@ -42,6 +43,7 @@ export default function App() {
   const [categorias, setCategorias] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const [isOwner, setIsOwner] = useState(false);
   const [activeTab, setActiveTab] = useState('clientes');
   const [toasts, setToasts] = useState([]);
 
@@ -124,6 +126,7 @@ export default function App() {
   useEffect(() => {
     if (authChecked && session) {
       loadAll();
+      isOwnerEmail(session.user.email).then(setIsOwner);
     }
   }, [authChecked, session, loadAll]);
 
@@ -394,6 +397,7 @@ export default function App() {
           <PerfilPanel
             key="perfil-panel"
             session={session}
+            isOwner={isOwner}
             clientes={clientes}
             pedidos={pedidos}
             gastos={gastos}

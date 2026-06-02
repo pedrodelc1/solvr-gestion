@@ -360,10 +360,21 @@ export async function getAllowedEmails() {
   if (!useSupabase()) return [];
   const { data, error } = await supabase
     .from('allowed_emails')
-    .select('id, email, created_at')
+    .select('id, email, is_owner, created_at')
     .order('created_at', { ascending: true });
   if (error) return [];
   return data;
+}
+
+export async function isOwnerEmail(email) {
+  if (!useSupabase()) return true;
+  const { data, error } = await supabase
+    .from('allowed_emails')
+    .select('is_owner')
+    .eq('email', email.toLowerCase().trim())
+    .maybeSingle();
+  if (error || !data) return false;
+  return !!data.is_owner;
 }
 
 export async function addAllowedEmail(email) {

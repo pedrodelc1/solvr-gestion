@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase.js';
 import { formatCurrency, saldoCliente } from '../../lib/utils.js';
 import { getAllowedEmails, addAllowedEmail, removeAllowedEmail } from '../../lib/db.js';
 
-export function PerfilPanel({ session, offline, clientes, pedidos, gastos, toast }) {
+export function PerfilPanel({ session, isOwner, offline, clientes, pedidos, gastos, toast }) {
   const email = session?.user?.email || null;
   const inicial = email ? email[0].toUpperCase() : '?';
 
@@ -115,7 +115,7 @@ export function PerfilPanel({ session, offline, clientes, pedidos, gastos, toast
       </div>
 
       {/* Whitelist */}
-      {!offline && (
+      {!offline && isOwner && (
         <div style={{ padding: '0 var(--space-4)', marginBottom: 'var(--space-4)' }}>
           <div className="section-label">Accesos autorizados</div>
           <div className="card" style={{ gap: 'var(--space-3)' }}>

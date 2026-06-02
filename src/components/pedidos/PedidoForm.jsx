@@ -176,27 +176,39 @@ function ItemRow({ item, idx, productos, onChangeProducto, onChangeCantidad, onD
 }
 
 // ── Main form ────────────────────────────────────────────────────────────────
-export function PedidoForm({ clientes, productos: initialProductos, preClienteId, onSave, onBack, onProductoCreated, toast }) {
+export function PedidoForm({ clientes, productos: initialProductos, preClienteId, existing, onSave, onBack, onProductoCreated, toast }) {
   const hasProducts = initialProductos.length > 0;
   const defaultMode = hasProducts ? 'catalog' : 'manual';
 
   const [productos, setProductos] = useState(initialProductos);
-  const [clienteId, setClienteId] = useState(preClienteId || clientes[0]?.id || '');
-  const [fecha, setFecha] = useState(today());
-  const [medioPago, setMedioPago] = useState('efectivo');
-  const [cuotas, setCuotas] = useState(1);
+  const [clienteId, setClienteId] = useState(existing?.clienteId || preClienteId || clientes[0]?.id || '');
+  const [fecha, setFecha] = useState(existing?.fecha || today());
+  const [medioPago, setMedioPago] = useState(existing?.medioPago || 'efectivo');
+  const [cuotas, setCuotas] = useState(existing?.cuotas || 1);
   const [interes, setInteres] = useState('');
-  const [cobrado, setCobrado] = useState(false);
-  const [finalManual, setFinalManual] = useState(false);
-  const [totalFinalVal, setTotalFinalVal] = useState('');
-  const [items, setItems] = useState([{
-    mode: defaultMode,
-    productoId: '',
-    cantidad: 1,
-    _creatingNew: false,
-    manualNombre: '',
-    manualPrecio: '',
-  }]);
+  const [cobrado, setCobrado] = useState(existing?.cobrado || false);
+  const [finalManual, setFinalManual] = useState(existing ? true : false);
+  const [totalFinalVal, setTotalFinalVal] = useState(existing?.totalFinal ? String(existing.totalFinal) : '');
+  const [nota, setNota] = useState(existing?.nota || '');
+  const [items, setItems] = useState(
+    existing?.items?.length
+      ? existing.items.map(i => ({
+          mode: i.productoId ? 'catalog' : 'manual',
+          productoId: i.productoId || '',
+          cantidad: i.cantidad,
+          _creatingNew: false,
+          manualNombre: i.productoId ? '' : i.nombre,
+          manualPrecio: i.productoId ? '' : String(i.precioUnitario),
+        }))
+      : [{
+          mode: defaultMode,
+          productoId: '',
+          cantidad: 1,
+          _creatingNew: false,
+          manualNombre: '',
+          manualPrecio: '',
+        }]
+  );
 
   if (!clientes.length) {
     return (
@@ -310,7 +322,7 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
     });
 
     const pedido = {
-      id: uid(),
+      id: existing?.id || uid(),
       clienteId,
       fecha,
       items: pedidoItems,
@@ -319,7 +331,8 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
       medioPago,
       cuotas: medioPago === 'tarjeta' ? cuotas : 1,
       cobrado: efectivoCobrado,
-      montoAbonado: efectivoCobrado ? totalFinal : 0,
+      montoAbonado: efectivoCobrado ? totalFinal : (existing?.montoAbonado || 0),
+      nota: nota.trim() || null,
     };
 
     onSave(pedido);
@@ -333,7 +346,7 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
             <polyline points="15 18 9 12 15 6" />
           </svg>
         </button>
-        <h2>Nuevo pedido</h2>
+        <h2>{existing ? 'Editar pedido' : 'Nuevo pedido'}</h2>
       </div>
 
       <div className="form-wrap" style={{ paddingBottom: 'var(--space-8)' }}>
@@ -468,8 +481,20 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
           </div>
         </div>
 
+        <div className="form-group">
+          <label htmlFor="pf-nota">Nota <span style={{ color: 'var(--ink-3)', fontWeight: 400 }}>(opcional)</span></label>
+          <textarea
+            id="pf-nota"
+            placeholder="Ej: entregar en depósito, llamar antes..."
+            value={nota}
+            onChange={e => setNota(e.target.value)}
+            rows={2}
+            style={{ resize: 'none', minHeight: 64 }}
+          />
+        </div>
+
         <button className="btn btn-primary btn-full" type="button" onClick={handleSave}>
-          Guardar pedido
+          {existing ? 'Actualizar pedido' : 'Guardar pedido'}
         </button>
       </div>
     </div>

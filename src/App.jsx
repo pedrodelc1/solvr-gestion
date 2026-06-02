@@ -27,6 +27,7 @@ import { StatsPanel } from './components/stats/StatsPanel.jsx';
 import { ProductosList } from './components/productos/ProductosList.jsx';
 import { ProductoForm } from './components/productos/ProductoForm.jsx';
 import { PerfilPanel } from './components/perfil/PerfilPanel.jsx';
+import { SkeletonLoader } from './components/shared/SkeletonLoader.jsx';
 
 const SUPABASE_CONFIGURED = !!(
   import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -58,6 +59,7 @@ export default function App() {
   // Pedidos UI
   const [showPedidoForm, setShowPedidoForm] = useState(false);
   const [preClienteId, setPreClienteId] = useState(null);
+  const [editingPedido, setEditingPedido] = useState(null);
 
   // Gastos UI
   const [gastoFormOpen, setGastoFormOpen] = useState(false);
@@ -65,6 +67,19 @@ export default function App() {
   // Productos UI
   const [productoFormOpen, setProductoFormOpen] = useState(false);
   const [editingProducto, setEditingProducto] = useState(null);
+
+  // ── Dynamic title ─────────────────────────────────────────
+  const TAB_TITLES = {
+    clientes: 'Clientes — Solvr',
+    pedidos: 'Pedidos — Solvr',
+    gastos: 'Gastos — Solvr',
+    stats: 'Estadísticas — Solvr',
+    productos: 'Catálogo — Solvr',
+    perfil: 'Perfil — Solvr',
+  };
+  useEffect(() => {
+    document.title = TAB_TITLES[activeTab] || 'Solvr Gestión';
+  }, [activeTab]);
 
   // ── Auth ──────────────────────────────────────────────────
   useEffect(() => {
@@ -150,11 +165,17 @@ export default function App() {
 
   async function handleSavePedido(data) {
     try {
-      const arr = await savePedido(data);
+      let arr;
+      if (data.id && pedidos.find(p => p.id === data.id)) {
+        arr = await updatePedido(data.id, data);
+      } else {
+        arr = await savePedido(data);
+      }
       setPedidos(arr);
       setShowPedidoForm(false);
       setPreClienteId(null);
-      toast('Pedido guardado');
+      setEditingPedido(null);
+      toast(data.id ? 'Pedido actualizado' : 'Pedido guardado');
     } catch (e) { toast(e.message, 'error'); }
   }
 
@@ -241,6 +262,7 @@ export default function App() {
     setSelectedClienteId(null);
     setShowPedidoForm(false);
     setPreClienteId(null);
+    setEditingPedido(null);
   }
 
   function handleSplashDone() {
@@ -267,11 +289,7 @@ export default function App() {
   }
 
   if (loading) {
-    return (
-      <div style={{ height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--color-bg)', color: 'var(--color-ink-3)', fontSize: 'var(--text-sm)' }}>
-        Cargando datos...
-      </div>
-    );
+    return <SkeletonLoader />;
   }
 
   const selectedCliente = clientes.find(c => c.id === selectedClienteId) || null;
@@ -321,8 +339,9 @@ export default function App() {
               clientes={clientes}
               productos={productos}
               preClienteId={preClienteId}
+              existing={editingPedido}
               onSave={handleSavePedido}
-              onBack={() => { setShowPedidoForm(false); setPreClienteId(null); }}
+              onBack={() => { setShowPedidoForm(false); setPreClienteId(null); setEditingPedido(null); }}
               onProductoCreated={handleProductoCreado}
               toast={toast}
             />
@@ -333,9 +352,10 @@ export default function App() {
             key="pedidos-list"
             pedidos={pedidos}
             clientes={clientes}
-            onNew={() => { setPreClienteId(null); setShowPedidoForm(true); }}
+            onNew={() => { setPreClienteId(null); setEditingPedido(null); setShowPedidoForm(true); }}
             onUpdate={handleUpdatePedido}
             onDelete={handleDeletePedido}
+            onEdit={p => { setEditingPedido(p); setShowPedidoForm(true); }}
             toast={toast}
           />
         );

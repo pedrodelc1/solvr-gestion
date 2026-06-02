@@ -174,6 +174,7 @@ export async function getPedidos() {
     cuotas: r.cuotas || 1,
     cobrado: r.cobrado,
     montoAbonado: r.monto_abonado || 0,
+    nota: r.nota || null,
     items: (r.pedido_items || []).map(i => ({
       id: i.id,
       productoId: i.producto_id,
@@ -212,6 +213,7 @@ export async function savePedido(data) {
       cuotas: data.cuotas || 1,
       cobrado: data.cobrado || false,
       monto_abonado: data.montoAbonado || 0,
+      nota: data.nota || null,
     })
     .select()
     .single();
@@ -243,7 +245,10 @@ export async function updatePedido(id, data) {
   if ('cobrado' in data) update.cobrado = data.cobrado;
   if ('montoAbonado' in data) update.monto_abonado = data.montoAbonado;
   if ('totalFinal' in data) update.total_final = data.totalFinal;
+  if ('totalCalculado' in data) update.total_calculado = data.totalCalculado;
   if ('medioPago' in data) update.medio_pago = data.medioPago;
+  if ('cuotas' in data) update.cuotas = data.cuotas;
+  if ('nota' in data) update.nota = data.nota;
   const { error } = await supabase.from('pedidos').update(update).eq('id', id);
   if (error) throw error;
   return getPedidos();

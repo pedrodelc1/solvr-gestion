@@ -39,8 +39,9 @@ const FILTERS = [
   { id: 'tarjeta', label: 'Tarjeta' },
 ];
 
-export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, toast }) {
+export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEdit, toast }) {
   const [filter, setFilter] = useState('all');
+  const [search, setSearch] = useState('');
   const [pagoModal, setPagoModal] = useState(null); // { pedidoId, resta }
   const [pagoMonto, setPagoMonto] = useState('');
   const [confirmDel, setConfirmDel] = useState(null);
@@ -54,7 +55,8 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, toas
       if (filter === 'transferencia') return p.medioPago === 'transferencia';
       if (filter === 'tarjeta')       return p.medioPago === 'tarjeta' || p.medioPago === 'fiado';
       return true;
-    });
+    })
+    .filter(p => !search || getNombre(p.clienteId).toLowerCase().includes(search.toLowerCase()));
 
   function getNombre(clienteId) {
     return clientes.find(c => c.id === clienteId)?.nombre || '—';
@@ -117,6 +119,18 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, toas
         ))}
       </div>
 
+      <div className="search-bar">
+        <div className="search-bar-wrapper">
+          <input
+            type="search"
+            placeholder="Buscar cliente..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            autoComplete="off"
+          />
+        </div>
+      </div>
+
       <div className="list-section">
         {filtered.length === 0 ? (
           <div className="empty-state">
@@ -164,6 +178,11 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, toas
                 <div className="card-sub" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {p.items.map(i => `${i.nombre} x${i.cantidad}`).join(' · ')}
                 </div>
+                {p.nota && (
+                  <div className="card-sub" style={{ fontStyle: 'italic', color: 'var(--ink-2)' }}>
+                    📝 {p.nota}
+                  </div>
+                )}
                 {p.medioPago === 'tarjeta' && p.cuotas > 1 && (() => {
                   const montoPorCuota = Math.round((total / p.cuotas) * 100) / 100;
                   const cuotasPagadas = montoPorCuota > 0 ? Math.min(p.cuotas, Math.round(abonado / montoPorCuota)) : 0;
@@ -200,6 +219,16 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, toas
                       {p.cobrado ? 'Reabrir' : 'Cobrar total'}
                     </button>
                   )}
+                  <button
+                    className="btn-icon"
+                    aria-label="Editar pedido"
+                    onClick={() => onEdit && onEdit(p)}
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                  </button>
                   <button
                     className="btn-icon danger"
                     aria-label="Eliminar pedido"

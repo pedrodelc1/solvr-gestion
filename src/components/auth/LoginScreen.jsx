@@ -42,8 +42,32 @@ export function LoginScreen({ onOfflineMode }) {
     >
       <div className="login-card">
         <div>
-          <div className="login-logo">Solvr.</div>
-          <div className="login-tagline">Gestión simple para tu negocio.</div>
+          <div className="login-logo">
+            {'Solvr.'.split('').map((char, i) => (
+              <motion.span
+                key={i}
+                initial={{ y: -40, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{
+                  delay: i * 0.08,
+                  type: 'spring',
+                  stiffness: 300,
+                  damping: 12,
+                }}
+                style={{ display: 'inline-block' }}
+              >
+                {char}
+              </motion.span>
+            ))}
+          </div>
+          <motion.div
+            className="login-tagline"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.55, duration: 0.4 }}
+          >
+            Gestión simple para tu negocio.
+          </motion.div>
         </div>
 
         <AnimatePresence mode="wait">

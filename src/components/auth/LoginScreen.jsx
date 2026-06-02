@@ -48,7 +48,7 @@ export function LoginScreen({ onOfflineMode }) {
             initial="hidden"
             animate="visible"
             variants={{
-              visible: { transition: { staggerChildren: 0.07 } },
+              visible: { transition: { staggerChildren: 0.07, delayChildren: 0.35 } },
             }}
           >
             {'Solvr.'.split('').map((char, i) => (
@@ -72,7 +72,7 @@ export function LoginScreen({ onOfflineMode }) {
             className="login-tagline"
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6, duration: 0.4 }}
+            transition={{ delay: 0.95, duration: 0.4 }}
           >
             Gestión simple para tu negocio.
           </motion.div>

@@ -5,6 +5,8 @@ export function ProductoForm({ open, existing, onSave, onClose }) {
   const [nombre, setNombre] = useState('');
   const [precio, setPrecio] = useState('');
   const [costo, setCosto] = useState('');
+  const [stock, setStock] = useState('0');
+  const [stockMinimo, setStockMinimo] = useState('5');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -12,13 +14,15 @@ export function ProductoForm({ open, existing, onSave, onClose }) {
       setNombre(existing?.nombre || '');
       setPrecio(existing?.precio != null ? String(existing.precio) : '');
       setCosto(existing?.costo != null ? String(existing.costo) : '');
+      setStock(existing?.stock != null ? String(existing.stock) : '0');
+      setStockMinimo(existing?.stock_minimo != null ? String(existing.stock_minimo) : '5');
       setError('');
     }
   }, [open, existing]);
 
   function handleSave() {
     if (!nombre.trim() || isNaN(parseFloat(precio)) || parseFloat(precio) < 0) {
-      setError('Completá todos los campos');
+      setError('Completá nombre y precio');
       return;
     }
     onSave({
@@ -26,6 +30,8 @@ export function ProductoForm({ open, existing, onSave, onClose }) {
       nombre: nombre.trim(),
       precio: parseFloat(precio),
       costo: parseFloat(costo) || 0,
+      stock: parseInt(stock) || 0,
+      stock_minimo: parseInt(stockMinimo) || 5,
     });
   }
 
@@ -74,7 +80,33 @@ export function ProductoForm({ open, existing, onSave, onClose }) {
                 />
               </div>
             </div>
-            {error && <p style={{ color: 'var(--color-danger)', fontSize: 'var(--text-sm)' }}>{error}</p>}
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="pp-stock">Stock actual</label>
+                <input
+                  id="pp-stock"
+                  type="number"
+                  placeholder="0"
+                  min="0"
+                  step="1"
+                  value={stock}
+                  onChange={e => setStock(e.target.value)}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="pp-stock-min">Stock mínimo</label>
+                <input
+                  id="pp-stock-min"
+                  type="number"
+                  placeholder="5"
+                  min="0"
+                  step="1"
+                  value={stockMinimo}
+                  onChange={e => setStockMinimo(e.target.value)}
+                />
+              </div>
+            </div>
+            {error && <p style={{ color: 'var(--danger)', fontSize: 'var(--text-sm)' }}>{error}</p>}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', padding: 'var(--space-4)', paddingTop: 0 }}>
             <button className="btn btn-primary btn-full" onClick={handleSave}>Guardar</button>

@@ -79,7 +79,7 @@ function getDockScale(index, hoveredIndex) {
   return 1;
 }
 
-export function BottomNav({ activeTab, onTabChange }) {
+export function BottomNav({ activeTab, onTabChange, alertCount = 0 }) {
   const navRef = useRef(null);
   const activeIndex = TABS.findIndex(t => t.id === activeTab);
   const [hoveredIndex, setHoveredIndex] = useState(null);
@@ -123,7 +123,19 @@ export function BottomNav({ activeTab, onTabChange }) {
           transition={{ type: 'spring', stiffness: 380, damping: 22 }}
           style={{ position: 'relative', zIndex: 1, originY: 1 }}
         >
-          <span style={{ position: 'relative', zIndex: 1, display: 'contents' }}>{tab.icon}</span>
+          <span style={{ position: 'relative', zIndex: 1, display: 'contents' }}>
+            {tab.icon}
+            {tab.id === 'clientes' && alertCount > 0 && (
+              <span style={{
+                position: 'absolute', top: 0, right: 0,
+                background: 'var(--danger)', color: '#fff',
+                borderRadius: '999px', fontSize: 9, fontWeight: 800,
+                minWidth: 16, height: 16, display: 'flex',
+                alignItems: 'center', justifyContent: 'center',
+                padding: '0 4px', lineHeight: 1,
+              }}>{alertCount > 9 ? '9+' : alertCount}</span>
+            )}
+          </span>
           <span style={{ position: 'relative', zIndex: 1 }}>{tab.label}</span>
         </motion.button>
       ))}

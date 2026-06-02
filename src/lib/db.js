@@ -1,7 +1,3 @@
-/**
- * DB layer — tries Supabase first, falls back to localStorage.
- * All functions are async and return plain objects (no Supabase-specific shape).
- */
 import { supabase } from './supabase.js';
 import { uid } from './utils.js';
 
@@ -27,8 +23,6 @@ function lsSet(key, val) {
   localStorage.setItem(LS_KEYS[key], JSON.stringify(val));
 }
 
-// ── helpers ──────────────────────────────────────────────
-
 function isUUID(str) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 }
@@ -43,6 +37,11 @@ function useSupabase() {
 async function getUserId() {
   const { data } = await supabase.auth.getUser();
   return data?.user?.id;
+}
+
+async function getUserEmail() {
+  const { data } = await supabase.auth.getUser();
+  return data?.user?.email;
 }
 
 // ── CLIENTES ─────────────────────────────────────────────
@@ -109,7 +108,14 @@ export async function getProductos() {
     .select('*')
     .order('created_at', { ascending: true });
   if (error) return lsGet('productos', []);
-  const mapped = data.map(r => ({ id: r.id, nombre: r.nombre, precio: r.precio, costo: r.costo || 0 }));
+  const mapped = data.map(r => ({
+    id: r.id,
+    nombre: r.nombre,
+    precio: r.precio,
+    costo: r.costo || 0,
+    stock: r.stock ?? 0,
+    stock_minimo: r.stock_minimo ?? 5,
+  }));
   lsSet('productos', mapped);
   return mapped;
 }
@@ -129,16 +135,18 @@ export async function saveProducto(data) {
   }
   const userId = await getUserId();
   if (!userId) throw new Error('Not authenticated');
+  const fields = {
+    nombre: data.nombre,
+    precio: data.precio,
+    costo: data.costo || 0,
+    stock: data.stock ?? 0,
+    stock_minimo: data.stock_minimo ?? 5,
+  };
   if (data.id) {
-    const { error } = await supabase
-      .from('productos')
-      .update({ nombre: data.nombre, precio: data.precio, costo: data.costo || 0 })
-      .eq('id', data.id);
+    const { error } = await supabase.from('productos').update(fields).eq('id', data.id);
     if (error) throw error;
   } else {
-    const { error } = await supabase
-      .from('productos')
-      .insert({ nombre: data.nombre, precio: data.precio, costo: data.costo || 0, user_id: userId });
+    const { error } = await supabase.from('productos').insert({ ...fields, user_id: userId });
     if (error) throw error;
   }
   return getProductos();
@@ -153,6 +161,27 @@ export async function deleteProducto(id) {
   const { error } = await supabase.from('productos').delete().eq('id', id);
   if (error) throw error;
   return getProductos();
+}
+
+// Ajusta el stock de un producto (delta negativo = descuento, nunca queda negativo)
+export async function ajustarStock(productoId, delta) {
+  if (!useSupabase()) {
+    const arr = lsGet('productos', []);
+    const i = arr.findIndex(p => p.id === productoId);
+    if (i >= 0) {
+      arr[i].stock = Math.max(0, (arr[i].stock || 0) + delta);
+      lsSet('productos', arr);
+    }
+    return;
+  }
+  const { data, error } = await supabase
+    .from('productos')
+    .select('stock')
+    .eq('id', productoId)
+    .single();
+  if (error || !data) return;
+  const nuevoStock = Math.max(0, (data.stock || 0) + delta);
+  await supabase.from('productos').update({ stock: nuevoStock }).eq('id', productoId);
 }
 
 // ── PEDIDOS ───────────────────────────────────────────────
@@ -175,6 +204,7 @@ export async function getPedidos() {
     cobrado: r.cobrado,
     montoAbonado: r.monto_abonado || 0,
     nota: r.nota || null,
+    tipo: r.tipo || 'pedido',
     items: (r.pedido_items || []).map(i => ({
       id: i.id,
       productoId: i.producto_id,
@@ -191,9 +221,15 @@ export async function getPedidos() {
 export async function savePedido(data) {
   if (!useSupabase()) {
     const arr = lsGet('pedidos', []);
-    const pedido = { ...data, id: data.id || uid() };
+    const pedido = { ...data, id: data.id || uid(), tipo: data.tipo || 'pedido' };
     arr.push(pedido);
     lsSet('pedidos', arr);
+    // Descontar stock si es pedido real
+    if (pedido.tipo !== 'presupuesto' && pedido.items) {
+      for (const item of pedido.items) {
+        if (item.productoId) await ajustarStock(item.productoId, -item.cantidad);
+      }
+    }
     return arr;
   }
   const userId = await getUserId();
@@ -214,6 +250,7 @@ export async function savePedido(data) {
       cobrado: data.cobrado || false,
       monto_abonado: data.montoAbonado || 0,
       nota: data.nota || null,
+      tipo: data.tipo || 'pedido',
     })
     .select()
     .single();
@@ -229,6 +266,14 @@ export async function savePedido(data) {
     }));
     const { error: eItems } = await supabase.from('pedido_items').insert(items);
     if (eItems) throw eItems;
+  }
+  // Solo descuenta stock en pedidos reales (no presupuestos)
+  if (data.tipo !== 'presupuesto' && data.items) {
+    for (const item of data.items) {
+      if (item.productoId && isUUID(item.productoId)) {
+        await ajustarStock(item.productoId, -item.cantidad);
+      }
+    }
   }
   return getPedidos();
 }
@@ -249,6 +294,7 @@ export async function updatePedido(id, data) {
   if ('medioPago' in data) update.medio_pago = data.medioPago;
   if ('cuotas' in data) update.cuotas = data.cuotas;
   if ('nota' in data) update.nota = data.nota;
+  if ('tipo' in data) update.tipo = data.tipo;
   const { error } = await supabase.from('pedidos').update(update).eq('id', id);
   if (error) throw error;
   return getPedidos();
@@ -262,6 +308,36 @@ export async function deletePedido(id) {
   }
   const { error } = await supabase.from('pedidos').delete().eq('id', id);
   if (error) throw error;
+  return getPedidos();
+}
+
+// Convierte un presupuesto en pedido real — irreversible, descuenta stock
+export async function convertirPresupuesto(pedidoId) {
+  if (!useSupabase()) {
+    const arr = lsGet('pedidos', []);
+    const i = arr.findIndex(p => p.id === pedidoId);
+    if (i >= 0 && arr[i].tipo === 'presupuesto') {
+      for (const item of arr[i].items || []) {
+        if (item.productoId) await ajustarStock(item.productoId, -item.cantidad);
+      }
+      arr[i].tipo = 'pedido';
+      lsSet('pedidos', arr);
+    }
+    return arr;
+  }
+  const { data: items, error: eItems } = await supabase
+    .from('pedido_items')
+    .select('*')
+    .eq('pedido_id', pedidoId);
+  if (eItems) throw eItems;
+  const { error } = await supabase
+    .from('pedidos')
+    .update({ tipo: 'pedido' })
+    .eq('id', pedidoId);
+  if (error) throw error;
+  for (const item of items || []) {
+    if (item.producto_id) await ajustarStock(item.producto_id, -item.cantidad);
+  }
   return getPedidos();
 }
 
@@ -343,17 +419,11 @@ export async function saveCategorias(arr) {
   return arr;
 }
 
-// ── WHITELIST ─────────────────────────────────────────────
+// ── WHITELIST / OWNER ─────────────────────────────────────
 
-export async function isEmailAllowed(email) {
-  if (!useSupabase()) return true;
-  const { data, error } = await supabase
-    .from('allowed_emails')
-    .select('email')
-    .eq('email', email.toLowerCase().trim())
-    .maybeSingle();
-  if (error) return false;
-  return !!data;
+// isEmailAllowed ya no bloquea el login — cualquier email puede pedir acceso
+export async function isEmailAllowed() {
+  return true;
 }
 
 export async function getAllowedEmails() {
@@ -389,6 +459,108 @@ export async function removeAllowedEmail(id) {
   const { error } = await supabase.from('allowed_emails').delete().eq('id', id);
   if (error) throw error;
   return getAllowedEmails();
+}
+
+// ── ALERTAS ───────────────────────────────────────────────
+
+export async function getAlertasConfig() {
+  if (!useSupabase()) return { dias_sin_cobro: 7 };
+  const { data } = await supabase
+    .from('alertas_config')
+    .select('*')
+    .maybeSingle();
+  return data || { dias_sin_cobro: 7 };
+}
+
+export async function saveAlertasConfig(diasSinCobro) {
+  if (!useSupabase()) return;
+  const userId = await getUserId();
+  if (!userId) return;
+  await supabase
+    .from('alertas_config')
+    .upsert({ user_id: userId, dias_sin_cobro: diasSinCobro }, { onConflict: 'user_id' });
+}
+
+// ── SUSCRIPCIONES ─────────────────────────────────────────
+
+export async function getSuscripcion() {
+  if (!useSupabase()) return null;
+  const { data } = await supabase
+    .from('suscripciones')
+    .select('*, planes(*)')
+    .maybeSingle();
+  return data;
+}
+
+// Crea una suscripción de prueba de 30 días
+export async function crearSuscripcionTrial() {
+  if (!useSupabase()) return null;
+  const userId = await getUserId();
+  const email = await getUserEmail();
+  if (!userId) return null;
+  const hoy = new Date();
+  const vencimiento = new Date(hoy);
+  vencimiento.setDate(vencimiento.getDate() + 30);
+  const { data, error } = await supabase
+    .from('suscripciones')
+    .insert({
+      user_id: userId,
+      user_email: email,
+      estado: 'activa',
+      fecha_inicio: hoy.toISOString().slice(0, 10),
+      fecha_vencimiento: vencimiento.toISOString().slice(0, 10),
+    })
+    .select()
+    .single();
+  if (error) return null;
+  return data;
+}
+
+// Solo owner — lista todas las suscripciones
+export async function getSuscripciones() {
+  if (!useSupabase()) return [];
+  const { data, error } = await supabase
+    .from('suscripciones')
+    .select('*, planes(*)')
+    .order('created_at', { ascending: false });
+  if (error) return [];
+  return data;
+}
+
+// Solo owner — actualiza estado de una suscripción
+export async function updateSuscripcion(id, changes) {
+  const { error } = await supabase
+    .from('suscripciones')
+    .update({ ...changes, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) throw error;
+  return getSuscripciones();
+}
+
+// Extiende la suscripción actual 30 días más
+export async function renovarSuscripcion(suscripcionId) {
+  const { data: sus } = await supabase
+    .from('suscripciones')
+    .select('fecha_vencimiento')
+    .eq('id', suscripcionId)
+    .single();
+  if (!sus) throw new Error('Suscripción no encontrada');
+  // Extiende desde hoy si ya venció, desde el vencimiento si todavía no
+  const base = new Date(sus.fecha_vencimiento);
+  const hoy = new Date();
+  const desde = base > hoy ? base : hoy;
+  const nuevoVencimiento = new Date(desde);
+  nuevoVencimiento.setDate(nuevoVencimiento.getDate() + 30);
+  const { error } = await supabase
+    .from('suscripciones')
+    .update({
+      estado: 'activa',
+      fecha_vencimiento: nuevoVencimiento.toISOString().slice(0, 10),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', suscripcionId);
+  if (error) throw error;
+  return getSuscripcion();
 }
 
 // ── CUOTAS AUTOMÁTICAS ────────────────────────────────────
@@ -448,15 +620,15 @@ export function seedLocalStorageIfEmpty() {
     { id: 'c3', nombre: 'María López', contacto: '1145678901' },
   ];
   const productos = [
-    { id: 'p1', nombre: 'Alfajores x12', precio: 2400, costo: 1600 },
-    { id: 'p2', nombre: 'Galletitas surtidas', precio: 1800, costo: 1100 },
-    { id: 'p3', nombre: 'Chocolates x6', precio: 3200, costo: 2000 },
-    { id: 'p4', nombre: 'Caramelos x50', precio: 900, costo: 500 },
-    { id: 'p5', nombre: 'Chicles x100', precio: 1200, costo: 700 },
+    { id: 'p1', nombre: 'Alfajores x12', precio: 2400, costo: 1600, stock: 20, stock_minimo: 5 },
+    { id: 'p2', nombre: 'Galletitas surtidas', precio: 1800, costo: 1100, stock: 15, stock_minimo: 5 },
+    { id: 'p3', nombre: 'Chocolates x6', precio: 3200, costo: 2000, stock: 10, stock_minimo: 3 },
+    { id: 'p4', nombre: 'Caramelos x50', precio: 900, costo: 500, stock: 30, stock_minimo: 10 },
+    { id: 'p5', nombre: 'Chicles x100', precio: 1200, costo: 700, stock: 25, stock_minimo: 8 },
   ];
   const pedidos = [
     {
-      id: 'pe1', clienteId: 'c1', fecha: `${y}-${m}-05`,
+      id: 'pe1', clienteId: 'c1', fecha: `${y}-${m}-05`, tipo: 'pedido',
       items: [
         { productoId: 'p1', nombre: 'Alfajores x12', cantidad: 2, precioUnitario: 2400, costoUnitario: 1600 },
         { productoId: 'p3', nombre: 'Chocolates x6', cantidad: 1, precioUnitario: 3200, costoUnitario: 2000 },
@@ -464,22 +636,14 @@ export function seedLocalStorageIfEmpty() {
       totalCalculado: 8000, totalFinal: 8000, medioPago: 'efectivo', cuotas: 1, cobrado: true, montoAbonado: 8000,
     },
     {
-      id: 'pe2', clienteId: 'c2', fecha: `${y}-${m}-10`,
+      id: 'pe2', clienteId: 'c2', fecha: `${y}-${m}-10`, tipo: 'pedido',
       items: [{ productoId: 'p2', nombre: 'Galletitas surtidas', cantidad: 3, precioUnitario: 1800, costoUnitario: 1100 }],
       totalCalculado: 5400, totalFinal: 5400, medioPago: 'tarjeta', cuotas: 3, cobrado: false, montoAbonado: 0,
     },
     {
-      id: 'pe3', clienteId: 'c1', fecha: `${y}-${m}-15`,
+      id: 'pe3', clienteId: 'c1', fecha: `${y}-${m}-15`, tipo: 'presupuesto',
       items: [{ productoId: 'p4', nombre: 'Caramelos x50', cantidad: 5, precioUnitario: 900, costoUnitario: 500 }],
-      totalCalculado: 4500, totalFinal: 4200, medioPago: 'transferencia', cuotas: 1, cobrado: false, montoAbonado: 0,
-    },
-    {
-      id: 'pe4', clienteId: 'c3', fecha: `${y}-${m}-18`,
-      items: [
-        { productoId: 'p5', nombre: 'Chicles x100', cantidad: 2, precioUnitario: 1200, costoUnitario: 700 },
-        { productoId: 'p1', nombre: 'Alfajores x12', cantidad: 1, precioUnitario: 2400, costoUnitario: 1600 },
-      ],
-      totalCalculado: 4800, totalFinal: 4800, medioPago: 'tarjeta', cuotas: 1, cobrado: false, montoAbonado: 0,
+      totalCalculado: 4500, totalFinal: 4200, medioPago: 'efectivo', cuotas: 1, cobrado: false, montoAbonado: 0,
     },
   ];
   const gastos = [

@@ -1,15 +1,106 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { formatCurrency } from '../../lib/utils.js';
-import { ConfirmModal } from '../shared/Modal.jsx';
+import { ConfirmModal, Modal } from '../shared/Modal.jsx';
+import { ajustarStock } from '../../lib/db.js';
 
-export function ProductosList({ productos, onNew, onEdit, onDelete, toast }) {
+function StockBadge({ stock, stockMinimo }) {
+  if (stock === 0) {
+    return <span className="badge badge-warn">Sin stock</span>;
+  }
+  if (stock <= stockMinimo) {
+    return <span className="badge" style={{ background: 'var(--danger-bg)', color: 'var(--danger)' }}>Stock bajo: {stock}</span>;
+  }
+  return <span className="badge badge-ok">Stock: {stock}</span>;
+}
+
+function AjusteStockModal({ open, producto, onClose, onAjustar }) {
+  const [delta, setDelta] = useState('');
+  const [tipo, setTipo] = useState('sumar');
+
+  function handleConfirm() {
+    const cantidad = parseInt(delta);
+    if (isNaN(cantidad) || cantidad <= 0) return;
+    onAjustar(producto.id, tipo === 'sumar' ? cantidad : -cantidad);
+    setDelta('');
+    setTipo('sumar');
+    onClose();
+  }
+
+  return (
+    <Modal open={open} title={`Ajustar stock — ${producto?.nombre}`} onClose={onClose}>
+      {open && (
+        <>
+          <div style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+              <button
+                className={`filter-chip${tipo === 'sumar' ? ' active' : ''}`}
+                style={{ flex: 1 }}
+                onClick={() => setTipo('sumar')}
+              >
+                + Agregar
+              </button>
+              <button
+                className={`filter-chip${tipo === 'restar' ? ' active' : ''}`}
+                style={{ flex: 1 }}
+                onClick={() => setTipo('restar')}
+              >
+                − Descontar
+              </button>
+            </div>
+            <div className="form-group">
+              <label>Cantidad</label>
+              <input
+                type="number"
+                placeholder="0"
+                min="1"
+                step="1"
+                value={delta}
+                onChange={e => setDelta(e.target.value)}
+                autoFocus
+              />
+            </div>
+            {producto && (
+              <p style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-3)' }}>
+                Stock actual: <strong style={{ color: 'var(--ink)' }}>{producto.stock}</strong>
+                {delta && !isNaN(parseInt(delta)) && (
+                  <> → <strong style={{ color: tipo === 'sumar' ? 'var(--success)' : 'var(--danger)' }}>
+                    {Math.max(0, producto.stock + (tipo === 'sumar' ? parseInt(delta) : -parseInt(delta)))}
+                  </strong></>
+                )}
+              </p>
+            )}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', padding: 'var(--space-4)', paddingTop: 0 }}>
+            <button className="btn btn-primary btn-full" onClick={handleConfirm} disabled={!delta || parseInt(delta) <= 0}>
+              Confirmar ajuste
+            </button>
+            <button className="btn btn-secondary btn-full" onClick={onClose}>Cancelar</button>
+          </div>
+        </>
+      )}
+    </Modal>
+  );
+}
+
+export function ProductosList({ productos, onNew, onEdit, onDelete, onStockChange, toast }) {
   const [confirmDel, setConfirmDel] = useState(null);
+  const [ajusteModal, setAjusteModal] = useState(null);
 
   function handleDelete(id) {
     onDelete(id);
     setConfirmDel(null);
     toast('Producto eliminado');
+  }
+
+  async function handleAjuste(productoId, delta) {
+    try {
+      await ajustarStock(productoId, delta);
+      if (onStockChange) onStockChange();
+      toast(delta > 0 ? `+${delta} unidades agregadas` : `${Math.abs(delta)} unidades descontadas`);
+    } catch (e) {
+      toast(e.message, 'error');
+    }
   }
 
   return (
@@ -35,6 +126,7 @@ export function ProductosList({ productos, onNew, onEdit, onDelete, toast }) {
         ) : (
           productos.map((p, i) => {
             const margen = p.costo ? p.precio - p.costo : null;
+            const stockBajo = p.stock <= p.stock_minimo;
             return (
               <motion.div
                 key={p.id}
@@ -42,6 +134,7 @@ export function ProductosList({ productos, onNew, onEdit, onDelete, toast }) {
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.03, duration: 0.2 }}
+                style={stockBajo ? { borderColor: p.stock === 0 ? 'var(--danger)' : 'rgba(239,68,68,0.3)' } : {}}
               >
                 <div className="card-row">
                   <span style={{ fontWeight: 600, flex: 1, overflowWrap: 'anywhere' }}>{p.nombre}</span>
@@ -69,19 +162,38 @@ export function ProductosList({ productos, onNew, onEdit, onDelete, toast }) {
                     </button>
                   </div>
                 </div>
-                {p.costo > 0 && (
-                  <div className="card-sub">
-                    Costo: {formatCurrency(p.costo)} · Ganancia:{' '}
-                    <span style={{ color: margen >= 0 ? 'var(--color-success)' : 'var(--color-danger)' }}>
-                      {formatCurrency(margen)}
-                    </span>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-2)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                    <StockBadge stock={p.stock} stockMinimo={p.stock_minimo} />
+                    {p.costo > 0 && (
+                      <span className="card-sub">
+                        Ganancia:{' '}
+                        <span style={{ color: margen >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                          {formatCurrency(margen)}
+                        </span>
+                      </span>
+                    )}
                   </div>
-                )}
+                  <button
+                    className="btn btn-secondary"
+                    style={{ minHeight: 32, padding: '0 var(--space-3)', fontSize: 'var(--text-xs)' }}
+                    onClick={() => setAjusteModal(p)}
+                  >
+                    Ajustar stock
+                  </button>
+                </div>
               </motion.div>
             );
           })
         )}
       </div>
+
+      <AjusteStockModal
+        open={!!ajusteModal}
+        producto={ajusteModal}
+        onClose={() => setAjusteModal(null)}
+        onAjustar={handleAjuste}
+      />
 
       <ConfirmModal
         open={!!confirmDel}

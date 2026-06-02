@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { formatCurrency, formatDate, saldoCliente } from '../../lib/utils.js';
 import { ConfirmModal } from '../shared/Modal.jsx';
+import { generarRemito, compartirRemito } from '../../lib/generarRemito.js';
+import { CuentaCorriente } from './CuentaCorriente.jsx';
 
 const SvgCard = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
@@ -29,10 +31,23 @@ function MedioPill({ medio, cuotas }) {
   return <span className="medio-pill">{medio}</span>;
 }
 
-export function ClienteDetail({ cliente, pedidos, onBack, onEdit, onDelete, onNuevoPedido }) {
+export function ClienteDetail({ cliente, pedidos, onBack, onEdit, onDelete, onNuevoPedido, negocio }) {
   const [confirmDel, setConfirmDel] = useState(false);
+  const [verCuenta, setVerCuenta] = useState(false);
+  const [generandoRemito, setGenerandoRemito] = useState(null); // pedidoId
 
   if (!cliente) return null;
+
+  if (verCuenta) {
+    return (
+      <CuentaCorriente
+        cliente={cliente}
+        pedidos={pedidos}
+        onBack={() => setVerCuenta(false)}
+      />
+    );
+  }
+
   const clientePedidos = pedidos
     .filter(p => p.clienteId === cliente.id)
     .sort((a, b) => b.fecha.localeCompare(a.fecha));
@@ -45,6 +60,22 @@ export function ClienteDetail({ cliente, pedidos, onBack, onEdit, onDelete, onNu
       `https://wa.me/${num ? '54' + num : ''}?text=${encodeURIComponent(msg)}`,
       '_blank'
     );
+  }
+
+  async function handleGenerarRemito(pedido) {
+    setGenerandoRemito(pedido.id);
+    try {
+      const dataUrl = await generarRemito({
+        pedido,
+        cliente,
+        negocio: negocio || 'Mi Negocio',
+      });
+      await compartirRemito(dataUrl, cliente.nombre);
+    } catch (e) {
+      console.error('Error generando remito:', e);
+    } finally {
+      setGenerandoRemito(null);
+    }
   }
 
   return (
@@ -94,6 +125,20 @@ export function ClienteDetail({ cliente, pedidos, onBack, onEdit, onDelete, onNu
           </svg>
           WhatsApp
         </button>
+        <button
+          className="btn btn-secondary"
+          style={{ gap: 'var(--space-2)' }}
+          onClick={() => setVerCuenta(true)}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+            <polyline points="10 9 9 9 8 9" />
+          </svg>
+          Cuenta
+        </button>
       </div>
 
       <div className="section-label">Historial de pedidos</div>
@@ -105,19 +150,39 @@ export function ClienteDetail({ cliente, pedidos, onBack, onEdit, onDelete, onNu
             <div key={p.id} className="card">
               <div className="card-row">
                 <span className="card-sub">{formatDate(p.fecha)}</span>
-                <MedioPill medio={p.medioPago} cuotas={p.cuotas} />
-                <span className={`badge ${p.cobrado ? 'badge-ok' : 'badge-warn'}`}>
-                  {p.cobrado ? 'Cobrado' : 'Pendiente'}
-                </span>
+                {p.tipo === 'presupuesto'
+                  ? <span className="badge badge-info">Presupuesto</span>
+                  : <MedioPill medio={p.medioPago} cuotas={p.cuotas} />
+                }
+                {p.tipo !== 'presupuesto' && (
+                  <span className={`badge ${p.cobrado ? 'badge-ok' : 'badge-warn'}`}>
+                    {p.cobrado ? 'Cobrado' : 'Pendiente'}
+                  </span>
+                )}
               </div>
               <div className="card-row">
                 <span className="card-sub" style={{ flex: 1 }}>
                   {p.items.map(i => `${i.nombre} x${i.cantidad}`).join(' · ')}
                 </span>
-                <span className={`card-amount ${p.cobrado ? 'amount-paid' : 'amount-debt'}`}>
+                <span className={`card-amount ${p.tipo === 'presupuesto' ? 'amount-neutral' : (p.cobrado ? 'amount-paid' : 'amount-debt')}`}>
                   {formatCurrency(p.totalFinal)}
                 </span>
               </div>
+              {p.tipo !== 'presupuesto' && (
+                <button
+                  className="btn btn-secondary"
+                  style={{ minHeight: 36, fontSize: 'var(--text-sm)', gap: 'var(--space-2)' }}
+                  onClick={() => handleGenerarRemito(p)}
+                  disabled={generandoRemito === p.id}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+                    <polyline points="16 6 12 2 8 6" />
+                    <line x1="12" y1="2" x2="12" y2="15" />
+                  </svg>
+                  {generandoRemito === p.id ? 'Generando...' : 'Remito'}
+                </button>
+              )}
             </div>
           ))
         )}

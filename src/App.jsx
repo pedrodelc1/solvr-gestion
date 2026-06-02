@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from './lib/supabase.js';
 import {
@@ -9,8 +9,10 @@ import {
   getCategorias,
   procesarCuotasVencidas,
   isOwnerEmail,
+  getSuscripcion, crearSuscripcionTrial,
+  getAlertasConfig,
 } from './lib/db.js';
-import { inRange } from './lib/utils.js';
+import { inRange, saldoCliente } from './lib/utils.js';
 
 import { LoginScreen } from './components/auth/LoginScreen.jsx';
 import { SplashScreen } from './components/auth/SplashScreen.jsx';
@@ -28,6 +30,7 @@ import { ProductosList } from './components/productos/ProductosList.jsx';
 import { ProductoForm } from './components/productos/ProductoForm.jsx';
 import { PerfilPanel } from './components/perfil/PerfilPanel.jsx';
 import { SkeletonLoader } from './components/shared/SkeletonLoader.jsx';
+import { SuscripcionBlocker } from './components/suscripciones/SuscripcionBlocker.jsx';
 
 let _toastId = 0;
 
@@ -44,6 +47,8 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   const [isOwner, setIsOwner] = useState(false);
+  const [suscripcion, setSuscripcion] = useState(null);
+  const [diasSinCobro, setDiasSinCobro] = useState(7);
   const [activeTab, setActiveTab] = useState('clientes');
   const [toasts, setToasts] = useState([]);
 
@@ -127,6 +132,15 @@ export default function App() {
     if (authChecked && session) {
       loadAll();
       isOwnerEmail(session.user.email).then(setIsOwner);
+      getSuscripcion().then(async sus => {
+        if (!sus) {
+          const nueva = await crearSuscripcionTrial();
+          setSuscripcion(nueva);
+        } else {
+          setSuscripcion(sus);
+        }
+      });
+      getAlertasConfig().then(cfg => setDiasSinCobro(cfg.dias_sin_cobro));
     }
   }, [authChecked, session, loadAll]);
 
@@ -136,6 +150,17 @@ export default function App() {
     setToasts(t => [...t, { id, msg, type }]);
     setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3000);
   }, []);
+
+  const alertCount = useMemo(() => {
+    return clientes.filter(c => {
+      const clientePedidos = pedidos.filter(p => p.clienteId === c.id && !p.cobrado && p.tipo !== 'presupuesto');
+      if (!clientePedidos.length) return false;
+      if (saldoCliente(c.id, pedidos) <= 0) return false;
+      const oldest = clientePedidos.reduce((min, p) => p.fecha < min ? p.fecha : min, clientePedidos[0].fecha);
+      const daysDiff = Math.round((new Date() - new Date(oldest)) / (1000 * 60 * 60 * 24));
+      return daysDiff >= diasSinCobro;
+    }).length;
+  }, [clientes, pedidos, diasSinCobro]);
 
   // ── Handlers ──────────────────────────────────────────────
 
@@ -287,6 +312,11 @@ export default function App() {
     return <SkeletonLoader />;
   }
 
+  const bloqueada = suscripcion && (suscripcion.estado === 'vencida' || suscripcion.estado === 'bloqueada') && !isOwner;
+  if (bloqueada) {
+    return <SuscripcionBlocker suscripcion={suscripcion} onRenovada={() => setSuscripcion(s => ({ ...s, estado: 'activa' }))} />;
+  }
+
   const selectedCliente = clientes.find(c => c.id === selectedClienteId) || null;
 
   const tabVariants = {
@@ -304,6 +334,7 @@ export default function App() {
               key="cliente-detail"
               cliente={selectedCliente}
               pedidos={pedidos}
+              negocio={session?.user?.email?.split('@')[0] || 'Mi Negocio'}
               onBack={() => setSelectedClienteId(null)}
               onEdit={() => { setEditingCliente(selectedCliente); setClienteFormOpen(true); }}
               onDelete={() => handleDeleteCliente(selectedClienteId)}
@@ -351,6 +382,7 @@ export default function App() {
             onUpdate={handleUpdatePedido}
             onDelete={handleDeletePedido}
             onEdit={p => { setEditingPedido(p); setShowPedidoForm(true); }}
+            onRefresh={loadAll}
             toast={toast}
           />
         );
@@ -388,6 +420,7 @@ export default function App() {
             onNew={() => { setEditingProducto(null); setProductoFormOpen(true); }}
             onEdit={p => { setEditingProducto(p); setProductoFormOpen(true); }}
             onDelete={handleDeleteProducto}
+            onStockChange={loadAll}
             toast={toast}
           />
         );
@@ -401,6 +434,7 @@ export default function App() {
             clientes={clientes}
             pedidos={pedidos}
             gastos={gastos}
+            suscripcion={suscripcion}
             toast={toast}
           />
         );
@@ -428,7 +462,7 @@ export default function App() {
         </AnimatePresence>
       </div>
 
-      <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
+      <BottomNav activeTab={activeTab} onTabChange={handleTabChange} alertCount={alertCount} />
 
       <ClienteForm
         open={clienteFormOpen}

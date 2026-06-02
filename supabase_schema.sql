@@ -114,7 +114,70 @@ create policy "categorias_update" on categorias for update using (auth.uid() = u
 create policy "categorias_delete" on categorias for delete using (auth.uid() = user_id);
 
 -- ── Migración para tablas existentes ─────────────────────────────────────────
--- Si ya tenés la tabla pedidos creada, ejecutá esto para agregar la columna cuotas:
 -- alter table pedidos add column if not exists cuotas integer not null default 1;
--- Para actualizar pedidos con medio_pago='fiado' a 'tarjeta':
 -- update pedidos set medio_pago = 'tarjeta' where medio_pago = 'fiado';
+-- alter table pedidos add column if not exists nota text;
+
+-- ── F3: Presupuestos ─────────────────────────────────────
+alter table pedidos add column if not exists tipo text not null default 'pedido';
+
+-- ── F4: Stock básico ──────────────────────────────────────
+alter table productos add column if not exists stock integer not null default 0;
+alter table productos add column if not exists stock_minimo integer not null default 5;
+
+-- ── F2: Alertas de cobro ──────────────────────────────────
+create table if not exists alertas_config (
+  id             uuid primary key default gen_random_uuid(),
+  user_id        uuid not null references auth.users(id) on delete cascade unique,
+  dias_sin_cobro integer not null default 7,
+  created_at     timestamptz default now()
+);
+
+alter table alertas_config enable row level security;
+
+create policy "alertas_config_select" on alertas_config for select using (auth.uid() = user_id);
+create policy "alertas_config_insert" on alertas_config for insert with check (auth.uid() = user_id);
+create policy "alertas_config_update" on alertas_config for update using (auth.uid() = user_id);
+create policy "alertas_config_delete" on alertas_config for delete using (auth.uid() = user_id);
+
+-- ── F6: Planes y suscripciones ────────────────────────────
+create table if not exists planes (
+  id                uuid primary key default gen_random_uuid(),
+  nombre            text not null,
+  precio_mensual    numeric not null default 0,
+  precio_activacion numeric not null default 0,
+  features          text[] default '{}',
+  activo            boolean default true,
+  created_at        timestamptz default now()
+);
+
+create table if not exists suscripciones (
+  id                uuid primary key default gen_random_uuid(),
+  user_id           uuid not null references auth.users(id) on delete cascade unique,
+  user_email        text,
+  plan_id           uuid references planes(id),
+  estado            text not null default 'activa', -- 'activa' | 'vencida' | 'bloqueada'
+  fecha_inicio      date not null,
+  fecha_vencimiento date not null,
+  mp_preference_id  text,
+  mp_payment_id     text,
+  created_at        timestamptz default now(),
+  updated_at        timestamptz default now()
+);
+
+alter table suscripciones enable row level security;
+
+-- Cada usuario ve su propia suscripción
+create policy "suscripciones_select_own" on suscripciones for select using (auth.uid() = user_id);
+-- Owner ve todas las suscripciones
+create policy "suscripciones_select_owner" on suscripciones for select
+  using (exists (select 1 from allowed_emails where email = (select email from auth.users where id = auth.uid()) and is_owner = true));
+create policy "suscripciones_insert" on suscripciones for insert with check (auth.uid() = user_id);
+create policy "suscripciones_update_own" on suscripciones for update using (auth.uid() = user_id);
+create policy "suscripciones_update_owner" on suscripciones for update
+  using (exists (select 1 from allowed_emails where email = (select email from auth.users where id = auth.uid()) and is_owner = true));
+
+-- Plan base
+insert into planes (nombre, precio_mensual, precio_activacion, features)
+values ('Básico', 4990, 0, array['Clientes ilimitados', 'Pedidos ilimitados', 'Estadísticas', 'Exportar CSV'])
+on conflict do nothing;

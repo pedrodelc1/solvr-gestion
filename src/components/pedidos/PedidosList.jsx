@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { formatCurrency, formatDate } from '../../lib/utils.js';
 import { Modal, ConfirmModal } from '../shared/Modal.jsx';
 import { listItem } from '../../lib/animations.js';
+import { convertirPresupuesto } from '../../lib/db.js';
 
 const SvgCard = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
@@ -34,26 +35,29 @@ const FILTERS = [
   { id: 'all', label: 'Todos' },
   { id: 'pendiente', label: 'Pendientes' },
   { id: 'cobrado', label: 'Cobrados' },
+  { id: 'presupuesto', label: 'Presupuestos' },
   { id: 'efectivo', label: 'Efectivo' },
   { id: 'transferencia', label: 'Transf.' },
   { id: 'tarjeta', label: 'Tarjeta' },
 ];
 
-export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEdit, toast }) {
+export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEdit, onRefresh, toast }) {
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [pagoModal, setPagoModal] = useState(null); // { pedidoId, resta }
   const [pagoMonto, setPagoMonto] = useState('');
   const [confirmDel, setConfirmDel] = useState(null);
+  const [confirmConvertir, setConfirmConvertir] = useState(null);
 
   const filtered = [...pedidos]
     .sort((a, b) => b.fecha.localeCompare(a.fecha))
     .filter(p => {
-      if (filter === 'pendiente')     return !p.cobrado;
+      if (filter === 'pendiente')     return !p.cobrado && p.tipo !== 'presupuesto';
       if (filter === 'cobrado')       return p.cobrado;
-      if (filter === 'efectivo')      return p.medioPago === 'efectivo';
-      if (filter === 'transferencia') return p.medioPago === 'transferencia';
-      if (filter === 'tarjeta')       return p.medioPago === 'tarjeta' || p.medioPago === 'fiado';
+      if (filter === 'presupuesto')   return p.tipo === 'presupuesto';
+      if (filter === 'efectivo')      return p.medioPago === 'efectivo' && p.tipo !== 'presupuesto';
+      if (filter === 'transferencia') return p.medioPago === 'transferencia' && p.tipo !== 'presupuesto';
+      if (filter === 'tarjeta')       return (p.medioPago === 'tarjeta' || p.medioPago === 'fiado') && p.tipo !== 'presupuesto';
       return true;
     })
     .filter(p => !search || getNombre(p.clienteId).toLowerCase().includes(search.toLowerCase()));
@@ -93,6 +97,18 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
     onDelete(id);
     setConfirmDel(null);
     toast('Pedido eliminado');
+  }
+
+  async function handleConvertir(id) {
+    try {
+      await convertirPresupuesto(id);
+      if (onRefresh) onRefresh();
+      toast('Presupuesto convertido a pedido');
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setConfirmConvertir(null);
+    }
   }
 
   return (
@@ -146,8 +162,13 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
             const abonado = p.montoAbonado || 0;
             const resta = total - abonado;
 
+            const esPresupuesto = p.tipo === 'presupuesto';
+
             let estadoBadge, estadoMonto;
-            if (p.cobrado) {
+            if (esPresupuesto) {
+              estadoBadge = <span className="badge badge-info">Presupuesto</span>;
+              estadoMonto = <span className="card-amount amount-neutral">{formatCurrency(total)}</span>;
+            } else if (p.cobrado) {
               estadoBadge = <span className="badge badge-ok">Cobrado</span>;
               estadoMonto = <span className="card-amount amount-paid">{formatCurrency(total)}</span>;
             } else if (abonado > 0) {
@@ -201,7 +222,16 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
                   </div>
                 )}
                 <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-2)', flexWrap: 'wrap' }}>
-                  {!p.cobrado && !(p.medioPago === 'tarjeta' && p.cuotas > 1) && (
+                  {esPresupuesto && (
+                    <button
+                      className="btn btn-primary"
+                      style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-sm)' }}
+                      onClick={() => setConfirmConvertir(p.id)}
+                    >
+                      Convertir a pedido
+                    </button>
+                  )}
+                  {!esPresupuesto && !p.cobrado && !(p.medioPago === 'tarjeta' && p.cuotas > 1) && (
                     <button
                       className="btn btn-secondary"
                       style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-sm)' }}
@@ -210,7 +240,7 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
                       + Pago parcial
                     </button>
                   )}
-                  {!(p.medioPago === 'tarjeta' && p.cuotas > 1 && !p.cobrado) && (
+                  {!esPresupuesto && !(p.medioPago === 'tarjeta' && p.cuotas > 1 && !p.cobrado) && (
                     <button
                       className={`btn ${p.cobrado ? 'btn-secondary' : 'btn-primary'}`}
                       style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-sm)' }}
@@ -286,6 +316,14 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
         message="¿Eliminar este pedido? Esta acción no se puede deshacer."
         onConfirm={() => handleDelete(confirmDel)}
         onCancel={() => setConfirmDel(null)}
+      />
+
+      <ConfirmModal
+        open={!!confirmConvertir}
+        title="Convertir a pedido"
+        message="¿Convertir este presupuesto en pedido real? Esto descontará stock y afectará el saldo del cliente. La acción es irreversible."
+        onConfirm={() => handleConvertir(confirmConvertir)}
+        onCancel={() => setConfirmConvertir(null)}
       />
     </>
   );

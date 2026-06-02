@@ -54,7 +54,7 @@ export function uid() {
 
 export function saldoCliente(clienteId, pedidos) {
   return pedidos
-    .filter(p => p.clienteId === clienteId && !p.cobrado)
+    .filter(p => p.clienteId === clienteId && !p.cobrado && p.tipo !== 'presupuesto')
     .reduce((s, p) => s + (p.totalFinal ?? p.totalCalculado) - (p.montoAbonado || 0), 0);
 }
 

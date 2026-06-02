@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../lib/supabase.js';
-import { isEmailAllowed } from '../../lib/db.js';
 import './LoginScreen.css';
 
 export function LoginScreen() {
@@ -15,12 +14,6 @@ export function LoginScreen() {
     if (!email.trim()) return;
     setLoading(true);
     setError('');
-    const allowed = await isEmailAllowed(email.trim());
-    if (!allowed) {
-      setLoading(false);
-      setError('Este email no tiene acceso. Pedíselo al administrador.');
-      return;
-    }
     const { error: err } = await supabase.auth.signInWithOtp({
       email: email.trim(),
       options: { emailRedirectTo: window.location.origin },

@@ -186,6 +186,7 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
   const [medioPago, setMedioPago] = useState(existing?.medioPago || 'efectivo');
   const [cuotas, setCuotas] = useState(existing?.cuotas || 1);
   const [interes, setInteres] = useState('');
+  const [tipo, setTipo] = useState(existing?.tipo || 'pedido');
   const [cobrado, setCobrado] = useState(existing?.cobrado || false);
   const [finalManual, setFinalManual] = useState(existing ? true : false);
   const [totalFinalVal, setTotalFinalVal] = useState(existing?.totalFinal ? String(existing.totalFinal) : '');
@@ -330,9 +331,11 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
       totalFinal,
       medioPago,
       cuotas: medioPago === 'tarjeta' ? cuotas : 1,
-      cobrado: efectivoCobrado,
-      montoAbonado: efectivoCobrado ? totalFinal : (existing?.montoAbonado || 0),
+      // Los presupuestos nunca quedan cobrados
+      cobrado: tipo === 'presupuesto' ? false : efectivoCobrado,
+      montoAbonado: tipo === 'presupuesto' ? 0 : (efectivoCobrado ? totalFinal : (existing?.montoAbonado || 0)),
       nota: nota.trim() || null,
+      tipo,
     };
 
     onSave(pedido);
@@ -350,6 +353,30 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
       </div>
 
       <div className="form-wrap" style={{ paddingBottom: 'var(--space-8)' }}>
+        {/* Tipo: pedido o presupuesto */}
+        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+          <button
+            type="button"
+            className={`filter-chip${tipo === 'pedido' ? ' active' : ''}`}
+            style={{ flex: 1, minHeight: 44 }}
+            onClick={() => setTipo('pedido')}
+          >
+            Pedido
+          </button>
+          <button
+            type="button"
+            className={`filter-chip${tipo === 'presupuesto' ? ' active' : ''}`}
+            style={{ flex: 1, minHeight: 44 }}
+            onClick={() => setTipo('presupuesto')}
+          >
+            Presupuesto
+          </button>
+        </div>
+        {tipo === 'presupuesto' && (
+          <div style={{ background: 'var(--tarjeta-bg)', border: '1px solid var(--tarjeta)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--text-sm)', color: 'var(--tarjeta)' }}>
+            No descuenta stock ni afecta el saldo del cliente hasta que se convierta en pedido.
+          </div>
+        )}
         <div className="form-group">
           <label htmlFor="pf-cliente">Cliente</label>
           <select id="pf-cliente" value={clienteId} onChange={e => setClienteId(e.target.value)}>

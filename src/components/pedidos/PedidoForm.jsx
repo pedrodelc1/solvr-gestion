@@ -50,17 +50,21 @@ function NewProductInline({ onCreated, onCancel, toast }) {
 }
 
 // ── Single item row — supports catalog and manual mode ──────────────────────
-function ItemRow({ item, idx, productos, onChangeProducto, onChangeCantidad, onDelete, canDelete, onNewProductCreated, onChangeManual, toast }) {
+function ItemRow({ item, idx, productos, tipoPrecio, onChangeProducto, onChangeCantidad, onDelete, canDelete, onNewProductCreated, onChangeManual, toast }) {
   const isCatalog = item.mode === 'catalog';
 
-  // For catalog mode
+  // For catalog mode — usa precio mayorista si corresponde
   const prod = isCatalog ? productos.find(p => p.id === item.productoId) : null;
-  const catalogSubtotal = prod ? prod.precio * (item.cantidad || 0) : 0;
+  const precioEfectivo = prod
+    ? (tipoPrecio === 'mayorista' && prod.precio_mayorista > 0 ? prod.precio_mayorista : prod.precio)
+    : 0;
+  const catalogSubtotal = prod ? precioEfectivo * (item.cantidad || 0) : 0;
 
   // For manual mode
   const manualSubtotal = !isCatalog ? (parseFloat(item.manualPrecio) || 0) * (item.cantidad || 0) : 0;
 
   const subtotal = isCatalog ? catalogSubtotal : manualSubtotal;
+  // eslint-disable-next-line no-unused-vars
 
   function setMode(mode) {
     onChangeManual(idx, { mode, productoId: '', manualNombre: '', manualPrecio: '', cantidad: item.cantidad, _creatingNew: false });
@@ -94,7 +98,9 @@ function ItemRow({ item, idx, productos, onChangeProducto, onChangeCantidad, onD
           >
             <option value="">Seleccionar...</option>
             {productos.map(p => (
-              <option key={p.id} value={p.id}>{p.nombre}</option>
+              <option key={p.id} value={p.id}>
+                {p.nombre}{tipoPrecio === 'mayorista' && p.precio_mayorista > 0 ? ' (may.)' : ''}
+              </option>
             ))}
             <option value="__new__">+ Crear producto...</option>
           </select>
@@ -191,6 +197,11 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
   const [finalManual, setFinalManual] = useState(existing ? true : false);
   const [totalFinalVal, setTotalFinalVal] = useState(existing?.totalFinal ? String(existing.totalFinal) : '');
   const [nota, setNota] = useState(existing?.nota || '');
+  const [descuentoHab, setDescuentoHab] = useState(!!(existing?.descuentoTipo));
+  const [descuentoTipo, setDescuentoTipo] = useState(existing?.descuentoTipo || 'porcentaje');
+  const [descuentoVal, setDescuentoVal] = useState(existing?.descuentoValor ? String(existing.descuentoValor) : '');
+
+  const tipoPrecio = clientes.find(c => c.id === clienteId)?.tipo_precio || 'minorista';
   const [items, setItems] = useState(
     existing?.items?.length
       ? existing.items.map(i => ({
@@ -228,6 +239,8 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
   }
 
   const getProd = (id) => productos.find(p => p.id === id);
+  const getPrecioEfectivo = (prod) =>
+    prod ? (tipoPrecio === 'mayorista' && prod.precio_mayorista > 0 ? prod.precio_mayorista : prod.precio) : 0;
 
   const esTarjeta = medioPago === 'tarjeta';
   const efectivoCobrado = esTarjeta ? false : cobrado;
@@ -237,11 +250,18 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
   const totalCalculado = items.reduce((s, item) => {
     if (item.mode === 'catalog') {
       const p = getProd(item.productoId);
-      return s + (p ? p.precio * (item.cantidad || 0) : 0);
+      return s + (p ? getPrecioEfectivo(p) * (item.cantidad || 0) : 0);
     } else {
       return s + (parseFloat(item.manualPrecio) || 0) * (item.cantidad || 0);
     }
   }, 0);
+
+  const descuentoMonto = descuentoHab
+    ? (descuentoTipo === 'porcentaje'
+      ? totalCalculado * (parseFloat(descuentoVal) || 0) / 100
+      : parseFloat(descuentoVal) || 0)
+    : 0;
+  const totalConDescuento = Math.max(0, totalCalculado - descuentoMonto);
 
   function handleChangeProducto(idx, value) {
     setItems(items.map((it, i) => {
@@ -298,7 +318,7 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
 
     if (!validItems.length) { toast('Agregá al menos un ítem válido', 'error'); return; }
 
-    const totalConInteres = totalCalculado * (1 + pctInteres / 100);
+    const totalConInteres = totalConDescuento * (1 + pctInteres / 100);
     const totalFinal = finalManual && totalFinalVal !== '' ? parseFloat(totalFinalVal) : totalConInteres;
 
     const pedidoItems = validItems.map(item => {
@@ -308,7 +328,7 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
           productoId: item.productoId,
           nombre: p.nombre,
           cantidad: item.cantidad,
-          precioUnitario: p.precio,
+          precioUnitario: getPrecioEfectivo(p),
           costoUnitario: p.costo || 0,
         };
       } else {
@@ -336,6 +356,8 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
       montoAbonado: tipo === 'presupuesto' ? 0 : (efectivoCobrado ? totalFinal : (existing?.montoAbonado || 0)),
       nota: nota.trim() || null,
       tipo,
+      descuentoTipo: descuentoHab ? descuentoTipo : null,
+      descuentoValor: descuentoHab ? (parseFloat(descuentoVal) || 0) : 0,
     };
 
     onSave(pedido);
@@ -381,10 +403,15 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
           <label htmlFor="pf-cliente">Cliente</label>
           <select id="pf-cliente" value={clienteId} onChange={e => setClienteId(e.target.value)}>
             {clientes.map(c => (
-              <option key={c.id} value={c.id}>{c.nombre}</option>
+              <option key={c.id} value={c.id}>{c.nombre}{c.tipo_precio === 'mayorista' ? ' ★' : ''}</option>
             ))}
           </select>
         </div>
+        {tipoPrecio === 'mayorista' && (
+          <div style={{ background: 'rgba(204,255,0,0.08)', border: '1px solid rgba(204,255,0,0.3)', borderRadius: 'var(--radius-md)', padding: 'var(--space-2) var(--space-3)', fontSize: 'var(--text-xs)', color: 'var(--primary)', fontWeight: 600 }}>
+            ★ Cliente mayorista — se aplican precios mayoristas automáticamente
+          </div>
+        )}
 
         <div className="form-row">
           <div className="form-group">
@@ -453,6 +480,7 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
                 item={item}
                 idx={idx}
                 productos={productos}
+                tipoPrecio={tipoPrecio}
                 onChangeProducto={handleChangeProducto}
                 onChangeCantidad={handleChangeCantidad}
                 onDelete={handleDeleteItem}
@@ -480,27 +508,67 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
           </div>
         )}
 
-        <div className="form-row">
-          <div className="form-group">
-            <label>Subtotal</label>
-            <input
-              type="text"
-              value={formatCurrency(totalCalculado)}
-              readOnly
-              style={{ color: 'var(--ink-3)' }}
-            />
+        {/* Descuento opcional */}
+        <div>
+          <div className="toggle-row" style={{ marginBottom: descuentoHab ? 'var(--space-3)' : 0 }}>
+            <label>Aplicar descuento</label>
+            <div className="toggle">
+              <input type="checkbox" id="pf-descuento" checked={descuentoHab} onChange={e => setDescuentoHab(e.target.checked)} />
+              <span className="toggle-track" onClick={() => setDescuentoHab(v => !v)} />
+            </div>
           </div>
-          <div className="form-group">
-            <label htmlFor="pf-final">Total final ($){pctInteres > 0 && <span style={{ color: 'var(--ink-3)', fontWeight: 400, fontSize: 'var(--text-xs)' }}> con interés</span>}</label>
-            <input
-              id="pf-final"
-              type="number"
-              placeholder={String(Math.round((totalCalculado * (1 + pctInteres / 100)) * 100) / 100)}
-              min="0"
-              value={totalFinalVal}
-              onChange={e => { setTotalFinalVal(e.target.value); setFinalManual(true); }}
-            />
+          {descuentoHab && (
+            <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+              <select value={descuentoTipo} onChange={e => setDescuentoTipo(e.target.value)} style={{ flex: '0 0 auto', minHeight: 40, fontSize: 'var(--text-sm)' }}>
+                <option value="porcentaje">%</option>
+                <option value="monto_fijo">$ fijo</option>
+              </select>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder={descuentoTipo === 'porcentaje' ? '10' : '500'}
+                value={descuentoVal}
+                onChange={e => { setDescuentoVal(e.target.value); setFinalManual(false); setTotalFinalVal(''); }}
+                style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-sm)' }}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Desglose de precios */}
+        <div style={{ background: 'var(--bg-3)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3) var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-sm)', color: 'var(--ink-3)' }}>
+            <span>Subtotal</span><span>{formatCurrency(totalCalculado)}</span>
           </div>
+          {descuentoMonto > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-sm)', color: 'var(--danger)' }}>
+              <span>Descuento{descuentoTipo === 'porcentaje' ? ` (${descuentoVal}%)` : ''}</span>
+              <span>−{formatCurrency(descuentoMonto)}</span>
+            </div>
+          )}
+          {pctInteres > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>
+              <span>Recargo {pctInteres}%</span>
+              <span>+{formatCurrency(totalConDescuento * pctInteres / 100)}</span>
+            </div>
+          )}
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-base)', fontWeight: 800, color: 'var(--ink)', borderTop: '1px solid var(--border)', paddingTop: 'var(--space-2)' }}>
+            <span>Total</span>
+            <span>{formatCurrency(finalManual && totalFinalVal !== '' ? parseFloat(totalFinalVal) || 0 : totalConDescuento * (1 + pctInteres / 100))}</span>
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="pf-final">Ajustar total final <span style={{ color: 'var(--ink-3)', fontWeight: 400, fontSize: 'var(--text-xs)' }}>(opcional)</span></label>
+          <input
+            id="pf-final"
+            type="number"
+            placeholder={String(Math.round(totalConDescuento * (1 + pctInteres / 100) * 100) / 100)}
+            min="0"
+            value={totalFinalVal}
+            onChange={e => { setTotalFinalVal(e.target.value); setFinalManual(true); }}
+          />
         </div>
 
         <div className="form-group">

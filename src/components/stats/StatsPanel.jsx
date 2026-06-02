@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatCurrency, getRange, inRange, saldoCliente } from '../../lib/utils.js';
 import { ChartCategorias } from './ChartCategorias.jsx';
@@ -55,7 +55,7 @@ function AnimatedStatCard({ label, value, className, full }) {
   );
 }
 
-export function StatsPanel({ pedidos, gastos, clientes, productos, categorias, onExportCSV }) {
+export function StatsPanel({ pedidos, gastos, clientes, productos, devoluciones = [], categorias, onExportCSV }) {
   const [period, setPeriod] = useState('current');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
@@ -133,8 +133,42 @@ export function StatsPanel({ pedidos, gastos, clientes, productos, categorias, o
     : filteredPedidos.filter(p => !p.cobrado && (p.medioPago === 'tarjeta' || p.medioPago === 'fiado')).reduce((s, p) => s + p.totalFinal, 0);
 
   const saldoGlobal = statCliente === 'all'
-    ? clientes.reduce((s, c) => s + saldoCliente(c.id, pedidos), 0)
-    : saldoCliente(statCliente, pedidos);
+    ? clientes.reduce((s, c) => s + saldoCliente(c.id, pedidos, devoluciones), 0)
+    : saldoCliente(statCliente, pedidos, devoluciones);
+
+  // F4.2 — Proyección de cobros: pendientes agrupados por semana
+  const proyeccion = useMemo(() => {
+    const pendientes = pedidos.filter(p => !p.cobrado && p.tipo !== 'presupuesto');
+    const hoy = new Date();
+    const grupos = {};
+    pendientes.forEach(p => {
+      const d = new Date(p.fecha + 'T00:00:00');
+      const diff = Math.ceil((d - hoy) / (1000 * 60 * 60 * 24));
+      const key = diff <= 0 ? 'Vencido' : diff <= 7 ? 'Esta semana' : diff <= 14 ? 'Próxima semana' : 'Más de 15 días';
+      if (!grupos[key]) grupos[key] = 0;
+      grupos[key] += p.totalFinal;
+    });
+    const order = ['Vencido', 'Esta semana', 'Próxima semana', 'Más de 15 días'];
+    return order.filter(k => grupos[k]).map(k => ({ label: k, monto: grupos[k] }));
+  }, [pedidos]);
+
+  // F4.3 — Rentabilidad por producto
+  const rentabilidad = useMemo(() => {
+    const map = {};
+    filteredPedidos.filter(p => p.cobrado).forEach(p => {
+      p.items.forEach(item => {
+        const prodId = item.productoId || item.nombre;
+        if (!map[prodId]) map[prodId] = { nombre: item.nombre, ingresos: 0, costo: 0, unidades: 0 };
+        const costo = item.costoUnitario ?? (productos.find(pr => pr.id === item.productoId)?.costo || 0);
+        map[prodId].ingresos += item.precioUnitario * item.cantidad;
+        map[prodId].costo += costo * item.cantidad;
+        map[prodId].unidades += item.cantidad;
+      });
+    });
+    return Object.values(map)
+      .map(r => ({ ...r, ganancia: r.ingresos - r.costo, margen: r.ingresos > 0 ? ((r.ingresos - r.costo) / r.ingresos) * 100 : 0 }))
+      .sort((a, b) => b.ganancia - a.ganancia);
+  }, [filteredPedidos, productos]);
 
   const catData = categorias
     .map(cat => ({ cat, total: filteredGastos.filter(g => g.categoria === cat).reduce((s, g) => s + g.monto, 0) }))
@@ -347,6 +381,46 @@ export function StatsPanel({ pedidos, gastos, clientes, productos, categorias, o
             <>
               <div className="section-label">Gastos por categoría</div>
               <ChartCategorias data={catData} />
+            </>
+          )}
+
+          {!byProd && proyeccion.length > 0 && (
+            <>
+              <div className="section-label">Proyección de cobros pendientes</div>
+              <div className="list-section">
+                {proyeccion.map(g => (
+                  <div key={g.label} className="card">
+                    <div className="card-row">
+                      <span style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>{g.label}</span>
+                      <span style={{ fontWeight: 800, color: g.label === 'Vencido' ? 'var(--danger)' : 'var(--ink)', fontSize: 'var(--text-sm)' }}>
+                        {formatCurrency(g.monto)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {!byProd && rentabilidad.length > 0 && (
+            <>
+              <div className="section-label">Rentabilidad por producto</div>
+              <div className="list-section">
+                {rentabilidad.map(r => (
+                  <div key={r.nombre} className="card">
+                    <div className="card-row">
+                      <span style={{ fontWeight: 600, fontSize: 'var(--text-sm)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.nombre}</span>
+                      <span style={{ fontWeight: 800, fontSize: 'var(--text-sm)', color: r.ganancia >= 0 ? 'var(--success)' : 'var(--danger)', flexShrink: 0 }}>
+                        {formatCurrency(r.ganancia)}
+                      </span>
+                    </div>
+                    <div className="card-row">
+                      <span className="card-sub">{r.unidades} uds · {formatCurrency(r.ingresos)} ingresos</span>
+                      <span className="card-sub">{r.margen.toFixed(1)}% margen</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </>
           )}
         </>

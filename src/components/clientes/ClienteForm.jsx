@@ -4,12 +4,13 @@ import { Modal } from '../shared/Modal.jsx';
 export function ClienteForm({ open, existing, onSave, onClose }) {
   const [nombre, setNombre] = useState(existing?.nombre || '');
   const [contacto, setContacto] = useState(existing?.contacto || '');
+  const [tipoPrecio, setTipoPrecio] = useState(existing?.tipo_precio || 'minorista');
   const [error, setError] = useState('');
 
-  // Reset when modal opens
   function handleOpen() {
     setNombre(existing?.nombre || '');
     setContacto(existing?.contacto || '');
+    setTipoPrecio(existing?.tipo_precio || 'minorista');
     setError('');
   }
 
@@ -18,7 +19,7 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
       setError('El nombre es obligatorio');
       return;
     }
-    onSave({ ...existing, nombre: nombre.trim(), contacto: contacto.trim() });
+    onSave({ ...existing, nombre: nombre.trim(), contacto: contacto.trim(), tipo_precio: tipoPrecio });
   }
 
   return (
@@ -51,6 +52,27 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
                 value={contacto}
                 onChange={e => setContacto(e.target.value)}
               />
+            </div>
+            <div className="form-group">
+              <label>Tipo de precio</label>
+              <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                <button
+                  type="button"
+                  className={`filter-chip${tipoPrecio === 'minorista' ? ' active' : ''}`}
+                  style={{ flex: 1, minHeight: 40 }}
+                  onClick={() => setTipoPrecio('minorista')}
+                >
+                  Minorista
+                </button>
+                <button
+                  type="button"
+                  className={`filter-chip${tipoPrecio === 'mayorista' ? ' active' : ''}`}
+                  style={{ flex: 1, minHeight: 40 }}
+                  onClick={() => setTipoPrecio('mayorista')}
+                >
+                  Mayorista
+                </button>
+              </div>
             </div>
             {error && <p style={{ color: 'var(--color-danger)', fontSize: 'var(--text-sm)' }}>{error}</p>}
           </div>

@@ -11,6 +11,9 @@ import {
   isOwnerEmail,
   getSuscripcion, crearSuscripcionTrial,
   getAlertasConfig,
+  getDevoluciones,
+  getNegocioConfig, saveNegocioConfig,
+  getComunicaciones,
 } from './lib/db.js';
 import { inRange, saldoCliente } from './lib/utils.js';
 
@@ -29,8 +32,11 @@ import { StatsPanel } from './components/stats/StatsPanel.jsx';
 import { ProductosList } from './components/productos/ProductosList.jsx';
 import { ProductoForm } from './components/productos/ProductoForm.jsx';
 import { PerfilPanel } from './components/perfil/PerfilPanel.jsx';
+import { CajaPanel } from './components/caja/CajaPanel.jsx';
 import { SkeletonLoader } from './components/shared/SkeletonLoader.jsx';
 import { SuscripcionBlocker } from './components/suscripciones/SuscripcionBlocker.jsx';
+import { TrialBanner } from './components/shared/TrialBanner.jsx';
+import { OnboardingWizard } from './components/onboarding/OnboardingWizard.jsx';
 
 let _toastId = 0;
 
@@ -44,11 +50,14 @@ export default function App() {
   const [pedidos, setPedidos] = useState([]);
   const [gastos, setGastos] = useState([]);
   const [categorias, setCategorias] = useState([]);
+  const [devoluciones, setDevoluciones] = useState([]);
+  const [comunicaciones, setComunicaciones] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [isOwner, setIsOwner] = useState(false);
   const [suscripcion, setSuscripcion] = useState(null);
   const [diasSinCobro, setDiasSinCobro] = useState(7);
+  const [negocioConfig, setNegocioConfig] = useState(null);
   const [activeTab, setActiveTab] = useState('clientes');
   const [toasts, setToasts] = useState([]);
 
@@ -76,6 +85,7 @@ export default function App() {
     gastos: 'Gastos — Solvr',
     stats: 'Estadísticas — Solvr',
     productos: 'Catálogo — Solvr',
+    caja: 'Caja — Solvr',
     perfil: 'Perfil — Solvr',
   };
   useEffect(() => {
@@ -96,20 +106,20 @@ export default function App() {
   }, []);
 
   // ── Load data ─────────────────────────────────────────────
-  const cuotasCheckedRef = { current: false };
-
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [c, pr, pe, g, cats] = await Promise.all([
+      const [c, pr, pe, g, cats, devs, coms] = await Promise.all([
         getClientes(), getProductos(), getPedidos(), getGastos(), getCategorias(),
+        getDevoluciones(), getComunicaciones(),
       ]);
       setClientes(c);
       setProductos(pr);
       setGastos(g);
       setCategorias(cats);
+      setDevoluciones(devs);
+      setComunicaciones(coms);
 
-      // Procesar cuotas vencidas y guardar clientes para los toasts
       const { pedidos: peActualizados, procesados } = await procesarCuotasVencidas(pe);
       setPedidos(peActualizados);
       if (procesados.length) {
@@ -141,6 +151,7 @@ export default function App() {
         }
       });
       getAlertasConfig().then(cfg => setDiasSinCobro(cfg.dias_sin_cobro));
+      getNegocioConfig().then(setNegocioConfig);
     }
   }, [authChecked, session, loadAll]);
 
@@ -155,12 +166,12 @@ export default function App() {
     return clientes.filter(c => {
       const clientePedidos = pedidos.filter(p => p.clienteId === c.id && !p.cobrado && p.tipo !== 'presupuesto');
       if (!clientePedidos.length) return false;
-      if (saldoCliente(c.id, pedidos) <= 0) return false;
+      if (saldoCliente(c.id, pedidos, devoluciones) <= 0) return false;
       const oldest = clientePedidos.reduce((min, p) => p.fecha < min ? p.fecha : min, clientePedidos[0].fecha);
       const daysDiff = Math.round((new Date() - new Date(oldest)) / (1000 * 60 * 60 * 24));
       return daysDiff >= diasSinCobro;
     }).length;
-  }, [clientes, pedidos, diasSinCobro]);
+  }, [clientes, pedidos, devoluciones, diasSinCobro]);
 
   // ── Handlers ──────────────────────────────────────────────
 
@@ -217,7 +228,7 @@ export default function App() {
     try {
       const arr = await saveProducto({ nombre: newProd.nombre, precio: newProd.precio, costo: newProd.costo || 0 });
       setProductos(arr);
-    } catch (_) { /* inline creation already applied locally */ }
+    } catch (_) {}
   }
 
   async function handleSaveGasto(data) {
@@ -317,7 +328,10 @@ export default function App() {
     return <SuscripcionBlocker suscripcion={suscripcion} onRenovada={() => setSuscripcion(s => ({ ...s, estado: 'activa' }))} />;
   }
 
+  const showOnboarding = negocioConfig !== null && !negocioConfig.onboarding_done;
+
   const selectedCliente = clientes.find(c => c.id === selectedClienteId) || null;
+  const negocioNombre = negocioConfig?.nombre || session?.user?.email?.split('@')[0] || 'Mi Negocio';
 
   const tabVariants = {
     initial: { opacity: 0, x: 20 },
@@ -334,7 +348,9 @@ export default function App() {
               key="cliente-detail"
               cliente={selectedCliente}
               pedidos={pedidos}
-              negocio={session?.user?.email?.split('@')[0] || 'Mi Negocio'}
+              devoluciones={devoluciones}
+              comunicaciones={comunicaciones}
+              negocio={negocioNombre}
               onBack={() => setSelectedClienteId(null)}
               onEdit={() => { setEditingCliente(selectedCliente); setClienteFormOpen(true); }}
               onDelete={() => handleDeleteCliente(selectedClienteId)}
@@ -344,6 +360,8 @@ export default function App() {
                 setActiveTab('pedidos');
                 setTimeout(() => setShowPedidoForm(true), 60);
               }}
+              onRefresh={loadAll}
+              toast={toast}
             />
           );
         }
@@ -352,8 +370,11 @@ export default function App() {
             key="clientes-list"
             clientes={clientes}
             pedidos={pedidos}
+            devoluciones={devoluciones}
             onSelect={id => setSelectedClienteId(id)}
             onNew={() => { setEditingCliente(null); setClienteFormOpen(true); }}
+            onRefresh={loadAll}
+            toast={toast}
           />
         );
 
@@ -407,6 +428,7 @@ export default function App() {
             gastos={gastos}
             clientes={clientes}
             productos={productos}
+            devoluciones={devoluciones}
             categorias={categorias}
             onExportCSV={handleExportCSV}
           />
@@ -422,6 +444,16 @@ export default function App() {
             onDelete={handleDeleteProducto}
             onStockChange={loadAll}
             toast={toast}
+          />
+        );
+
+      case 'caja':
+        return (
+          <CajaPanel
+            key="caja-panel"
+            pedidos={pedidos}
+            gastos={gastos}
+            clientes={clientes}
           />
         );
 
@@ -444,8 +476,16 @@ export default function App() {
     }
   }
 
+  const diasTrial = suscripcion?.estado === 'prueba'
+    ? Math.round((new Date(suscripcion.fecha_vencimiento) - new Date()) / (1000 * 60 * 60 * 24))
+    : null;
+
   return (
     <div className="app-shell">
+      {suscripcion?.estado === 'prueba' && diasTrial !== null && diasTrial >= 0 && (
+        <TrialBanner dias={diasTrial} onUpgrade={() => setActiveTab('perfil')} />
+      )}
+
       <div className="tab-content">
         <AnimatePresence mode="wait">
           <motion.div
@@ -484,6 +524,20 @@ export default function App() {
         onSave={handleSaveProducto}
         onClose={() => { setProductoFormOpen(false); setEditingProducto(null); }}
       />
+
+      {showOnboarding && (
+        <OnboardingWizard
+          session={session}
+          clientes={clientes}
+          productos={productos}
+          onComplete={async () => {
+            const cfg = await getNegocioConfig();
+            setNegocioConfig(cfg);
+            await loadAll();
+          }}
+          toast={toast}
+        />
+      )}
 
       <ToastContainer toasts={toasts} />
     </div>

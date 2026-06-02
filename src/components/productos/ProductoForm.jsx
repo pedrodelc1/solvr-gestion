@@ -5,6 +5,7 @@ export function ProductoForm({ open, existing, onSave, onClose }) {
   const [nombre, setNombre] = useState('');
   const [precio, setPrecio] = useState('');
   const [costo, setCosto] = useState('');
+  const [precioMayorista, setPrecioMayorista] = useState('');
   const [stock, setStock] = useState('0');
   const [stockMinimo, setStockMinimo] = useState('5');
   const [error, setError] = useState('');
@@ -14,6 +15,7 @@ export function ProductoForm({ open, existing, onSave, onClose }) {
       setNombre(existing?.nombre || '');
       setPrecio(existing?.precio != null ? String(existing.precio) : '');
       setCosto(existing?.costo != null ? String(existing.costo) : '');
+      setPrecioMayorista(existing?.precio_mayorista != null ? String(existing.precio_mayorista) : '');
       setStock(existing?.stock != null ? String(existing.stock) : '0');
       setStockMinimo(existing?.stock_minimo != null ? String(existing.stock_minimo) : '5');
       setError('');
@@ -30,6 +32,7 @@ export function ProductoForm({ open, existing, onSave, onClose }) {
       nombre: nombre.trim(),
       precio: parseFloat(precio),
       costo: parseFloat(costo) || 0,
+      precio_mayorista: parseFloat(precioMayorista) || 0,
       stock: parseInt(stock) || 0,
       stock_minimo: parseInt(stockMinimo) || 5,
     });
@@ -58,27 +61,17 @@ export function ProductoForm({ open, existing, onSave, onClose }) {
             </div>
             <div className="form-row">
               <div className="form-group">
-                <label htmlFor="pp-precio">Precio de venta ($)</label>
-                <input
-                  id="pp-precio"
-                  type="number"
-                  placeholder="0"
-                  min="0"
-                  value={precio}
-                  onChange={e => setPrecio(e.target.value)}
-                />
+                <label htmlFor="pp-precio">Precio minorista ($)</label>
+                <input id="pp-precio" type="number" placeholder="0" min="0" value={precio} onChange={e => setPrecio(e.target.value)} />
               </div>
               <div className="form-group">
-                <label htmlFor="pp-costo">Costo unitario ($)</label>
-                <input
-                  id="pp-costo"
-                  type="number"
-                  placeholder="0"
-                  min="0"
-                  value={costo}
-                  onChange={e => setCosto(e.target.value)}
-                />
+                <label htmlFor="pp-mayorista">Precio mayorista ($)</label>
+                <input id="pp-mayorista" type="number" placeholder="0" min="0" value={precioMayorista} onChange={e => setPrecioMayorista(e.target.value)} />
               </div>
+            </div>
+            <div className="form-group">
+              <label htmlFor="pp-costo">Costo unitario ($)</label>
+              <input id="pp-costo" type="number" placeholder="0" min="0" value={costo} onChange={e => setCosto(e.target.value)} />
             </div>
             <div className="form-row">
               <div className="form-group">

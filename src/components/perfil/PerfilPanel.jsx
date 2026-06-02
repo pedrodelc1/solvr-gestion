@@ -269,7 +269,28 @@ export function PerfilPanel({ session, isOwner, clientes, pedidos, gastos, suscr
                 <p style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-3)' }}>Cargando...</p>
               ) : suscripciones.length === 0 ? (
                 <p style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-3)' }}>Sin suscripciones activas.</p>
-              ) : (
+              ) : (() => {
+                const PRECIO_PLAN = 4990;
+                const activas = suscripciones.filter(s => s.estado === 'activa').length;
+                const mrr = activas * PRECIO_PLAN;
+                return (
+                  <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 'var(--space-3)', paddingBottom: 'var(--space-3)', borderBottom: '1px solid var(--border)' }}>
+                    <div style={{ flex: 1, textAlign: 'center' }}>
+                      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>MRR</div>
+                      <div style={{ fontWeight: 800, fontSize: 'var(--text-lg)', color: '#ccff00' }}>{formatCurrency(mrr)}</div>
+                    </div>
+                    <div style={{ flex: 1, textAlign: 'center' }}>
+                      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>Activas</div>
+                      <div style={{ fontWeight: 800, fontSize: 'var(--text-lg)' }}>{activas}</div>
+                    </div>
+                    <div style={{ flex: 1, textAlign: 'center' }}>
+                      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>Total</div>
+                      <div style={{ fontWeight: 800, fontSize: 'var(--text-lg)' }}>{suscripciones.length}</div>
+                    </div>
+                  </div>
+                );
+              })()}
+              {!loadingSus && suscripciones.length > 0 && (
                 suscripciones.map(s => {
                   const dias = Math.round((new Date(s.fecha_vencimiento) - new Date()) / (1000 * 60 * 60 * 24));
                   return (
@@ -278,7 +299,7 @@ export function PerfilPanel({ session, isOwner, clientes, pedidos, gastos, suscr
                         <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                           {s.user_email || s.user_id.slice(0, 8) + '...'}
                         </span>
-                        <span className={`badge ${s.estado === 'activa' ? 'badge-ok' : s.estado === 'vencida' ? 'badge-warn' : 'badge-neutral'}`}>
+                        <span className={`badge ${s.estado === 'activa' ? 'badge-ok' : s.estado === 'prueba' ? 'badge-info' : s.estado === 'vencida' ? 'badge-warn' : 'badge-neutral'}`}>
                           {s.estado}
                         </span>
                       </div>

@@ -42,29 +42,37 @@ export function LoginScreen({ onOfflineMode }) {
     >
       <div className="login-card">
         <div>
-          <div className="login-logo">
+          <motion.div
+            className="login-logo"
+            style={{ display: 'flex', letterSpacing: '-0.04em' }}
+            initial="hidden"
+            animate="visible"
+            variants={{
+              visible: { transition: { staggerChildren: 0.07 } },
+            }}
+          >
             {'Solvr.'.split('').map((char, i) => (
               <motion.span
                 key={i}
-                initial={{ y: -40, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{
-                  delay: i * 0.08,
-                  type: 'spring',
-                  stiffness: 300,
-                  damping: 12,
+                variants={{
+                  hidden: { y: -50, opacity: 0 },
+                  visible: {
+                    y: 0,
+                    opacity: 1,
+                    transition: { type: 'spring', stiffness: 400, damping: 10 },
+                  },
                 }}
                 style={{ display: 'inline-block' }}
               >
                 {char}
               </motion.span>
             ))}
-          </div>
+          </motion.div>
           <motion.div
             className="login-tagline"
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.55, duration: 0.4 }}
+            transition={{ delay: 0.6, duration: 0.4 }}
           >
             Gestión simple para tu negocio.
           </motion.div>

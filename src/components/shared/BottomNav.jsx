@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 
 const TABS = [
@@ -70,9 +70,19 @@ const TABS = [
 
 const TAB_PCT = 100 / TABS.length;
 
+function getDockScale(index, hoveredIndex) {
+  if (hoveredIndex === null) return 1;
+  const dist = Math.abs(index - hoveredIndex);
+  if (dist === 0) return 1.55;
+  if (dist === 1) return 1.22;
+  if (dist === 2) return 1.07;
+  return 1;
+}
+
 export function BottomNav({ activeTab, onTabChange }) {
   const navRef = useRef(null);
   const activeIndex = TABS.findIndex(t => t.id === activeTab);
+  const [hoveredIndex, setHoveredIndex] = useState(null);
 
   function handleDragEnd(_, info) {
     const nav = navRef.current;
@@ -100,16 +110,18 @@ export function BottomNav({ activeTab, onTabChange }) {
         whileDrag={{ cursor: 'grabbing', scale: 1.04 }}
       />
 
-      {TABS.map(tab => (
+      {TABS.map((tab, i) => (
         <motion.button
           key={tab.id}
           className={`nav-btn${activeTab === tab.id ? ' active' : ''}`}
           onClick={() => onTabChange(tab.id)}
           aria-label={tab.label}
-          whileHover={{ scale: 1.12 }}
-          whileTap={{ scale: 0.92 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-          style={{ position: 'relative', zIndex: 1 }}
+          onMouseEnter={() => setHoveredIndex(i)}
+          onMouseLeave={() => setHoveredIndex(null)}
+          animate={{ scale: getDockScale(i, hoveredIndex) }}
+          whileTap={{ scale: 0.88 }}
+          transition={{ type: 'spring', stiffness: 380, damping: 22 }}
+          style={{ position: 'relative', zIndex: 1, originY: 1 }}
         >
           <span style={{ position: 'relative', zIndex: 1, display: 'contents' }}>{tab.icon}</span>
           <span style={{ position: 'relative', zIndex: 1 }}>{tab.label}</span>

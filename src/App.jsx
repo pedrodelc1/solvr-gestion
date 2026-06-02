@@ -26,6 +26,7 @@ import { GastoForm } from './components/gastos/GastoForm.jsx';
 import { StatsPanel } from './components/stats/StatsPanel.jsx';
 import { ProductosList } from './components/productos/ProductosList.jsx';
 import { ProductoForm } from './components/productos/ProductoForm.jsx';
+import { PerfilPanel } from './components/perfil/PerfilPanel.jsx';
 
 const SUPABASE_CONFIGURED = !!(
   import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -372,6 +373,19 @@ export default function App() {
             onNew={() => { setEditingProducto(null); setProductoFormOpen(true); }}
             onEdit={p => { setEditingProducto(p); setProductoFormOpen(true); }}
             onDelete={handleDeleteProducto}
+            toast={toast}
+          />
+        );
+
+      case 'perfil':
+        return (
+          <PerfilPanel
+            key="perfil-panel"
+            session={session}
+            offline={offline}
+            clientes={clientes}
+            pedidos={pedidos}
+            gastos={gastos}
             toast={toast}
           />
         );

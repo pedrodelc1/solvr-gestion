@@ -7,7 +7,6 @@ import {
   getPedidos, savePedido, updatePedido, deletePedido,
   getGastos, saveGasto, deleteGasto,
   getCategorias,
-  seedLocalStorageIfEmpty,
   procesarCuotasVencidas,
 } from './lib/db.js';
 import { inRange } from './lib/utils.js';
@@ -29,16 +28,11 @@ import { ProductoForm } from './components/productos/ProductoForm.jsx';
 import { PerfilPanel } from './components/perfil/PerfilPanel.jsx';
 import { SkeletonLoader } from './components/shared/SkeletonLoader.jsx';
 
-const SUPABASE_CONFIGURED = !!(
-  import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY
-);
-
 let _toastId = 0;
 
 export default function App() {
   const [session, setSession] = useState(null);
-  const [offline, setOffline] = useState(!SUPABASE_CONFIGURED);
-  const [authChecked, setAuthChecked] = useState(!SUPABASE_CONFIGURED);
+  const [authChecked, setAuthChecked] = useState(false);
   const [showSplash, setShowSplash] = useState(() => !sessionStorage.getItem('sg_splash_done'));
 
   const [clientes, setClientes] = useState([]);
@@ -83,7 +77,6 @@ export default function App() {
 
   // ── Auth ──────────────────────────────────────────────────
   useEffect(() => {
-    if (!SUPABASE_CONFIGURED) return;
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_ev, sess) => {
       setSession(sess);
       setAuthChecked(true);
@@ -129,11 +122,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (authChecked && (session || offline)) {
-      if (offline) seedLocalStorageIfEmpty();
+    if (authChecked && session) {
       loadAll();
     }
-  }, [authChecked, session, offline, loadAll]);
+  }, [authChecked, session, loadAll]);
 
   // ── Toast ─────────────────────────────────────────────────
   const toast = useCallback((msg, type = 'success') => {
@@ -284,8 +276,8 @@ export default function App() {
     );
   }
 
-  if (!session && !offline) {
-    return <LoginScreen onOfflineMode={() => setOffline(true)} />;
+  if (!session) {
+    return <LoginScreen />;
   }
 
   if (loading) {
@@ -402,7 +394,6 @@ export default function App() {
           <PerfilPanel
             key="perfil-panel"
             session={session}
-            offline={offline}
             clientes={clientes}
             pedidos={pedidos}
             gastos={gastos}

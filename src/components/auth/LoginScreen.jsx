@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase.js';
 import { isEmailAllowed } from '../../lib/db.js';
 import './LoginScreen.css';
 
-export function LoginScreen({ onOfflineMode }) {
+export function LoginScreen() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);

@@ -73,9 +73,9 @@ const TAB_PCT = 100 / TABS.length;
 function getDockScale(index, hoveredIndex) {
   if (hoveredIndex === null) return 1;
   const dist = Math.abs(index - hoveredIndex);
-  if (dist === 0) return 1.55;
-  if (dist === 1) return 1.22;
-  if (dist === 2) return 1.07;
+  if (dist === 0) return 1.45;
+  if (dist === 1) return 1.18;
+  if (dist === 2) return 1.06;
   return 1;
 }
 

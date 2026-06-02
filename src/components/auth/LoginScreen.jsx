@@ -37,18 +37,8 @@ export function LoginScreen({ onOfflineMode }) {
     <div className="login-screen">
       <div className="login-card">
         <div>
-          <div className="login-logo">
-            {'Solvr.'.split('').map((char, i) => (
-              <span
-                key={i}
-                className="login-logo-letter"
-                style={{ animationDelay: `${i * 0.08}s` }}
-              >
-                {char}
-              </span>
-            ))}
-          </div>
-          <div className="login-tagline login-tagline-anim">
+          <div className="login-logo">Solvr.</div>
+          <div className="login-tagline">
             Gestión simple para tu negocio.
           </div>
         </div>

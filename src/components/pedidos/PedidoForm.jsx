@@ -228,8 +228,8 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
 
   const getProd = (id) => productos.find(p => p.id === id);
 
-  const autoCobrado = medioPago === 'tarjeta' && cuotas === 1;
-  const efectivoCobrado = autoCobrado ? true : cobrado;
+  const esTarjeta = medioPago === 'tarjeta';
+  const efectivoCobrado = esTarjeta ? false : cobrado;
 
   const pctInteres = medioPago === 'tarjeta' ? (parseFloat(interes) || 0) : 0;
 
@@ -438,12 +438,7 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
           </div>
         </div>
 
-        {autoCobrado ? (
-          <div className="toggle-row" style={{ opacity: 0.6 }}>
-            <label>Cobrado ahora</label>
-            <span style={{ fontSize: 'var(--text-sm)', color: 'var(--success)' }}>Automático (tarjeta 1 cuota)</span>
-          </div>
-        ) : (
+        {!esTarjeta && (
           <div className="toggle-row">
             <label htmlFor="pf-cobrado">Cobrado ahora</label>
             <div className="toggle">

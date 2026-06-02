@@ -1,0 +1,139 @@
+.login-screen {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8) var(--space-4);
+  background: #080808;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.login-logo {
+  font-size: 3rem;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  color: #ffffff;
+  line-height: 1;
+}
+
+.login-tagline {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  margin-top: var(--space-2);
+  font-weight: 400;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.login-label {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--ink-2);
+  margin-bottom: var(--space-1);
+  display: block;
+}
+
+/* Override global input styles for login */
+.login-form input[type="email"] {
+  background: #111111;
+  border-color: #333333;
+  color: #ffffff;
+}
+
+.login-form input[type="email"]::placeholder {
+  color: var(--ink-3);
+}
+
+/* Primary button override for login — white bg, black text */
+.login-form .btn-primary {
+  background: #ffffff;
+  color: #000000;
+  border-radius: 6px;
+  box-shadow: none;
+}
+
+.login-hint {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* Sent state */
+.login-sent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  align-items: center;
+  text-align: center;
+}
+
+.login-sent-icon {
+  width: 56px;
+  height: 56px;
+  background: var(--bg-3);
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--success);
+}
+
+.login-sent-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.login-sent h2 {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.login-sent p {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  line-height: 1.6;
+}
+
+.login-back-btn {
+  background: none;
+  border: none;
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  font-family: var(--font-body);
+  text-decoration: underline;
+  padding: 0;
+}
+
+/* "Continuar sin cuenta" as text link */
+.login-offline-btn {
+  background: none;
+  border: none;
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  font-family: var(--font-body);
+  padding: var(--space-2) 0;
+  text-align: center;
+  text-decoration: underline;
+  width: 100%;
+  transition: color 120ms;
+}
+
+.login-offline-btn:hover {
+  color: var(--ink-2);
+}

@@ -33,46 +33,37 @@ export function LoginScreen({ onOfflineMode }) {
     }
   }
 
+  const container = {
+    hidden: {},
+    visible: { transition: { staggerChildren: 0.08, delayChildren: 0 } },
+  };
+  const letter = {
+    hidden: { y: -60, opacity: 0 },
+    visible: { y: 0, opacity: 1, transition: { type: 'spring', stiffness: 350, damping: 10 } },
+  };
+
   return (
-    <motion.div
-      className="login-screen"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.4 }}
-    >
+    <div className="login-screen">
       <div className="login-card">
         <div>
           <motion.div
             className="login-logo"
-            style={{ display: 'flex', letterSpacing: '-0.04em' }}
+            style={{ display: 'flex', letterSpacing: '-0.04em', overflow: 'visible' }}
+            variants={container}
             initial="hidden"
             animate="visible"
-            variants={{
-              visible: { transition: { staggerChildren: 0.07, delayChildren: 0.35 } },
-            }}
           >
             {'Solvr.'.split('').map((char, i) => (
-              <motion.span
-                key={i}
-                variants={{
-                  hidden: { y: -50, opacity: 0 },
-                  visible: {
-                    y: 0,
-                    opacity: 1,
-                    transition: { type: 'spring', stiffness: 400, damping: 10 },
-                  },
-                }}
-                style={{ display: 'inline-block' }}
-              >
+              <motion.span key={i} variants={letter} style={{ display: 'inline-block' }}>
                 {char}
               </motion.span>
             ))}
           </motion.div>
           <motion.div
             className="login-tagline"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.95, duration: 0.4 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.7, duration: 0.4 }}
           >
             Gestión simple para tu negocio.
           </motion.div>
@@ -147,6 +138,6 @@ export function LoginScreen({ onOfflineMode }) {
           )}
         </AnimatePresence>
       </div>
-    </motion.div>
+    </div>
   );
 }

@@ -80,16 +80,16 @@ export default function App() {
 
   // ── Dynamic title ─────────────────────────────────────────
   const TAB_TITLES = {
-    clientes: 'Clientes — Solvr',
-    pedidos: 'Pedidos — Solvr',
-    gastos: 'Gastos — Solvr',
-    stats: 'Estadísticas — Solvr',
-    productos: 'Catálogo — Solvr',
-    caja: 'Caja — Solvr',
-    perfil: 'Perfil — Solvr',
+    clientes: 'Clientes — Solvnt',
+    pedidos: 'Pedidos — Solvnt',
+    gastos: 'Gastos — Solvnt',
+    stats: 'Estadísticas — Solvnt',
+    productos: 'Catálogo — Solvnt',
+    caja: 'Caja — Solvnt',
+    perfil: 'Perfil — Solvnt',
   };
   useEffect(() => {
-    document.title = TAB_TITLES[activeTab] || 'Solvr Gestión';
+    document.title = TAB_TITLES[activeTab] || 'Solvnt Gestión';
   }, [activeTab]);
 
   // ── Auth ──────────────────────────────────────────────────

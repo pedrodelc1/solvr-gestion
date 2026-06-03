@@ -23,7 +23,7 @@ export function SplashScreen({ onDone }) {
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.4, delay: 0.5, ease: [0, 0, 0.2, 1] }}
       >
-        Solvr Gestión
+        Solvnt Gestión
       </motion.div>
     </div>
   );

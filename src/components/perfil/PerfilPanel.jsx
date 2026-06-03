@@ -354,7 +354,7 @@ export function PerfilPanel({ session, isOwner, clientes, pedidos, gastos, suscr
           Cerrar sesión
         </button>
         <div style={{ textAlign: 'center', fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>
-          Solvr Gestión · v1.0
+          Solvnt Gestión · v1.0
         </div>
       </div>
     </div>

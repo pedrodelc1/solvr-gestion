@@ -131,7 +131,7 @@ export function OnboardingWizard({ onComplete }) {
         <AnimatePresence mode="wait">
           {step === 0 && (
             <motion.div key="step0" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}>
-              <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 800, marginBottom: 'var(--space-2)' }}>Bienvenido a Solvr</h2>
+              <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 800, marginBottom: 'var(--space-2)' }}>Bienvenido a Solvnt</h2>
               <p style={{ color: 'var(--ink-3)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-6)' }}>Empecemos configurando tu negocio.</p>
               <div className="form-group" style={{ marginBottom: 'var(--space-4)' }}>
                 <label>Nombre del negocio *</label>

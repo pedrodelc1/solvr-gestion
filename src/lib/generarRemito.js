@@ -79,7 +79,7 @@ export async function generarRemito({ pedido, cliente, negocio = 'Mi Negocio', l
     </div>
 
     <div style="margin-top:28px;padding-top:14px;border-top:1px solid #eee;text-align:center;font-size:10px;color:#bbb">
-      Generado con Solvr Gestión
+      Generado con Solvnt Gestión
     </div>
   `;
 

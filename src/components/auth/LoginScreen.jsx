@@ -30,7 +30,7 @@ export function LoginScreen() {
     <div className="login-screen">
       <div className="login-card">
         <div>
-          <div className="login-logo">Solvr.</div>
+          <div className="login-logo">Solvnt.</div>
           <div className="login-tagline">
             Gestión simple para tu negocio.
           </div>

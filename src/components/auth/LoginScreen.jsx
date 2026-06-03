@@ -29,12 +29,20 @@ export function LoginScreen() {
   return (
     <div className="login-screen">
       <div className="login-card">
-        <div>
-          <div className="login-logo">Solvnt.</div>
-          <div className="login-tagline">
-            Gestión simple para tu negocio.
-          </div>
-        </div>
+        <AnimatePresence>
+          {!sent && (
+            <motion.div
+              initial={{ opacity: 1 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="login-logo">Solvnt.</div>
+              <div className="login-tagline">
+                Gestión simple para tu negocio.
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <AnimatePresence mode="wait">
           {!sent ? (

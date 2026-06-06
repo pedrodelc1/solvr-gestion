@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Modal } from '../shared/Modal.jsx';
 
 const DRAFT_KEY = 'draft_nuevo_cliente';
@@ -13,22 +13,19 @@ function clearDraft() {
   localStorage.removeItem(DRAFT_KEY);
 }
 
-export function ClienteForm({ open, existing, onSave, onClose }) {
-  const draft = !existing ? loadDraft() : null;
+const opt = <span style={{ fontWeight: 400, color: 'var(--ink-3)', fontSize: 'var(--text-xs)' }}> (opcional)</span>;
 
-  const [nombre, setNombre] = useState(existing?.nombre || draft?.nombre || '');
-  const [contacto, setContacto] = useState(existing?.contacto || draft?.contacto || '');
-  const [email, setEmail] = useState(existing?.email || draft?.email || '');
-  const [direccion, setDireccion] = useState(existing?.direccion || draft?.direccion || '');
-  const [tipoPrecio, setTipoPrecio] = useState(existing?.tipo_precio || draft?.tipoPrecio || 'minorista');
-  const [saldoInicial, setSaldoInicial] = useState(existing?.saldo_inicial || draft?.saldoInicial || '');
+export function ClienteForm({ open, existing, onSave, onClose }) {
+  const [nombre, setNombre] = useState('');
+  const [contacto, setContacto] = useState('');
+  const [email, setEmail] = useState('');
+  const [direccion, setDireccion] = useState('');
+  const [tipoPrecio, setTipoPrecio] = useState('minorista');
+  const [saldoInicial, setSaldoInicial] = useState('');
   const [error, setError] = useState('');
 
-  function draft_state() {
-    return { nombre, contacto, email, direccion, tipoPrecio, saldoInicial };
-  }
-
-  function handleOpen() {
+  useEffect(() => {
+    if (!open) return;
     if (existing) {
       setNombre(existing.nombre || '');
       setContacto(existing.contacto || '');
@@ -46,6 +43,10 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
       setSaldoInicial(d?.saldoInicial || '');
     }
     setError('');
+  }, [open, existing]);
+
+  function ds() {
+    return { nombre, contacto, email, direccion, tipoPrecio, saldoInicial };
   }
 
   function handleSave() {
@@ -86,59 +87,59 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
                 type="text"
                 placeholder="Nombre completo"
                 value={nombre}
-                onChange={e => { setNombre(e.target.value); if (!existing) saveDraft({ ...draft_state(), nombre: e.target.value }); }}
-                autoComplete="off"
+                onChange={e => { setNombre(e.target.value); if (!existing) saveDraft({ ...ds(), nombre: e.target.value }); }}
+                autoComplete="new-password"
                 autoCorrect="off"
                 autoCapitalize="words"
                 autoFocus
               />
             </div>
             <div className="form-group">
-              <label htmlFor="fc-contacto">Teléfono (sin +54)</label>
+              <label htmlFor="fc-contacto">Teléfono {opt}</label>
               <input
                 id="fc-contacto"
                 type="tel"
-                placeholder="1123456789 (opcional)"
+                placeholder="1123456789"
                 value={contacto}
-                onChange={e => { setContacto(e.target.value); if (!existing) saveDraft({ ...draft_state(), contacto: e.target.value }); }}
+                onChange={e => { setContacto(e.target.value); if (!existing) saveDraft({ ...ds(), contacto: e.target.value }); }}
                 autoComplete="off"
               />
             </div>
             <div className="form-group">
-              <label htmlFor="fc-email">Email</label>
+              <label htmlFor="fc-email">Email {opt}</label>
               <input
                 id="fc-email"
                 type="email"
-                placeholder="cliente@email.com (opcional)"
+                placeholder="cliente@email.com"
                 value={email}
-                onChange={e => { setEmail(e.target.value); if (!existing) saveDraft({ ...draft_state(), email: e.target.value }); }}
+                onChange={e => { setEmail(e.target.value); if (!existing) saveDraft({ ...ds(), email: e.target.value }); }}
                 autoComplete="off"
                 autoCapitalize="none"
               />
             </div>
             <div className="form-group">
-              <label htmlFor="fc-direccion">Dirección</label>
+              <label htmlFor="fc-direccion">Dirección {opt}</label>
               <input
                 id="fc-direccion"
                 type="text"
-                placeholder="Calle 123, ciudad (opcional)"
+                placeholder="Calle 123, ciudad"
                 value={direccion}
-                onChange={e => { setDireccion(e.target.value); if (!existing) saveDraft({ ...draft_state(), direccion: e.target.value }); }}
+                onChange={e => { setDireccion(e.target.value); if (!existing) saveDraft({ ...ds(), direccion: e.target.value }); }}
                 autoComplete="off"
                 autoCorrect="off"
               />
             </div>
             {!existing && (
               <div className="form-group">
-                <label htmlFor="fc-saldo">Saldo previo (deuda anterior)</label>
+                <label htmlFor="fc-saldo">Saldo previo {opt}</label>
                 <input
                   id="fc-saldo"
                   type="number"
                   inputMode="decimal"
-                  placeholder="0 (opcional)"
+                  placeholder="0"
                   min="0"
                   value={saldoInicial}
-                  onChange={e => { setSaldoInicial(e.target.value); if (!existing) saveDraft({ ...draft_state(), saldoInicial: e.target.value }); }}
+                  onChange={e => { setSaldoInicial(e.target.value); if (!existing) saveDraft({ ...ds(), saldoInicial: e.target.value }); }}
                   autoComplete="off"
                 />
               </div>
@@ -150,7 +151,7 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
                   type="button"
                   className={`filter-chip${tipoPrecio === 'minorista' ? ' active' : ''}`}
                   style={{ flex: 1, minHeight: 40 }}
-                  onClick={() => { setTipoPrecio('minorista'); if (!existing) saveDraft({ ...draft_state(), tipoPrecio: 'minorista' }); }}
+                  onClick={() => { setTipoPrecio('minorista'); if (!existing) saveDraft({ ...ds(), tipoPrecio: 'minorista' }); }}
                 >
                   Minorista
                 </button>
@@ -158,7 +159,7 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
                   type="button"
                   className={`filter-chip${tipoPrecio === 'mayorista' ? ' active' : ''}`}
                   style={{ flex: 1, minHeight: 40 }}
-                  onClick={() => { setTipoPrecio('mayorista'); if (!existing) saveDraft({ ...draft_state(), tipoPrecio: 'mayorista' }); }}
+                  onClick={() => { setTipoPrecio('mayorista'); if (!existing) saveDraft({ ...ds(), tipoPrecio: 'mayorista' }); }}
                 >
                   Mayorista
                 </button>

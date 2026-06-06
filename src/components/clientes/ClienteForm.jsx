@@ -54,11 +54,15 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
       setError('El nombre es obligatorio');
       return;
     }
+    let contactoLimpio = contacto.replace(/\D/g, '');
+    if (contactoLimpio.startsWith('54')) contactoLimpio = contactoLimpio.slice(2);
+    if (contactoLimpio.length === 11 && contactoLimpio.startsWith('9')) contactoLimpio = contactoLimpio.slice(1);
+
     clearDraft();
     onSave({
       ...existing,
       nombre: nombre.trim(),
-      contacto: contacto.trim(),
+      contacto: contactoLimpio,
       email: email.trim(),
       direccion: direccion.trim(),
       tipo_precio: tipoPrecio,
@@ -99,7 +103,7 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
               <input
                 id="fc-contacto"
                 type="tel"
-                placeholder="1123456789"
+                placeholder="sin +54 9 ni guiones"
                 value={contacto}
                 onChange={e => { setContacto(e.target.value); if (!existing) saveDraft({ ...ds(), contacto: e.target.value }); }}
                 autoComplete="off"

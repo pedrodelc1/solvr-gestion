@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { formatCurrency, formatDate } from '../../lib/utils.js';
-import { Modal, ConfirmModal } from '../shared/Modal.jsx';
+import { ConfirmModal, Modal } from '../shared/Modal.jsx';
 import { listItem } from '../../lib/animations.js';
 import { convertirPresupuesto } from '../../lib/db.js';
 
@@ -33,7 +33,8 @@ function MedioPill({ medio, cuotas }) {
 
 const FILTERS = [
   { id: 'all', label: 'Todos' },
-  { id: 'pendiente', label: 'Pendientes' },
+  { id: 'no-entregado', label: 'No entregado' },
+  { id: 'entregado', label: 'Entregado' },
   { id: 'cobrado', label: 'Cobrados' },
   { id: 'presupuesto', label: 'Presupuestos' },
   { id: 'efectivo', label: 'Efectivo' },
@@ -55,13 +56,11 @@ const SORT_LABELS = {
   'precio-asc':  'Menor precio primero',
 };
 
-export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEdit, onRefresh, toast }) {
+export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEdit, onMarcarEntregado, onRefresh, toast }) {
   const [filter, setFilter] = useState('all');
   const [sort, setSort] = useState('fecha-desc');
   const [sortOpen, setSortOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const [pagoModal, setPagoModal] = useState(null); // { pedidoId, resta }
-  const [pagoMonto, setPagoMonto] = useState('');
   const [confirmDel, setConfirmDel] = useState(null);
   const [confirmConvertir, setConfirmConvertir] = useState(null);
 
@@ -74,7 +73,9 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
       return sort === 'precio-desc' ? tb - ta : ta - tb;
     })
     .filter(p => {
-      if (filter === 'pendiente')     return !p.cobrado && p.tipo !== 'presupuesto';
+      const todoEntregado = p.items.length > 0 && p.items.every(i => i.entregado);
+      if (filter === 'no-entregado')  return p.tipo !== 'presupuesto' && !todoEntregado;
+      if (filter === 'entregado')     return p.tipo !== 'presupuesto' && todoEntregado;
       if (filter === 'cobrado')       return p.cobrado;
       if (filter === 'presupuesto')   return p.tipo === 'presupuesto';
       if (filter === 'efectivo')      return p.medioPago === 'efectivo' && p.tipo !== 'presupuesto';
@@ -86,33 +87,6 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
 
   function getNombre(clienteId) {
     return clientes.find(c => c.id === clienteId)?.nombre || '—';
-  }
-
-  function handleToggle(p) {
-    if (p.cobrado) {
-      onUpdate(p.id, { cobrado: false, montoAbonado: 0 });
-      toast('Pedido reabierto');
-    } else {
-      onUpdate(p.id, { cobrado: true, montoAbonado: p.totalFinal ?? p.totalCalculado });
-      toast('Cobrado completo');
-    }
-  }
-
-  function handlePagoSave() {
-    const monto = parseFloat(pagoMonto);
-    if (isNaN(monto) || monto <= 0) { toast('Ingresá un monto válido', 'error'); return; }
-    const p = pedidos.find(x => x.id === pagoModal.pedidoId);
-    if (!p) return;
-    const nuevoAbonado = (p.montoAbonado || 0) + monto;
-    const total = p.totalFinal ?? p.totalCalculado;
-    if (nuevoAbonado >= total) {
-      onUpdate(p.id, { cobrado: true, montoAbonado: total });
-    } else {
-      onUpdate(p.id, { montoAbonado: nuevoAbonado });
-    }
-    setPagoModal(null);
-    setPagoMonto('');
-    toast('Pago registrado');
   }
 
   function handleDelete(id) {
@@ -188,23 +162,18 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
         ) : (
           filtered.map((p, i) => {
             const total = p.totalFinal ?? p.totalCalculado;
-            const abonado = p.montoAbonado || 0;
-            const resta = total - abonado;
-
             const esPresupuesto = p.tipo === 'presupuesto';
+            const todoEntregado = p.items.length > 0 && p.items.every(i => i.entregado);
 
             let estadoBadge, estadoMonto;
             if (esPresupuesto) {
               estadoBadge = <span className="badge badge-info">Presupuesto</span>;
               estadoMonto = <span className="card-amount amount-neutral">{formatCurrency(total)}</span>;
-            } else if (p.cobrado) {
-              estadoBadge = <span className="badge badge-ok">Cobrado</span>;
+            } else if (todoEntregado) {
+              estadoBadge = <span className="badge badge-ok">Entregado</span>;
               estadoMonto = <span className="card-amount amount-paid">{formatCurrency(total)}</span>;
-            } else if (abonado > 0) {
-              estadoBadge = <span className="badge badge-warn">Parcial</span>;
-              estadoMonto = <span className="card-amount amount-debt">{formatCurrency(resta)}</span>;
             } else {
-              estadoBadge = <span className="badge badge-neutral">Pendiente</span>;
+              estadoBadge = <span className="badge badge-neutral">No entregado</span>;
               estadoMonto = <span className="card-amount amount-debt">{formatCurrency(total)}</span>;
             }
 
@@ -233,23 +202,6 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
                     📝 {p.nota}
                   </div>
                 )}
-                {p.medioPago === 'tarjeta' && p.cuotas > 1 && (() => {
-                  const montoPorCuota = Math.round((total / p.cuotas) * 100) / 100;
-                  const cuotasPagadas = montoPorCuota > 0 ? Math.min(p.cuotas, Math.round(abonado / montoPorCuota)) : 0;
-                  return (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                      <div style={{ flex: 1, height: 4, background: 'var(--bg-4)', borderRadius: 2, overflow: 'hidden' }}>
-                        <div style={{ width: `${(cuotasPagadas / p.cuotas) * 100}%`, height: '100%', background: cuotasPagadas === p.cuotas ? 'var(--success)' : 'var(--ink-2)', borderRadius: 2, transition: 'width 0.4s' }} />
-                      </div>
-                      <span className="card-sub" style={{ flexShrink: 0 }}>{cuotasPagadas}/{p.cuotas} cuotas · {formatCurrency(montoPorCuota)}/c</span>
-                    </div>
-                  );
-                })()}
-                {!p.cobrado && abonado > 0 && p.medioPago !== 'tarjeta' && (
-                  <div className="card-sub" style={{ color: 'var(--success)' }}>
-                    Abonado {formatCurrency(abonado)} de {formatCurrency(total)}
-                  </div>
-                )}
                 <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-2)', flexWrap: 'wrap' }}>
                   {esPresupuesto && (
                     <button
@@ -260,22 +212,13 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
                       Convertir a pedido
                     </button>
                   )}
-                  {!esPresupuesto && !p.cobrado && !(p.medioPago === 'tarjeta' && p.cuotas > 1) && (
+                  {!esPresupuesto && !todoEntregado && (
                     <button
-                      className="btn btn-secondary"
+                      className="btn btn-primary"
                       style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-sm)' }}
-                      onClick={() => { setPagoModal({ pedidoId: p.id, resta }); setPagoMonto(''); }}
+                      onClick={() => onMarcarEntregado(p.id)}
                     >
-                      + Pago parcial
-                    </button>
-                  )}
-                  {!esPresupuesto && !(p.medioPago === 'tarjeta' && p.cuotas > 1 && !p.cobrado) && (
-                    <button
-                      className={`btn ${p.cobrado ? 'btn-secondary' : 'btn-primary'}`}
-                      style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-sm)' }}
-                      onClick={() => handleToggle(p)}
-                    >
-                      {p.cobrado ? 'Reabrir' : 'Cobrar total'}
+                      Marcar entregado
                     </button>
                   )}
                   <button
@@ -304,40 +247,6 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
           })
         )}
       </div>
-
-      {/* Pago parcial modal */}
-      <Modal
-        open={!!pagoModal}
-        title="Registrar pago parcial"
-        onClose={() => setPagoModal(null)}
-      >
-        {pagoModal && (
-          <>
-            <div style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-              <div className="form-group">
-                <label htmlFor="mp-monto">Monto a abonar ($)</label>
-                <input
-                  id="mp-monto"
-                  type="number"
-                  placeholder="0"
-                  min="1"
-                  step="0.01"
-                  value={pagoMonto}
-                  onChange={e => setPagoMonto(e.target.value)}
-                  autoFocus
-                />
-              </div>
-              <p style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-3)' }}>
-                Saldo restante: {formatCurrency(pagoModal.resta)}
-              </p>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', padding: 'var(--space-4)', paddingTop: 0 }}>
-              <button className="btn btn-primary btn-full" onClick={handlePagoSave}>Registrar pago</button>
-              <button className="btn btn-secondary btn-full" onClick={() => setPagoModal(null)}>Cancelar</button>
-            </div>
-          </>
-        )}
-      </Modal>
 
       <ConfirmModal
         open={!!confirmDel}

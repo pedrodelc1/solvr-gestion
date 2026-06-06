@@ -343,6 +343,24 @@ export async function deletePedido(id) {
   return getPedidos();
 }
 
+export async function marcarPedidoEntregado(pedidoId) {
+  const hoy = new Date().toISOString().split('T')[0];
+  if (!useSupabase()) {
+    const arr = lsGet('pedidos', []);
+    const i = arr.findIndex(p => p.id === pedidoId);
+    if (i >= 0) arr[i].items = arr[i].items.map(it => ({ ...it, entregado: true, fechaEntrega: it.fechaEntrega || hoy }));
+    lsSet('pedidos', arr);
+    return arr;
+  }
+  const { error } = await supabase
+    .from('pedido_items')
+    .update({ entregado: true, fecha_entrega: hoy })
+    .eq('pedido_id', pedidoId)
+    .eq('entregado', false);
+  if (error) throw error;
+  return getPedidos();
+}
+
 // Convierte un presupuesto en pedido real — irreversible, descuenta stock
 export async function convertirPresupuesto(pedidoId) {
   if (!useSupabase()) {

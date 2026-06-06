@@ -14,6 +14,7 @@ import {
   getDevoluciones,
   getNegocioConfig, saveNegocioConfig,
   getComunicaciones,
+  marcarPedidoEntregado,
 } from './lib/db.js';
 import { inRange, saldoCliente } from './lib/utils.js';
 
@@ -238,6 +239,14 @@ export default function App() {
     } catch (e) { toast(e.message, 'error'); }
   }
 
+  async function handleMarcarEntregado(id) {
+    try {
+      const arr = await marcarPedidoEntregado(id);
+      setPedidos(arr);
+      toast('Marcado como entregado');
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
   async function handleProductoCreado(newProd) {
     try {
       const arr = await saveProducto({ nombre: newProd.nombre, precio: newProd.precio, costo: newProd.costo || 0 });
@@ -418,6 +427,7 @@ export default function App() {
             onUpdate={handleUpdatePedido}
             onDelete={handleDeletePedido}
             onEdit={p => { setEditingPedido(p); setShowPedidoForm(true); }}
+            onMarcarEntregado={handleMarcarEntregado}
             onRefresh={loadAll}
             toast={toast}
           />

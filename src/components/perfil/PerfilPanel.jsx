@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { supabase } from '../../lib/supabase.js';
 import { formatCurrency, formatDate, saldoCliente, inRange } from '../../lib/utils.js';
 import {
-  getAllowedEmails, addAllowedEmail, removeAllowedEmail,
+  getAllowedEmails, addAllowedEmail, removeAllowedEmail, toggleTrialAcceso,
   getAlertasConfig, saveAlertasConfig,
   getSuscripciones, updateSuscripcion,
 } from '../../lib/db.js';
@@ -65,6 +65,16 @@ export function PerfilPanel({ session, isOwner, clientes, pedidos, gastos, suscr
       const arr = await removeAllowedEmail(id);
       setAllowedEmails(arr);
       toast('Email eliminado');
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  }
+
+  async function handleToggleTrial(id, email, activo) {
+    try {
+      const arr = await toggleTrialAcceso(id, email, activo);
+      setAllowedEmails(arr);
+      toast(activo ? 'Prueba activada' : 'Acceso cortado');
     } catch (e) {
       toast(e.message, 'error');
     }
@@ -228,21 +238,40 @@ export function PerfilPanel({ session, isOwner, clientes, pedidos, gastos, suscr
                 <p style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-3)' }}>Sin emails autorizados.</p>
               ) : (
                 allowedEmails.map(e => (
-                  <div key={e.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-2)' }}>
+                  <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
                     <span style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {e.email} {e.is_owner && <span style={{ color: '#ccff00', fontSize: 'var(--text-xs)' }}>owner</span>}
                     </span>
                     {!e.is_owner && (
-                      <button
-                        className="btn-icon danger"
-                        onClick={() => handleRemove(e.id)}
-                        aria-label="Quitar acceso"
-                      >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <polyline points="3 6 5 6 21 6" />
-                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                        </svg>
-                      </button>
+                      <>
+                        <button
+                          onClick={() => handleToggleTrial(e.id, e.email, !e.trial_activo)}
+                          style={{
+                            background: e.trial_activo ? '#ccff00' : 'var(--surface-2)',
+                            color: e.trial_activo ? '#000' : 'var(--ink-3)',
+                            border: 'none',
+                            borderRadius: 20,
+                            padding: '3px 10px',
+                            fontSize: 'var(--text-xs)',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap',
+                            flexShrink: 0,
+                          }}
+                        >
+                          {e.trial_activo ? 'Prueba ON' : 'Prueba OFF'}
+                        </button>
+                        <button
+                          className="btn-icon danger"
+                          onClick={() => handleRemove(e.id)}
+                          aria-label="Quitar acceso"
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                          </svg>
+                        </button>
+                      </>
                     )}
                   </div>
                 ))

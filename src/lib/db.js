@@ -443,19 +443,51 @@ export async function saveCategorias(arr) {
 
 // ── WHITELIST / OWNER ─────────────────────────────────────
 
-// isEmailAllowed ya no bloquea el login — cualquier email puede pedir acceso
-export async function isEmailAllowed() {
-  return true;
+export async function isEmailAllowed(email) {
+  if (!useSupabase()) return true;
+  const superadmin = import.meta.env.VITE_SUPERADMIN_EMAIL;
+  if (superadmin && email.toLowerCase().trim() === superadmin.toLowerCase().trim()) return true;
+  const { data } = await supabase
+    .from('allowed_emails')
+    .select('is_owner, trial_activo')
+    .eq('email', email.toLowerCase().trim())
+    .maybeSingle();
+  if (!data) return false;
+  return data.is_owner || !!data.trial_activo;
 }
 
 export async function getAllowedEmails() {
   if (!useSupabase()) return [];
   const { data, error } = await supabase
     .from('allowed_emails')
-    .select('id, email, is_owner, created_at')
+    .select('id, email, is_owner, trial_activo, created_at')
     .order('created_at', { ascending: true });
   if (error) return [];
   return data;
+}
+
+export async function toggleTrialAcceso(emailId, email, activo) {
+  const { error } = await supabase
+    .from('allowed_emails')
+    .update({ trial_activo: activo })
+    .eq('id', emailId);
+  if (error) throw error;
+
+  const { data: sus } = await supabase
+    .from('suscripciones')
+    .select('id, estado')
+    .eq('user_email', email.toLowerCase().trim())
+    .maybeSingle();
+
+  if (sus) {
+    const nuevoEstado = activo ? (sus.estado === 'bloqueada' ? 'prueba' : sus.estado) : 'bloqueada';
+    await supabase
+      .from('suscripciones')
+      .update({ estado: nuevoEstado, updated_at: new Date().toISOString() })
+      .eq('id', sus.id);
+  }
+
+  return getAllowedEmails();
 }
 
 export async function isOwnerEmail(email) {

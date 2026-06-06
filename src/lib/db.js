@@ -228,6 +228,7 @@ export async function getPedidos() {
     cobrado: r.cobrado,
     montoAbonado: r.monto_abonado || 0,
     nota: r.nota || null,
+    createdAt: r.created_at || r.fecha,
     tipo: r.tipo || 'pedido',
     descuentoTipo: r.descuento_tipo || null,
     descuentoValor: r.descuento_valor || 0,

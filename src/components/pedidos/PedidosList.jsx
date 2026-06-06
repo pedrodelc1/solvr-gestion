@@ -43,22 +43,22 @@ const FILTERS = [
 ];
 
 const SORTS = [
-  { id: 'fecha-asc',  label: 'Más nuevo último', icon: '↑', hint: 'Fecha' },
   { id: 'fecha-desc', label: 'Más nuevo primero', icon: '↓', hint: 'Fecha' },
+  { id: 'fecha-asc',  label: 'Más antiguo primero', icon: '↑', hint: 'Fecha' },
   { id: 'precio-desc', label: 'Mayor $', icon: '↓', hint: '$' },
   { id: 'precio-asc',  label: 'Menor $', icon: '↑', hint: '$' },
 ];
 
 const SORT_LABELS = {
-  'fecha-asc':   'Más nuevo último',
   'fecha-desc':  'Más nuevo primero',
+  'fecha-asc':   'Más antiguo primero',
   'precio-desc': 'Mayor precio primero',
   'precio-asc':  'Menor precio primero',
 };
 
 export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEdit, onMarcarEntregado, onRefresh, toast }) {
   const [filter, setFilter] = useState('all');
-  const [sort, setSort] = useState('fecha-asc');
+  const [sort, setSort] = useState('fecha-desc');
   const [sortOpen, setSortOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [pagoModal, setPagoModal] = useState(null);
@@ -68,8 +68,8 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
 
   const filtered = [...pedidos]
     .sort((a, b) => {
-      if (sort === 'fecha-desc') return b.fecha.localeCompare(a.fecha);
-      if (sort === 'fecha-asc')  return a.fecha.localeCompare(b.fecha);
+      if (sort === 'fecha-desc') return (b.createdAt || b.fecha).localeCompare(a.createdAt || a.fecha);
+      if (sort === 'fecha-asc')  return (a.createdAt || a.fecha).localeCompare(b.createdAt || b.fecha);
       const ta = a.totalFinal ?? a.totalCalculado;
       const tb = b.totalFinal ?? b.totalCalculado;
       return sort === 'precio-desc' ? tb - ta : ta - tb;

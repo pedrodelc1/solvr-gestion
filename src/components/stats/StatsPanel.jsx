@@ -133,7 +133,7 @@ export function StatsPanel({ pedidos, gastos, clientes, productos, devoluciones 
     : filteredPedidos.filter(p => !p.cobrado && (p.medioPago === 'tarjeta' || p.medioPago === 'fiado')).reduce((s, p) => s + p.totalFinal, 0);
 
   const saldoGlobal = statCliente === 'all'
-    ? clientes.reduce((s, c) => s + saldoCliente(c.id, pedidos, devoluciones), 0)
+    ? clientes.reduce((s, c) => s + saldoCliente(c, pedidos, devoluciones), 0)
     : saldoCliente(statCliente, pedidos, devoluciones);
 
   // F4.2 — Proyección de cobros: pendientes agrupados por semana

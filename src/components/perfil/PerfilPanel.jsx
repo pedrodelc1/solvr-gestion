@@ -14,7 +14,7 @@ export function PerfilPanel({ session, isOwner, clientes, pedidos, gastos, suscr
 
   const totalClientes = clientes.length;
   const pendientes = pedidos.filter(p => !p.cobrado && p.tipo !== 'presupuesto').length;
-  const totalDeuda = clientes.reduce((s, c) => s + Math.max(0, saldoCliente(c.id, pedidos)), 0);
+  const totalDeuda = clientes.reduce((s, c) => s + Math.max(0, saldoCliente(c, pedidos)), 0);
   const totalGastos = gastos.reduce((s, g) => s + g.monto, 0);
 
   const [allowedEmails, setAllowedEmails] = useState([]);

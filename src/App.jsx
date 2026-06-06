@@ -166,7 +166,7 @@ export default function App() {
     return clientes.filter(c => {
       const clientePedidos = pedidos.filter(p => p.clienteId === c.id && !p.cobrado && p.tipo !== 'presupuesto');
       if (!clientePedidos.length) return false;
-      if (saldoCliente(c.id, pedidos, devoluciones) <= 0) return false;
+      if (saldoCliente(c, pedidos, devoluciones) <= 0) return false;
       const oldest = clientePedidos.reduce((min, p) => p.fecha < min ? p.fecha : min, clientePedidos[0].fecha);
       const daysDiff = Math.round((new Date() - new Date(oldest)) / (1000 * 60 * 60 * 24));
       return daysDiff >= diasSinCobro;

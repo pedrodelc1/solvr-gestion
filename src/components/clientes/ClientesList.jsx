@@ -15,7 +15,7 @@ export function ClientesList({ clientes, pedidos, devoluciones, onSelect, onNew,
     !q || c.nombre.toLowerCase().includes(q) || (c.contacto || '').includes(q)
   );
 
-  const cobrosCount = clientes.filter(c => saldoCliente(c.id, pedidos, devoluciones) > 0).length;
+  const cobrosCount = clientes.filter(c => saldoCliente(c, pedidos, devoluciones) > 0).length;
 
   if (verCobros) {
     return (
@@ -111,7 +111,7 @@ export function ClientesList({ clientes, pedidos, devoluciones, onSelect, onNew,
           </div>
         ) : (
           filtered.map((c, i) => {
-            const saldo = saldoCliente(c.id, pedidos, devoluciones);
+            const saldo = saldoCliente(c, pedidos, devoluciones);
             return (
               <motion.div
                 key={c.id}

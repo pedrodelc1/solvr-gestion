@@ -19,6 +19,7 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
   const [nombre, setNombre] = useState(existing?.nombre || draft?.nombre || '');
   const [contacto, setContacto] = useState(existing?.contacto || draft?.contacto || '');
   const [tipoPrecio, setTipoPrecio] = useState(existing?.tipo_precio || draft?.tipoPrecio || 'minorista');
+  const [saldoInicial, setSaldoInicial] = useState(existing?.saldo_inicial || draft?.saldoInicial || '');
   const [error, setError] = useState('');
 
   function handleOpen() {
@@ -26,28 +27,35 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
       setNombre(existing.nombre || '');
       setContacto(existing.contacto || '');
       setTipoPrecio(existing.tipo_precio || 'minorista');
+      setSaldoInicial(existing.saldo_inicial || '');
     } else {
       const d = loadDraft();
       setNombre(d?.nombre || '');
       setContacto(d?.contacto || '');
       setTipoPrecio(d?.tipoPrecio || 'minorista');
+      setSaldoInicial(d?.saldoInicial || '');
     }
     setError('');
   }
 
   function handleNombre(val) {
     setNombre(val);
-    if (!existing) saveDraft({ nombre: val, contacto, tipoPrecio });
+    if (!existing) saveDraft({ nombre: val, contacto, tipoPrecio, saldoInicial });
   }
 
   function handleContacto(val) {
     setContacto(val);
-    if (!existing) saveDraft({ nombre, contacto: val, tipoPrecio });
+    if (!existing) saveDraft({ nombre, contacto: val, tipoPrecio, saldoInicial });
   }
 
   function handleTipoPrecio(val) {
     setTipoPrecio(val);
-    if (!existing) saveDraft({ nombre, contacto, tipoPrecio: val });
+    if (!existing) saveDraft({ nombre, contacto, tipoPrecio: val, saldoInicial });
+  }
+
+  function handleSaldoInicial(val) {
+    setSaldoInicial(val);
+    if (!existing) saveDraft({ nombre, contacto, tipoPrecio, saldoInicial: val });
   }
 
   function handleSave() {
@@ -56,7 +64,13 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
       return;
     }
     clearDraft();
-    onSave({ ...existing, nombre: nombre.trim(), contacto: contacto.trim(), tipo_precio: tipoPrecio });
+    onSave({
+      ...existing,
+      nombre: nombre.trim(),
+      contacto: contacto.trim(),
+      tipo_precio: tipoPrecio,
+      saldo_inicial: parseFloat(saldoInicial) || 0,
+    });
   }
 
   function handleClose() {
@@ -98,6 +112,21 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
                 autoComplete="off"
               />
             </div>
+            {!existing && (
+              <div className="form-group">
+                <label htmlFor="fc-saldo">Saldo previo (deuda anterior)</label>
+                <input
+                  id="fc-saldo"
+                  type="number"
+                  inputMode="decimal"
+                  placeholder="0"
+                  min="0"
+                  value={saldoInicial}
+                  onChange={e => handleSaldoInicial(e.target.value)}
+                  autoComplete="off"
+                />
+              </div>
+            )}
             <div className="form-group">
               <label>Tipo de precio</label>
               <div style={{ display: 'flex', gap: 'var(--space-2)' }}>

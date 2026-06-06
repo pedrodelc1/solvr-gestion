@@ -9,7 +9,7 @@ export function CobrosPanel({ clientes, pedidos, devoluciones, onBack }) {
 
   const conSaldo = clientes
     .map(c => {
-      const saldo = saldoCliente(c.id, pedidos, devoluciones);
+      const saldo = saldoCliente(c, pedidos, devoluciones);
       const ultimoPedido = pedidos
         .filter(p => p.clienteId === c.id && !p.cobrado && p.tipo !== 'presupuesto')
         .sort((a, b) => b.fecha.localeCompare(a.fecha))[0];

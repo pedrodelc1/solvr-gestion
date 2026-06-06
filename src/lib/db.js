@@ -58,6 +58,7 @@ export async function getClientes() {
     nombre: r.nombre,
     contacto: r.contacto || '',
     tipo_precio: r.tipo_precio || 'minorista',
+    saldo_inicial: r.saldo_inicial || 0,
   }));
   lsSet('clientes', mapped);
   return mapped;
@@ -82,6 +83,7 @@ export async function saveCliente(data) {
     nombre: data.nombre,
     contacto: data.contacto || '',
     tipo_precio: data.tipo_precio || 'minorista',
+    saldo_inicial: data.saldo_inicial || 0,
   };
   if (data.id) {
     const { error } = await supabase.from('clientes').update(fields).eq('id', data.id);

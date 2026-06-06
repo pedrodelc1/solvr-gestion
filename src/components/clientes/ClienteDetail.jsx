@@ -59,7 +59,7 @@ export function ClienteDetail({ cliente, pedidos, devoluciones = [], comunicacio
   const clientePedidos = pedidos
     .filter(p => p.clienteId === cliente.id)
     .sort((a, b) => b.fecha.localeCompare(a.fecha));
-  const saldo = saldoCliente(cliente.id, pedidos, devoluciones);
+  const saldo = saldoCliente(cliente, pedidos, devoluciones);
 
   const clienteDevoluciones = devoluciones.filter(d => d.clienteId === cliente.id);
   const clienteComunicaciones = comunicaciones

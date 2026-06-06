@@ -73,7 +73,8 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
       return sort === 'precio-desc' ? tb - ta : ta - tb;
     })
     .filter(p => {
-      const todoEntregado = p.items.length > 0 && p.items.every(i => i.entregado);
+      const items = p.items || [];
+      const todoEntregado = items.length > 0 && items.every(it => it.entregado);
       if (filter === 'no-entregado')  return p.tipo !== 'presupuesto' && !todoEntregado;
       if (filter === 'entregado')     return p.tipo !== 'presupuesto' && todoEntregado;
       if (filter === 'cobrado')       return p.cobrado;
@@ -163,7 +164,8 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
           filtered.map((p, i) => {
             const total = p.totalFinal ?? p.totalCalculado;
             const esPresupuesto = p.tipo === 'presupuesto';
-            const todoEntregado = p.items.length > 0 && p.items.every(i => i.entregado);
+            const items = p.items || [];
+            const todoEntregado = items.length > 0 && items.every(it => it.entregado);
 
             let estadoBadge, estadoMonto;
             if (esPresupuesto) {
@@ -195,7 +197,7 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
                   {estadoBadge}
                 </div>
                 <div className="card-sub" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {p.items.map(i => `${i.nombre} x${i.cantidad}`).join(' · ')}
+                  {items.map(it => `${it.nombre} x${it.cantidad}`).join(' · ')}
                 </div>
                 {p.nota && (
                   <div className="card-sub" style={{ fontStyle: 'italic', color: 'var(--ink-2)' }}>

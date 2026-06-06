@@ -441,76 +441,65 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
           <button className="btn btn-secondary btn-full" type="button" style={{ marginTop: 'var(--space-3)' }} onClick={handleAddItem}>+ Agregar ítem</button>
         </div>
 
-        {!esTarjeta && (
-          <div className="toggle-row">
-            <label htmlFor="pf-cobrado">Cobrado ahora</label>
-            <div className="toggle">
-              <input type="checkbox" id="pf-cobrado" checked={cobrado} onChange={e => setCobrado(e.target.checked)} />
-              <span className="toggle-track" onClick={() => setCobrado(v => !v)} />
-            </div>
+        {tipo === 'pedido' && (
+          <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+            {!esTarjeta && (
+              <button type="button" className={`opt-chip${cobrado ? ' opt-chip--cobrado' : ''}`} onClick={() => setCobrado(v => !v)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                Cobrado
+              </button>
+            )}
+            <button type="button" className={`opt-chip${plazoHab ? ' opt-chip--plazo' : ''}`} onClick={() => setPlazoHab(v => !v)}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              A plazo
+            </button>
+            <button type="button" className={`opt-chip${descuentoHab ? ' opt-chip--descuento' : ''}`} onClick={() => setDescuentoHab(v => !v)}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
+              Descuento
+            </button>
           </div>
         )}
 
-        {tipo === 'pedido' && (
-          <div>
-            <div className="toggle-row" style={{ marginBottom: plazoHab ? 'var(--space-3)' : 0 }}>
-              <label>Venta a plazo</label>
-              <div className="toggle">
-                <input type="checkbox" id="pf-plazo" checked={plazoHab} onChange={e => setPlazoHab(e.target.checked)} />
-                <span className="toggle-track" onClick={() => setPlazoHab(v => !v)} />
+        {tipo === 'pedido' && plazoHab && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+            <div className="form-group">
+              <label style={{ fontSize: 'var(--text-sm)', fontWeight: 500, color: 'var(--ink-2)' }}>Días de plazo</label>
+              <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+                {['15','30','45','60','90'].map(d => (
+                  <button key={d} type="button" className={`filter-chip${diasPlazo === d ? ' active' : ''}`} style={{ minHeight: 36 }} onClick={() => setDiasPlazo(d)}>{d} días</button>
+                ))}
+                <input
+                  type="number" inputMode="numeric" min="1" placeholder="Otro"
+                  value={['15','30','45','60','90'].includes(diasPlazo) ? '' : diasPlazo}
+                  onChange={e => setDiasPlazo(e.target.value)}
+                  style={{ width: 80, minHeight: 36, fontSize: 'var(--text-sm)', padding: '4px 10px' }}
+                />
               </div>
             </div>
-            {plazoHab && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                <div className="form-group">
-                  <label style={{ fontSize: 'var(--text-sm)', fontWeight: 500, color: 'var(--ink-2)' }}>Días de plazo</label>
-                  <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-                    {['15','30','45','60','90'].map(d => (
-                      <button key={d} type="button" className={`filter-chip${diasPlazo === d ? ' active' : ''}`} style={{ minHeight: 36 }} onClick={() => setDiasPlazo(d)}>{d} días</button>
-                    ))}
-                    <input
-                      type="number" inputMode="numeric" min="1" placeholder="Otro"
-                      value={['15','30','45','60','90'].includes(diasPlazo) ? '' : diasPlazo}
-                      onChange={e => setDiasPlazo(e.target.value)}
-                      style={{ width: 80, minHeight: 36, fontSize: 'var(--text-sm)', padding: '4px 10px' }}
-                    />
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label style={{ fontSize: 'var(--text-sm)', fontWeight: 500, color: 'var(--ink-2)' }}>
-                    Tasa de mora mensual % <span style={{ color: 'var(--ink-3)', fontWeight: 400 }}>(opcional)</span>
-                  </label>
-                  <input type="number" inputMode="decimal" min="0" step="0.1" placeholder="Ej: 3" value={tasaMora} onChange={e => setTasaMora(e.target.value)} style={{ minHeight: 40, fontSize: 'var(--text-sm)' }} />
-                </div>
-                {fechaVenc && (
-                  <div style={{ background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 6, padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>
-                    Vence el {formatDate(fechaVenc)}
-                    {tasaMora && parseFloat(tasaMora) > 0 && ` · ${tasaMora}% mensual de mora si no paga`}
-                  </div>
-                )}
+            <div className="form-group">
+              <label style={{ fontSize: 'var(--text-sm)', fontWeight: 500, color: 'var(--ink-2)' }}>
+                Tasa de mora mensual % <span style={{ color: 'var(--ink-3)', fontWeight: 400 }}>(opcional)</span>
+              </label>
+              <input type="number" inputMode="decimal" min="0" step="0.1" placeholder="Ej: 3" value={tasaMora} onChange={e => setTasaMora(e.target.value)} style={{ minHeight: 40, fontSize: 'var(--text-sm)' }} />
+            </div>
+            {fechaVenc && (
+              <div style={{ background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 6, padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>
+                Vence el {formatDate(fechaVenc)}
+                {tasaMora && parseFloat(tasaMora) > 0 && ` · ${tasaMora}% mensual de mora si no paga`}
               </div>
             )}
           </div>
         )}
 
-        <div>
-          <div className="toggle-row" style={{ marginBottom: descuentoHab ? 'var(--space-3)' : 0 }}>
-            <label>Aplicar descuento</label>
-            <div className="toggle">
-              <input type="checkbox" id="pf-descuento" checked={descuentoHab} onChange={e => setDescuentoHab(e.target.checked)} />
-              <span className="toggle-track" onClick={() => setDescuentoHab(v => !v)} />
+        {descuentoHab && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+              <button type="button" className={`filter-chip${descuentoTipo === 'porcentaje' ? ' active' : ''}`} style={{ flex: 1, minHeight: 38 }} onClick={() => setDescuentoTipo('porcentaje')}>%</button>
+              <button type="button" className={`filter-chip${descuentoTipo === 'monto_fijo' ? ' active' : ''}`} style={{ flex: 1, minHeight: 38 }} onClick={() => setDescuentoTipo('monto_fijo')}>$ fijo</button>
             </div>
+            <input type="number" inputMode="decimal" min="0" step="0.01" placeholder={descuentoTipo === 'porcentaje' ? '10' : '500'} value={descuentoVal} onChange={e => { setDescuentoVal(e.target.value); setFinalManual(false); setTotalFinalVal(''); }} style={{ minHeight: 40, fontSize: 'var(--text-sm)' }} />
           </div>
-          {descuentoHab && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-              <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-                <button type="button" className={`filter-chip${descuentoTipo === 'porcentaje' ? ' active' : ''}`} style={{ flex: 1, minHeight: 38 }} onClick={() => setDescuentoTipo('porcentaje')}>%</button>
-                <button type="button" className={`filter-chip${descuentoTipo === 'monto_fijo' ? ' active' : ''}`} style={{ flex: 1, minHeight: 38 }} onClick={() => setDescuentoTipo('monto_fijo')}>$ fijo</button>
-              </div>
-              <input type="number" inputMode="decimal" min="0" step="0.01" placeholder={descuentoTipo === 'porcentaje' ? '10' : '500'} value={descuentoVal} onChange={e => { setDescuentoVal(e.target.value); setFinalManual(false); setTotalFinalVal(''); }} style={{ minHeight: 40, fontSize: 'var(--text-sm)' }} />
-            </div>
-          )}
-        </div>
+        )}
 
         <div style={{ background: 'var(--bg-3)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3) var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-sm)', color: 'var(--ink-3)' }}>

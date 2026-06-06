@@ -101,13 +101,21 @@ export async function generarRemito({ pedido, cliente, negocio = 'Mi Negocio', l
 export async function compartirRemito(pdf, nombreCliente) {
   const blob = pdf.output('blob');
   const fileName = `remito_${nombreCliente.replace(/\s+/g, '_')}.pdf`;
-  const file = new File([blob], fileName, { type: 'application/pdf' });
-  try {
-    if (navigator.share && navigator.canShare?.({ files: [file] })) {
-      await navigator.share({ files: [file], title: `Remito — ${nombreCliente}` });
-      return;
+
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  if (isMobile && navigator.share) {
+    const file = new File([blob], fileName, { type: 'application/pdf' });
+    if (navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: `Remito — ${nombreCliente}` });
+        return;
+      } catch (e) {
+        if (e.name === 'AbortError') return;
+        // otro error → fallback a descarga
+      }
     }
-  } catch (_) {}
+  }
+
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

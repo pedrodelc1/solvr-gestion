@@ -428,6 +428,7 @@ export default function App() {
               }}
               onRefresh={loadAll}
               toast={toast}
+              userRole={userRole}
             />
           );
         }

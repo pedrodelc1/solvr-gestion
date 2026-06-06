@@ -60,6 +60,7 @@ const SORT_LABELS = {
 export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEdit, onMarcarEntregado, onRefresh, toast, userRole = 'owner' }) {
   const canWrite = ['owner', 'admin', 'vendedor'].includes(userRole);
   const canDelete = ['owner', 'admin'].includes(userRole);
+  const canCobrar = ['owner', 'admin', 'vendedor'].includes(userRole);
   const [filter, setFilter] = useState('all');
   const [sort, setSort] = useState('fecha-desc');
   const [sortOpen, setSortOpen] = useState(false);
@@ -257,24 +258,26 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
                 )}
                 <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-2)', flexWrap: 'wrap' }}>
                   {esPresupuesto ? (
-                    <button className="btn btn-primary" style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-sm)' }} onClick={() => setConfirmConvertir(p.id)}>
-                      Convertir a pedido
-                    </button>
+                    canCobrar && (
+                      <button className="btn btn-primary" style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-sm)' }} onClick={() => setConfirmConvertir(p.id)}>
+                        Convertir a pedido
+                      </button>
+                    )
                   ) : (
                     <>
-                      {!p.cobrado && !(p.medioPago === 'tarjeta' && p.cuotas > 1) && (
+                      {canCobrar && !p.cobrado && !(p.medioPago === 'tarjeta' && p.cuotas > 1) && (
                         <button className="btn btn-secondary" style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-sm)' }} onClick={() => { setPagoModal({ pedidoId: p.id, resta }); setPagoMonto(''); }}>
                           + Pago parcial
                         </button>
                       )}
-                      {!(p.medioPago === 'tarjeta' && p.cuotas > 1 && !p.cobrado) && (
+                      {canCobrar && !(p.medioPago === 'tarjeta' && p.cuotas > 1 && !p.cobrado) && (
                         <button className={`btn ${p.cobrado ? 'btn-secondary' : 'btn-primary'}`} style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-sm)' }} onClick={() => handleToggle(p)}>
                           {p.cobrado ? 'Reabrir' : 'Cobrar'}
                         </button>
                       )}
                     </>
                   )}
-                  {!esPresupuesto && (
+                  {!esPresupuesto && canCobrar && (
                     <button
                       className="btn-icon"
                       aria-label={todoEntregado ? 'Entregado' : 'Marcar entregado'}

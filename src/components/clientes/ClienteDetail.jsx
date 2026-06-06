@@ -37,7 +37,8 @@ function TipoComBadge({ tipo }) {
   return <span className="badge badge-info" style={{ fontSize: 10 }}>{map[tipo] || tipo}</span>;
 }
 
-export function ClienteDetail({ cliente, pedidos, devoluciones = [], comunicaciones = [], onBack, onEdit, onDelete, onNuevoPedido, onRefresh, negocio, toast }) {
+export function ClienteDetail({ cliente, pedidos, devoluciones = [], comunicaciones = [], onBack, onEdit, onDelete, onNuevoPedido, onRefresh, negocio, toast, userRole = 'owner' }) {
+  const canCobrar = ['owner', 'admin', 'vendedor'].includes(userRole);
   const [confirmDel, setConfirmDel] = useState(false);
   const [verCuenta, setVerCuenta] = useState(false);
   const [generandoRemito, setGenerandoRemito] = useState(null);
@@ -243,7 +244,7 @@ export function ClienteDetail({ cliente, pedidos, devoluciones = [], comunicacio
                     {generandoRemito === p.id ? 'Generando...' : 'Remito'}
                   </button>
                 )}
-                {p.cobrado && p.tipo !== 'presupuesto' && (
+                {canCobrar && p.cobrado && p.tipo !== 'presupuesto' && (
                   <button
                     className="btn btn-secondary"
                     style={{ minHeight: 36, fontSize: 'var(--text-sm)', gap: 'var(--space-2)' }}

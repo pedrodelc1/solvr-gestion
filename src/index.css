@@ -671,36 +671,31 @@ input[type="search"]::-webkit-search-cancel-button {
   gap: 6px;
   padding: 8px 14px;
   border-radius: 100px;
-  background: rgba(204, 255, 0, 0.04);
-  border: 1px solid rgba(204, 255, 0, 0.4);
-  color: var(--ink-3);
+  background: rgba(204, 255, 0, 0.06);
+  border: 1px solid rgba(204, 255, 0, 0.5);
+  color: #ccff00;
   font-size: var(--text-sm);
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   transition: all 160ms ease;
   white-space: nowrap;
   letter-spacing: -0.01em;
-  box-shadow: 0 0 8px rgba(204, 255, 0, 0.08);
+  box-shadow: 0 0 10px #ccff0033, inset 0 1px 0 rgba(255,255,255,0.06);
+  text-shadow: 0 0 8px #ccff0099;
+  filter: drop-shadow(0 0 3px #ccff0066);
 }
 
 .opt-chip svg { flex-shrink: 0; }
 
-.opt-chip--cobrado {
-  background: rgba(34, 197, 94, 0.15);
-  border-color: #22c55e;
-  color: #22c55e;
-}
-
-.opt-chip--plazo {
-  background: rgba(96, 165, 250, 0.15);
-  border-color: #60a5fa;
-  color: #60a5fa;
-}
-
+.opt-chip--cobrado,
+.opt-chip--plazo,
 .opt-chip--descuento {
-  background: rgba(251, 191, 36, 0.15);
-  border-color: #fbbf24;
-  color: #fbbf24;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.65);
+  color: #ffffff;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.5));
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.2), inset 0 1px 0 rgba(255,255,255,0.1);
 }
 
 /* ── Items list (pedido form) ───────────── */

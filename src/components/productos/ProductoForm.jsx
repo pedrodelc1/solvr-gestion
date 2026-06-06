@@ -3,6 +3,7 @@ import { Modal } from '../shared/Modal.jsx';
 
 export function ProductoForm({ open, existing, onSave, onClose }) {
   const [nombre, setNombre] = useState('');
+  const [marca, setMarca] = useState('');
   const [precio, setPrecio] = useState('');
   const [costo, setCosto] = useState('');
   const [precioMayorista, setPrecioMayorista] = useState('');
@@ -13,6 +14,7 @@ export function ProductoForm({ open, existing, onSave, onClose }) {
   useEffect(() => {
     if (open) {
       setNombre(existing?.nombre || '');
+      setMarca(existing?.marca || '');
       setPrecio(existing?.precio != null ? String(existing.precio) : '');
       setCosto(existing?.costo != null ? String(existing.costo) : '');
       setPrecioMayorista(existing?.precio_mayorista != null ? String(existing.precio_mayorista) : '');
@@ -30,6 +32,7 @@ export function ProductoForm({ open, existing, onSave, onClose }) {
     onSave({
       ...existing,
       nombre: nombre.trim(),
+      marca: marca.trim() || null,
       precio: parseFloat(precio),
       costo: parseFloat(costo) || 0,
       precio_mayorista: parseFloat(precioMayorista) || 0,
@@ -47,17 +50,15 @@ export function ProductoForm({ open, existing, onSave, onClose }) {
       {open && (
         <>
           <div style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-            <div className="form-group">
-              <label htmlFor="pp-nombre">Nombre</label>
-              <input
-                id="pp-nombre"
-                type="text"
-                placeholder="Nombre del producto"
-                value={nombre}
-                onChange={e => setNombre(e.target.value)}
-                autoCorrect="off"
-                autoFocus
-              />
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="pp-nombre">Nombre</label>
+                <input id="pp-nombre" type="text" placeholder="Nombre del producto" value={nombre} onChange={e => setNombre(e.target.value)} autoCorrect="off" autoFocus />
+              </div>
+              <div className="form-group">
+                <label htmlFor="pp-marca">Marca <span style={{ color: 'var(--ink-3)', fontWeight: 400 }}>(opcional)</span></label>
+                <input id="pp-marca" type="text" placeholder="Ej: Nike, Samsung..." value={marca} onChange={e => setMarca(e.target.value)} autoCorrect="off" />
+              </div>
             </div>
             <div className="form-row">
               <div className="form-group">

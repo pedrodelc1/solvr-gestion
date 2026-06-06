@@ -122,6 +122,7 @@ export async function getProductos() {
   const mapped = data.map(r => ({
     id: r.id,
     nombre: r.nombre,
+    marca: r.marca || null,
     precio: r.precio,
     costo: r.costo || 0,
     precio_mayorista: r.precio_mayorista || 0,
@@ -149,6 +150,7 @@ export async function saveProducto(data) {
   if (!userId) throw new Error('Not authenticated');
   const fields = {
     nombre: data.nombre,
+    marca: data.marca || null,
     precio: data.precio,
     costo: data.costo || 0,
     precio_mayorista: data.precio_mayorista || 0,

@@ -77,19 +77,21 @@ function SearchableSelect({ value, options, onChange, placeholder = 'Buscar...' 
 // ── New product inline ───────────────────────────────────────────────────────
 function NewProductInline({ onCreated, onCancel, toast }) {
   const [nombre, setNombre] = useState('');
+  const [marca, setMarca] = useState('');
   const [precio, setPrecio] = useState('');
   const [costo, setCosto] = useState('');
 
   function handleCreate() {
     if (!nombre.trim()) { toast('Ingresá el nombre', 'error'); return; }
     if (!precio || parseFloat(precio) <= 0) { toast('Ingresá el precio', 'error'); return; }
-    const np = { id: uid(), nombre: nombre.trim(), precio: parseFloat(precio), costo: parseFloat(costo) || 0 };
+    const np = { id: uid(), nombre: nombre.trim(), marca: marca.trim() || null, precio: parseFloat(precio), costo: parseFloat(costo) || 0 };
     onCreated(np);
   }
 
   return (
     <div className="new-prod-inline">
       <input type="text" className="np-nombre" placeholder="Nombre del producto" value={nombre} onChange={e => setNombre(e.target.value)} autoFocus />
+      <input type="text" className="np-marca" placeholder="Marca" value={marca} onChange={e => setMarca(e.target.value)} />
       <input type="number" className="np-precio" placeholder="Precio" min="0" step="0.01" value={precio} onChange={e => setPrecio(e.target.value)} />
       <input type="number" className="np-costo" placeholder="Costo" min="0" step="0.01" value={costo} onChange={e => setCosto(e.target.value)} />
       <div className="np-actions">

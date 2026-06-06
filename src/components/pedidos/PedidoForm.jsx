@@ -199,6 +199,7 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
   const [descuentoHab, setDescuentoHab] = useState(!!(existing?.descuentoTipo));
   const [descuentoTipo, setDescuentoTipo] = useState(existing?.descuentoTipo || 'porcentaje');
   const [descuentoVal, setDescuentoVal] = useState(existing?.descuentoValor ? String(existing.descuentoValor) : '');
+  const [saving, setSaving] = useState(false);
 
   const tipoPrecio = clientes.find(c => c.id === clienteId)?.tipo_precio || 'minorista';
   const [items, setItems] = useState(
@@ -293,6 +294,7 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
   }
 
   function handleSave() {
+    if (saving) return;
     if (!clienteId || !fecha) { toast('Completá fecha y cliente', 'error'); return; }
     const validItems = items.filter(item => {
       if (item.mode === 'catalog') return item.productoId && item.cantidad > 0;
@@ -311,6 +313,7 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
       return { productoId: null, nombre: item.manualNombre.trim(), cantidad: item.cantidad, precioUnitario: parseFloat(item.manualPrecio) || 0, costoUnitario: 0, entregado: item.entregado || false, fechaEntrega: item.fechaEntrega || null };
     });
 
+    setSaving(true);
     onSave({
       id: existing?.id || uid(),
       clienteId, fecha, items: pedidoItems,
@@ -484,8 +487,8 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
           <textarea id="pf-nota" placeholder="Ej: entregar en depósito, llamar antes..." value={nota} onChange={e => setNota(e.target.value)} rows={2} style={{ resize: 'none', minHeight: 64 }} />
         </div>
 
-        <button className="btn btn-primary btn-full" type="button" onClick={handleSave}>
-          {existing ? 'Actualizar pedido' : 'Guardar pedido'}
+        <button className="btn btn-primary btn-full" type="button" onClick={handleSave} disabled={saving}>
+          {saving ? 'Guardando...' : existing ? 'Actualizar pedido' : 'Guardar pedido'}
         </button>
       </div>
     </div>

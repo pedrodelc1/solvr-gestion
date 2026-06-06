@@ -217,8 +217,9 @@ export async function getPedidos() {
     .select('*, pedido_items(*)')
     .order('created_at', { ascending: false });
   if (error) return lsGet('pedidos', []);
-  const mapped = data.map(r => ({
+  const mapped = data.map((r, idx) => ({
     id: r.id,
+    fetchOrder: idx,
     clienteId: r.cliente_id,
     fecha: r.fecha,
     totalCalculado: r.total_calculado,

@@ -68,8 +68,8 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
 
   const filtered = [...pedidos]
     .sort((a, b) => {
-      if (sort === 'fecha-desc') { const da = new Date(a.createdAt || a.fecha), db = new Date(b.createdAt || b.fecha); return db - da; }
-      if (sort === 'fecha-asc')  { const da = new Date(a.createdAt || a.fecha), db = new Date(b.createdAt || b.fecha); return da - db; }
+      if (sort === 'fecha-desc') return (a.fetchOrder ?? 0) - (b.fetchOrder ?? 0);
+      if (sort === 'fecha-asc')  return (b.fetchOrder ?? 0) - (a.fetchOrder ?? 0);
       const ta = a.totalFinal ?? a.totalCalculado;
       const tb = b.totalFinal ?? b.totalCalculado;
       return sort === 'precio-desc' ? tb - ta : ta - tb;

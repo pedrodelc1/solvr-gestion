@@ -149,31 +149,6 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
         ))}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: '0 var(--space-4) var(--space-2)', overflowX: 'auto', scrollbarWidth: 'none' }}>
-        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', flexShrink: 0 }}>Orden</span>
-        {SORTS.map(s => {
-          const active = sort === s.id;
-          return (
-            <button
-              key={s.id}
-              onClick={() => setSort(s.id)}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 4,
-                padding: '5px 10px', borderRadius: 20, border: 'none', cursor: 'pointer',
-                fontSize: 'var(--text-xs)', fontWeight: active ? 700 : 500,
-                background: active ? 'var(--primary)' : 'var(--bg-3)',
-                color: active ? '#080808' : 'var(--ink-2)',
-                transition: 'background 0.15s, color 0.15s',
-                flexShrink: 0,
-              }}
-            >
-              <span style={{ fontWeight: 700, fontSize: 10, lineHeight: 1 }}>{s.icon}</span>
-              {s.label}
-            </button>
-          );
-        })}
-      </div>
-
       <div className="search-bar">
         <div className="search-bar-wrapper">
           <input

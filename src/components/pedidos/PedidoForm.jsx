@@ -4,7 +4,8 @@ import { formatCurrency, today, uid } from '../../lib/utils.js';
 // ── Searchable select ────────────────────────────────────────────────────────
 function SearchableSelect({ value, options, onChange, placeholder = 'Buscar...' }) {
   const [q, setQ] = useState('');
-  const [open, setOpen] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const [hovered, setHovered] = useState(false);
   const wrapRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -14,57 +15,48 @@ function SearchableSelect({ value, options, onChange, placeholder = 'Buscar...' 
     : options;
 
   useEffect(() => {
-    if (!open) return;
-    function onDown(e) { if (!wrapRef.current?.contains(e.target)) { setOpen(false); setQ(''); } }
+    if (!focused) return;
+    function onDown(e) {
+      if (!wrapRef.current?.contains(e.target)) { setFocused(false); setQ(''); }
+    }
     document.addEventListener('pointerdown', onDown);
     return () => document.removeEventListener('pointerdown', onDown);
-  }, [open]);
+  }, [focused]);
 
-  function handleOpen() {
-    setOpen(true);
-    setQ('');
-    setTimeout(() => inputRef.current?.focus(), 0);
-  }
+  const borderColor = focused ? '#ccff00' : hovered ? 'rgba(255,255,255,0.3)' : 'var(--border)';
 
   return (
     <div ref={wrapRef} style={{ position: 'relative' }}>
-      {/* Trigger — shows selected value */}
-      {!open ? (
-        <div
-          onPointerDown={handleOpen}
-          style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '0 12px', minHeight: 40, cursor: 'pointer' }}
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2" style={{ flexShrink: 0 }}>
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-          <span style={{ flex: 1, fontSize: 'var(--text-sm)', color: selected ? 'var(--ink)' : 'var(--ink-3)' }}>
-            {selected?.label || placeholder}
-          </span>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface)', border: '1px solid #ccff00', borderRadius: 8, padding: '0 12px', minHeight: 40 }}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2" style={{ flexShrink: 0 }}>
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-          <input
-            ref={inputRef}
-            type="text"
-            value={q}
-            placeholder="Escribí para buscar..."
-            onChange={e => setQ(e.target.value)}
-            style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none', fontSize: 'var(--text-sm)', color: 'var(--ink)', minHeight: 38 }}
-          />
-        </div>
-      )}
+      <div
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        onPointerDown={() => { setFocused(true); setTimeout(() => inputRef.current?.focus(), 0); }}
+        style={{ display: 'flex', alignItems: 'center', gap: 8, background: hovered && !focused ? 'rgba(255,255,255,0.05)' : 'var(--surface)', border: `1px solid ${borderColor}`, borderRadius: 8, padding: '0 12px', minHeight: 40, cursor: 'pointer', transition: 'border-color 0.15s, background 0.15s' }}
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={focused ? '#ccff00' : 'var(--ink-3)'} strokeWidth="2" style={{ flexShrink: 0, transition: 'stroke 0.15s' }}>
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input
+          ref={inputRef}
+          type="text"
+          value={focused ? q : (selected?.label || '')}
+          placeholder={focused ? 'Escribí para buscar...' : placeholder}
+          onChange={e => setQ(e.target.value)}
+          onFocus={() => { setFocused(true); setQ(''); }}
+          readOnly={!focused}
+          style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none', fontSize: 'var(--text-sm)', color: focused || selected ? 'var(--ink)' : 'var(--ink-3)', minHeight: 38, cursor: 'pointer' }}
+        />
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2" style={{ flexShrink: 0, transform: focused ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </div>
 
-      {/* Dropdown list */}
-      {open && (
-        <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: '#1a1a1a', border: '1px solid var(--border)', borderRadius: 8, zIndex: 999, maxHeight: 220, overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.8)' }}>
+      {focused && (
+        <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: '#1c1c1c', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, zIndex: 999, maxHeight: 220, overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.8)' }}>
           {filtered.map(o => (
             <div
               key={o.value}
-              onPointerDown={e => { e.preventDefault(); onChange(o.value); setOpen(false); setQ(''); }}
+              onPointerDown={e => { e.preventDefault(); onChange(o.value); setFocused(false); setQ(''); }}
               style={{ padding: '12px 14px', fontSize: 'var(--text-sm)', color: o.value === value ? '#ccff00' : 'var(--ink)', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.06)', background: o.value === value ? 'rgba(204,255,0,0.08)' : 'transparent' }}
             >
               {o.label}

@@ -58,7 +58,7 @@ export default function App() {
   const [suscripcion, setSuscripcion] = useState(null);
   const [diasSinCobro, setDiasSinCobro] = useState(7);
   const [negocioConfig, setNegocioConfig] = useState(null);
-  const [activeTab, setActiveTab] = useState('clientes');
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem('sg_tab') || 'clientes');
   const [toasts, setToasts] = useState([]);
 
   // Clientes UI
@@ -290,6 +290,7 @@ export default function App() {
 
   function handleTabChange(tab) {
     setActiveTab(tab);
+    localStorage.setItem('sg_tab', tab);
     setSelectedClienteId(null);
     setShowPedidoForm(false);
     setPreClienteId(null);

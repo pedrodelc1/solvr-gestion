@@ -18,44 +18,34 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
 
   const [nombre, setNombre] = useState(existing?.nombre || draft?.nombre || '');
   const [contacto, setContacto] = useState(existing?.contacto || draft?.contacto || '');
+  const [email, setEmail] = useState(existing?.email || draft?.email || '');
+  const [direccion, setDireccion] = useState(existing?.direccion || draft?.direccion || '');
   const [tipoPrecio, setTipoPrecio] = useState(existing?.tipo_precio || draft?.tipoPrecio || 'minorista');
   const [saldoInicial, setSaldoInicial] = useState(existing?.saldo_inicial || draft?.saldoInicial || '');
   const [error, setError] = useState('');
+
+  function draft_state() {
+    return { nombre, contacto, email, direccion, tipoPrecio, saldoInicial };
+  }
 
   function handleOpen() {
     if (existing) {
       setNombre(existing.nombre || '');
       setContacto(existing.contacto || '');
+      setEmail(existing.email || '');
+      setDireccion(existing.direccion || '');
       setTipoPrecio(existing.tipo_precio || 'minorista');
       setSaldoInicial(existing.saldo_inicial || '');
     } else {
       const d = loadDraft();
       setNombre(d?.nombre || '');
       setContacto(d?.contacto || '');
+      setEmail(d?.email || '');
+      setDireccion(d?.direccion || '');
       setTipoPrecio(d?.tipoPrecio || 'minorista');
       setSaldoInicial(d?.saldoInicial || '');
     }
     setError('');
-  }
-
-  function handleNombre(val) {
-    setNombre(val);
-    if (!existing) saveDraft({ nombre: val, contacto, tipoPrecio, saldoInicial });
-  }
-
-  function handleContacto(val) {
-    setContacto(val);
-    if (!existing) saveDraft({ nombre, contacto: val, tipoPrecio, saldoInicial });
-  }
-
-  function handleTipoPrecio(val) {
-    setTipoPrecio(val);
-    if (!existing) saveDraft({ nombre, contacto, tipoPrecio: val, saldoInicial });
-  }
-
-  function handleSaldoInicial(val) {
-    setSaldoInicial(val);
-    if (!existing) saveDraft({ nombre, contacto, tipoPrecio, saldoInicial: val });
   }
 
   function handleSave() {
@@ -68,6 +58,8 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
       ...existing,
       nombre: nombre.trim(),
       contacto: contacto.trim(),
+      email: email.trim(),
+      direccion: direccion.trim(),
       tipo_precio: tipoPrecio,
       saldo_inicial: parseFloat(saldoInicial) || 0,
     });
@@ -94,7 +86,7 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
                 type="text"
                 placeholder="Nombre completo"
                 value={nombre}
-                onChange={e => handleNombre(e.target.value)}
+                onChange={e => { setNombre(e.target.value); if (!existing) saveDraft({ ...draft_state(), nombre: e.target.value }); }}
                 autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="words"
@@ -108,8 +100,32 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
                 type="tel"
                 placeholder="1123456789"
                 value={contacto}
-                onChange={e => handleContacto(e.target.value)}
+                onChange={e => { setContacto(e.target.value); if (!existing) saveDraft({ ...draft_state(), contacto: e.target.value }); }}
                 autoComplete="off"
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="fc-email">Email</label>
+              <input
+                id="fc-email"
+                type="email"
+                placeholder="cliente@email.com"
+                value={email}
+                onChange={e => { setEmail(e.target.value); if (!existing) saveDraft({ ...draft_state(), email: e.target.value }); }}
+                autoComplete="off"
+                autoCapitalize="none"
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="fc-direccion">Dirección</label>
+              <input
+                id="fc-direccion"
+                type="text"
+                placeholder="Calle 123, ciudad"
+                value={direccion}
+                onChange={e => { setDireccion(e.target.value); if (!existing) saveDraft({ ...draft_state(), direccion: e.target.value }); }}
+                autoComplete="off"
+                autoCorrect="off"
               />
             </div>
             {!existing && (
@@ -122,7 +138,7 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
                   placeholder="0"
                   min="0"
                   value={saldoInicial}
-                  onChange={e => handleSaldoInicial(e.target.value)}
+                  onChange={e => { setSaldoInicial(e.target.value); if (!existing) saveDraft({ ...draft_state(), saldoInicial: e.target.value }); }}
                   autoComplete="off"
                 />
               </div>
@@ -134,7 +150,7 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
                   type="button"
                   className={`filter-chip${tipoPrecio === 'minorista' ? ' active' : ''}`}
                   style={{ flex: 1, minHeight: 40 }}
-                  onClick={() => handleTipoPrecio('minorista')}
+                  onClick={() => { setTipoPrecio('minorista'); if (!existing) saveDraft({ ...draft_state(), tipoPrecio: 'minorista' }); }}
                 >
                   Minorista
                 </button>
@@ -142,7 +158,7 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
                   type="button"
                   className={`filter-chip${tipoPrecio === 'mayorista' ? ' active' : ''}`}
                   style={{ flex: 1, minHeight: 40 }}
-                  onClick={() => handleTipoPrecio('mayorista')}
+                  onClick={() => { setTipoPrecio('mayorista'); if (!existing) saveDraft({ ...draft_state(), tipoPrecio: 'mayorista' }); }}
                 >
                   Mayorista
                 </button>

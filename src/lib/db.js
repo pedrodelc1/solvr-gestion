@@ -57,6 +57,8 @@ export async function getClientes() {
     id: r.id,
     nombre: r.nombre,
     contacto: r.contacto || '',
+    email: r.email || '',
+    direccion: r.direccion || '',
     tipo_precio: r.tipo_precio || 'minorista',
     saldo_inicial: r.saldo_inicial || 0,
   }));
@@ -82,6 +84,8 @@ export async function saveCliente(data) {
   const fields = {
     nombre: data.nombre,
     contacto: data.contacto || '',
+    email: data.email || '',
+    direccion: data.direccion || '',
     tipo_precio: data.tipo_precio || 'minorista',
     saldo_inicial: data.saldo_inicial || 0,
   };

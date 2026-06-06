@@ -43,22 +43,22 @@ const FILTERS = [
 ];
 
 const SORTS = [
-  { id: 'fecha-desc', label: 'Más nuevo', icon: '↓', hint: 'Fecha' },
-  { id: 'fecha-asc',  label: 'Más antiguo', icon: '↑', hint: 'Fecha' },
+  { id: 'fecha-asc',  label: 'Más nuevo último', icon: '↑', hint: 'Fecha' },
+  { id: 'fecha-desc', label: 'Más nuevo primero', icon: '↓', hint: 'Fecha' },
   { id: 'precio-desc', label: 'Mayor $', icon: '↓', hint: '$' },
   { id: 'precio-asc',  label: 'Menor $', icon: '↑', hint: '$' },
 ];
 
 const SORT_LABELS = {
+  'fecha-asc':   'Más nuevo último',
   'fecha-desc':  'Más nuevo primero',
-  'fecha-asc':   'Más antiguo primero',
   'precio-desc': 'Mayor precio primero',
   'precio-asc':  'Menor precio primero',
 };
 
 export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEdit, onMarcarEntregado, onRefresh, toast }) {
   const [filter, setFilter] = useState('all');
-  const [sort, setSort] = useState('fecha-desc');
+  const [sort, setSort] = useState('fecha-asc');
   const [sortOpen, setSortOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [pagoModal, setPagoModal] = useState(null);

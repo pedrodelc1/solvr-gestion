@@ -193,8 +193,8 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
   const [interes, setInteres] = useState('');
   const [tipo, setTipo] = useState(existing?.tipo || 'pedido');
   const [cobrado, setCobrado] = useState(existing?.cobrado || false);
-  const [finalManual, setFinalManual] = useState(existing ? true : false);
-  const [totalFinalVal, setTotalFinalVal] = useState(existing?.totalFinal ? String(existing.totalFinal) : '');
+  const [finalManual, setFinalManual] = useState(false);
+  const [totalFinalVal, setTotalFinalVal] = useState('');
   const [nota, setNota] = useState(existing?.nota || '');
   const [descuentoHab, setDescuentoHab] = useState(!!(existing?.descuentoTipo));
   const [descuentoTipo, setDescuentoTipo] = useState(existing?.descuentoTipo || 'porcentaje');

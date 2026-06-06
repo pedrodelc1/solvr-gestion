@@ -6,6 +6,7 @@ function SearchableSelect({ value, options, onChange, placeholder = 'Buscar...' 
   const [q, setQ] = useState('');
   const [focused, setFocused] = useState(false);
   const [hovered, setHovered] = useState(false);
+  const [hoveredIdx, setHoveredIdx] = useState(-1);
   const wrapRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -53,11 +54,13 @@ function SearchableSelect({ value, options, onChange, placeholder = 'Buscar...' 
 
       {focused && (
         <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: '#1c1c1c', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, zIndex: 999, maxHeight: 220, overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.8)' }}>
-          {filtered.map(o => (
+          {filtered.map((o, i) => (
             <div
               key={o.value}
-              onPointerDown={e => { e.preventDefault(); onChange(o.value); setFocused(false); setQ(''); }}
-              style={{ padding: '12px 14px', fontSize: 'var(--text-sm)', color: o.value === value ? '#ccff00' : 'var(--ink)', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.06)', background: o.value === value ? 'rgba(204,255,0,0.08)' : 'transparent' }}
+              onPointerDown={e => { e.preventDefault(); onChange(o.value); setFocused(false); setQ(''); setHoveredIdx(-1); }}
+              onMouseEnter={() => setHoveredIdx(i)}
+              onMouseLeave={() => setHoveredIdx(-1)}
+              style={{ padding: '12px 14px', fontSize: 'var(--text-sm)', color: o.value === value ? '#ccff00' : 'var(--ink)', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.06)', background: o.value === value ? 'rgba(204,255,0,0.08)' : hoveredIdx === i ? 'rgba(255,255,255,0.07)' : 'transparent', transition: 'background 0.1s' }}
             >
               {o.label}
             </div>
@@ -108,10 +111,6 @@ function ItemRow({ item, idx, productos, tipoPrecio, onChangeProducto, onChangeC
   const manualSubtotal = !isCatalog ? (parseFloat(item.manualPrecio) || 0) * (item.cantidad || 0) : 0;
   const subtotal = isCatalog ? catalogSubtotal : manualSubtotal;
 
-  function setMode(mode) {
-    onChangeManual(idx, { mode, productoId: '', manualNombre: '', manualPrecio: '', cantidad: item.cantidad, _creatingNew: false });
-  }
-
   const productoOptions = [
     ...productos.map(p => ({
       value: p.id,
@@ -122,11 +121,6 @@ function ItemRow({ item, idx, productos, tipoPrecio, onChangeProducto, onChangeC
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
-      <div className="item-type-toggle">
-        <button type="button" className={`item-type-btn${isCatalog ? ' active' : ''}`} onClick={() => setMode('catalog')}>Catálogo</button>
-        <button type="button" className={`item-type-btn${!isCatalog ? ' active' : ''}`} onClick={() => setMode('manual')}>Manual</button>
-      </div>
-
       {isCatalog ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
           <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
@@ -407,10 +401,7 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
         )}
 
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-2)' }}>
-            <label style={{ fontSize: 'var(--text-sm)', fontWeight: 500, color: 'var(--ink-2)' }}>Ítems</label>
-            <button className="btn btn-secondary" type="button" style={{ minHeight: 36, padding: 'var(--space-1) var(--space-3)', fontSize: 'var(--text-sm)' }} onClick={handleAddItem}>+ Ítem</button>
-          </div>
+          <label style={{ fontSize: 'var(--text-sm)', fontWeight: 500, color: 'var(--ink-2)', display: 'block', marginBottom: 'var(--space-2)' }}>Ítems</label>
           <div className="items-list">
             {items.map((item, idx) => (
               <ItemRow
@@ -431,6 +422,7 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
               />
             ))}
           </div>
+          <button className="btn btn-secondary btn-full" type="button" style={{ marginTop: 'var(--space-3)' }} onClick={handleAddItem}>+ Agregar ítem</button>
         </div>
 
         {!esTarjeta && (

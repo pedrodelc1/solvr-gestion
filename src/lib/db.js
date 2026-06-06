@@ -34,7 +34,13 @@ function useSupabase() {
   );
 }
 
+// When a team member logs in, App.jsx calls this with the owner's user_id
+// so all writes go to the owner's account.
+let _effectiveUserId = null;
+export function setEffectiveUserId(uid) { _effectiveUserId = uid; }
+
 async function getUserId() {
+  if (_effectiveUserId) return _effectiveUserId;
   const { data } = await supabase.auth.getUser();
   return data?.user?.id;
 }
@@ -117,8 +123,11 @@ export async function getProductos() {
   const { data, error } = await supabase
     .from('productos')
     .select('*')
-    .order('created_at', { ascending: true });
-  if (error) return lsGet('productos', []);
+    .order('nombre', { ascending: true });
+  if (error) {
+    console.error('[getProductos]', error);
+    return lsGet('productos', []);
+  }
   const mapped = data.map(r => ({
     id: r.id,
     nombre: r.nombre,
@@ -515,11 +524,13 @@ export async function isEmailAllowed(email) {
   if (!useSupabase()) return true;
   const superadmin = import.meta.env.VITE_SUPERADMIN_EMAIL;
   if (superadmin && email.toLowerCase().trim() === superadmin.toLowerCase().trim()) return true;
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('allowed_emails')
     .select('id')
     .eq('email', email.toLowerCase().trim())
     .maybeSingle();
+  // If we can't read the table (e.g. unauthenticated + strict RLS), don't block
+  if (error) return null;
   return !!data;
 }
 
@@ -527,7 +538,7 @@ export async function getAllowedEmails() {
   if (!useSupabase()) return [];
   const { data, error } = await supabase
     .from('allowed_emails')
-    .select('id, email, is_owner, trial_activo, created_at')
+    .select('id, email, is_owner, rol, trial_activo, owner_user_id, created_at')
     .order('created_at', { ascending: true });
   if (error) return [];
   return data;
@@ -596,9 +607,10 @@ export async function getUserRole(email) {
 }
 
 export async function addAllowedEmail(email, rol = 'vendedor') {
+  const ownerUserId = await getUserId();
   const { error } = await supabase
     .from('allowed_emails')
-    .insert({ email: email.toLowerCase().trim(), rol });
+    .insert({ email: email.toLowerCase().trim(), rol, owner_user_id: ownerUserId });
   if (error) throw error;
   return getAllowedEmails();
 }

@@ -16,7 +16,8 @@ export function LoginScreen() {
     setLoading(true);
     setError('');
     const allowed = await isEmailAllowed(email.trim());
-    if (!allowed) {
+    // null = can't verify (RLS/anon), false = definitely not allowed
+    if (allowed === false) {
       setLoading(false);
       setError('Este email no tiene acceso. Contactá al administrador.');
       return;

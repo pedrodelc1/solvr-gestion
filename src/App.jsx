@@ -10,6 +10,7 @@ import {
   procesarCuotasVencidas,
   isOwnerEmail,
   getUserRole,
+  setEffectiveUserId,
   getSuscripcion, crearSuscripcionTrial,
   getAlertasConfig,
   getDevoluciones,
@@ -157,19 +158,41 @@ export default function App() {
 
   useEffect(() => {
     if (authChecked && session) {
-      loadAll();
-      isOwnerEmail(session.user.email).then(setIsOwner);
-      getUserRole(session.user.email).then(r => setUserRole(r || 'vendedor'));
-      getSuscripcion().then(async sus => {
-        if (!sus) {
-          const nueva = await crearSuscripcionTrial();
-          setSuscripcion(nueva);
-        } else {
-          setSuscripcion(sus);
+      const email = session.user.email;
+      const init = async () => {
+        // Post-auth whitelist check (works because user is now authenticated)
+        const { data: entry } = await supabase
+          .from('allowed_emails')
+          .select('id, owner_user_id, is_owner')
+          .eq('email', email.toLowerCase().trim())
+          .maybeSingle();
+        const superadmin = import.meta.env.VITE_SUPERADMIN_EMAIL;
+        const isSuperadmin = superadmin && email.toLowerCase().trim() === superadmin.toLowerCase().trim();
+        if (!isSuperadmin && !entry) {
+          await supabase.auth.signOut();
+          return;
         }
-      });
-      getAlertasConfig().then(cfg => setDiasSinCobro(cfg.dias_sin_cobro));
-      getNegocioConfig().then(setNegocioConfig);
+        // For team members: use owner's user_id for all writes
+        if (entry?.owner_user_id && !entry.is_owner) {
+          setEffectiveUserId(entry.owner_user_id);
+        }
+        loadAll();
+        isOwnerEmail(email).then(setIsOwner);
+        getUserRole(email).then(r => setUserRole(r || 'vendedor'));
+        getSuscripcion().then(async sus => {
+          if (!sus) {
+            const nueva = await crearSuscripcionTrial();
+            setSuscripcion(nueva);
+          } else {
+            setSuscripcion(sus);
+          }
+        });
+        getAlertasConfig().then(cfg => setDiasSinCobro(cfg.dias_sin_cobro));
+        getNegocioConfig().then(setNegocioConfig);
+      };
+      init();
+    } else if (authChecked && !session) {
+      setEffectiveUserId(null);
     }
   }, [authChecked, session, loadAll]);
 

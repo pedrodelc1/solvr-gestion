@@ -48,9 +48,17 @@ const SORTS = [
   { id: 'precio-asc',  label: 'Menor $', icon: '↑', hint: '$' },
 ];
 
+const SORT_LABELS = {
+  'fecha-desc':  'Más nuevo primero',
+  'fecha-asc':   'Más antiguo primero',
+  'precio-desc': 'Mayor precio primero',
+  'precio-asc':  'Menor precio primero',
+};
+
 export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEdit, onRefresh, toast }) {
   const [filter, setFilter] = useState('all');
   const [sort, setSort] = useState('fecha-desc');
+  const [sortOpen, setSortOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [pagoModal, setPagoModal] = useState(null); // { pedidoId, resta }
   const [pagoMonto, setPagoMonto] = useState('');
@@ -149,8 +157,8 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
         ))}
       </div>
 
-      <div className="search-bar">
-        <div className="search-bar-wrapper">
+      <div className="search-bar" style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+        <div className="search-bar-wrapper" style={{ flex: 1 }}>
           <input
             type="search"
             placeholder="Buscar cliente..."
@@ -159,6 +167,13 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
             autoComplete="off"
           />
         </div>
+        <button
+          onClick={() => setSortOpen(true)}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 12px', minHeight: 40, background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', color: 'var(--ink-2)', fontSize: 'var(--text-xs)', fontWeight: 600, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/></svg>
+          Ordenar
+        </button>
       </div>
 
       <div className="list-section">
@@ -339,6 +354,26 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
         onConfirm={() => handleConvertir(confirmConvertir)}
         onCancel={() => setConfirmConvertir(null)}
       />
+
+      <Modal open={sortOpen} title="Ordenar por" onClose={() => setSortOpen(false)}>
+        <div style={{ display: 'flex', flexDirection: 'column', padding: 'var(--space-2) var(--space-4) var(--space-6)' }}>
+          {Object.entries(SORT_LABELS).map(([id, label]) => {
+            const active = sort === id;
+            return (
+              <button
+                key={id}
+                onClick={() => { setSort(id); setSortOpen(false); }}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--space-4) var(--space-2)', background: 'none', border: 'none', borderBottom: '1px solid var(--border)', cursor: 'pointer', color: active ? 'var(--primary)' : 'var(--ink)', fontSize: 'var(--text-base)', fontWeight: active ? 700 : 400, textAlign: 'left', width: '100%' }}
+              >
+                {label}
+                {active && (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </Modal>
     </>
   );
 }

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { supabase } from '../../lib/supabase.js';
 import { formatCurrency, formatDate, saldoCliente, inRange } from '../../lib/utils.js';
 import {
-  getAllowedEmails, addAllowedEmail, removeAllowedEmail, toggleTrialAcceso,
+  getAllowedEmails, addAllowedEmail, removeAllowedEmail,
   getAlertasConfig, saveAlertasConfig,
   getSuscripciones, updateSuscripcion,
 } from '../../lib/db.js';
@@ -65,16 +65,6 @@ export function PerfilPanel({ session, isOwner, clientes, pedidos, gastos, suscr
       const arr = await removeAllowedEmail(id);
       setAllowedEmails(arr);
       toast('Email eliminado');
-    } catch (e) {
-      toast(e.message, 'error');
-    }
-  }
-
-  async function handleToggleTrial(id, email, activo) {
-    try {
-      const arr = await toggleTrialAcceso(id, email, activo);
-      setAllowedEmails(arr);
-      toast(activo ? 'Prueba activada' : 'Acceso cortado');
     } catch (e) {
       toast(e.message, 'error');
     }
@@ -243,35 +233,16 @@ export function PerfilPanel({ session, isOwner, clientes, pedidos, gastos, suscr
                       {e.email} {e.is_owner && <span style={{ color: '#ccff00', fontSize: 'var(--text-xs)' }}>owner</span>}
                     </span>
                     {!e.is_owner && (
-                      <>
-                        <button
-                          onClick={() => handleToggleTrial(e.id, e.email, !e.trial_activo)}
-                          style={{
-                            background: e.trial_activo ? '#ccff00' : 'var(--surface-2)',
-                            color: e.trial_activo ? '#000' : 'var(--ink-3)',
-                            border: 'none',
-                            borderRadius: 20,
-                            padding: '3px 10px',
-                            fontSize: 'var(--text-xs)',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            whiteSpace: 'nowrap',
-                            flexShrink: 0,
-                          }}
-                        >
-                          {e.trial_activo ? 'En prueba' : 'Cliente'}
-                        </button>
-                        <button
-                          className="btn-icon danger"
-                          onClick={() => handleRemove(e.id)}
-                          aria-label="Quitar acceso"
-                        >
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <polyline points="3 6 5 6 21 6" />
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                          </svg>
-                        </button>
-                      </>
+                      <button
+                        className="btn-icon danger"
+                        onClick={() => handleRemove(e.id)}
+                        aria-label="Quitar acceso"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="3 6 5 6 21 6" />
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                        </svg>
+                      </button>
                     )}
                   </div>
                 ))
@@ -321,6 +292,7 @@ export function PerfilPanel({ session, isOwner, clientes, pedidos, gastos, suscr
               })()}
               {!loadingSus && suscripciones.length > 0 && (
                 suscripciones.map(s => {
+                  const esOwn = s.user_email === email;
                   const dias = Math.round((new Date(s.fecha_vencimiento) - new Date()) / (1000 * 60 * 60 * 24));
                   return (
                     <div key={s.id} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', paddingBottom: 'var(--space-3)', borderBottom: '1px solid var(--border)' }}>
@@ -328,42 +300,47 @@ export function PerfilPanel({ session, isOwner, clientes, pedidos, gastos, suscr
                         <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                           {s.user_email || s.user_id.slice(0, 8) + '...'}
                         </span>
-                        <span className={`badge ${s.estado === 'activa' ? 'badge-ok' : s.estado === 'prueba' ? 'badge-info' : s.estado === 'vencida' ? 'badge-warn' : 'badge-neutral'}`}>
-                          {s.estado}
-                        </span>
+                        {esOwn
+                          ? <span style={{ fontSize: 'var(--text-xs)', color: '#ccff00', fontWeight: 700 }}>owner</span>
+                          : <span className={`badge ${s.estado === 'activa' ? 'badge-ok' : s.estado === 'prueba' ? 'badge-info' : s.estado === 'vencida' ? 'badge-warn' : 'badge-neutral'}`}>{s.estado}</span>
+                        }
                       </div>
-                      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>
-                        Vence: {formatDate(s.fecha_vencimiento)} · {dias >= 0 ? `${dias} días restantes` : `Vencida hace ${Math.abs(dias)} días`}
-                      </div>
-                      <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-                        {s.estado !== 'activa' && (
-                          <button
-                            className="btn btn-secondary"
-                            style={{ flex: 1, minHeight: 36, fontSize: 'var(--text-xs)' }}
-                            onClick={() => handleUpdateSuscripcion(s.id, 'activa')}
-                          >
-                            Activar
-                          </button>
-                        )}
-                        {s.estado !== 'bloqueada' && (
-                          <button
-                            className="btn btn-danger"
-                            style={{ flex: 1, minHeight: 36, fontSize: 'var(--text-xs)' }}
-                            onClick={() => handleUpdateSuscripcion(s.id, 'bloqueada')}
-                          >
-                            Bloquear
-                          </button>
-                        )}
-                        {s.estado !== 'vencida' && s.estado !== 'bloqueada' && (
-                          <button
-                            className="btn btn-secondary"
-                            style={{ flex: 1, minHeight: 36, fontSize: 'var(--text-xs)' }}
-                            onClick={() => handleUpdateSuscripcion(s.id, 'vencida')}
-                          >
-                            Vencer
-                          </button>
-                        )}
-                      </div>
+                      {!esOwn && (
+                        <>
+                          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>
+                            Vence: {formatDate(s.fecha_vencimiento)} · {dias >= 0 ? `${dias} días restantes` : `Vencida hace ${Math.abs(dias)} días`}
+                          </div>
+                          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                            {s.estado !== 'activa' && (
+                              <button
+                                className="btn btn-secondary"
+                                style={{ flex: 1, minHeight: 36, fontSize: 'var(--text-xs)' }}
+                                onClick={() => handleUpdateSuscripcion(s.id, 'activa')}
+                              >
+                                Activar
+                              </button>
+                            )}
+                            {s.estado !== 'bloqueada' && (
+                              <button
+                                className="btn btn-danger"
+                                style={{ flex: 1, minHeight: 36, fontSize: 'var(--text-xs)' }}
+                                onClick={() => handleUpdateSuscripcion(s.id, 'bloqueada')}
+                              >
+                                Bloquear
+                              </button>
+                            )}
+                            {s.estado !== 'vencida' && s.estado !== 'bloqueada' && (
+                              <button
+                                className="btn btn-secondary"
+                                style={{ flex: 1, minHeight: 36, fontSize: 'var(--text-xs)' }}
+                                onClick={() => handleUpdateSuscripcion(s.id, 'vencida')}
+                              >
+                                Vencer
+                              </button>
+                            )}
+                          </div>
+                        </>
+                      )}
                     </div>
                   );
                 })

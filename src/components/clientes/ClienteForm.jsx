@@ -98,7 +98,7 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
               <input
                 id="fc-contacto"
                 type="tel"
-                placeholder="1123456789"
+                placeholder="1123456789 (opcional)"
                 value={contacto}
                 onChange={e => { setContacto(e.target.value); if (!existing) saveDraft({ ...draft_state(), contacto: e.target.value }); }}
                 autoComplete="off"
@@ -109,7 +109,7 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
               <input
                 id="fc-email"
                 type="email"
-                placeholder="cliente@email.com"
+                placeholder="cliente@email.com (opcional)"
                 value={email}
                 onChange={e => { setEmail(e.target.value); if (!existing) saveDraft({ ...draft_state(), email: e.target.value }); }}
                 autoComplete="off"
@@ -121,7 +121,7 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
               <input
                 id="fc-direccion"
                 type="text"
-                placeholder="Calle 123, ciudad"
+                placeholder="Calle 123, ciudad (opcional)"
                 value={direccion}
                 onChange={e => { setDireccion(e.target.value); if (!existing) saveDraft({ ...draft_state(), direccion: e.target.value }); }}
                 autoComplete="off"
@@ -135,7 +135,7 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
                   id="fc-saldo"
                   type="number"
                   inputMode="decimal"
-                  placeholder="0"
+                  placeholder="0 (opcional)"
                   min="0"
                   value={saldoInicial}
                   onChange={e => { setSaldoInicial(e.target.value); if (!existing) saveDraft({ ...draft_state(), saldoInicial: e.target.value }); }}

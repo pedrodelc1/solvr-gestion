@@ -3,12 +3,28 @@ import { motion } from 'framer-motion';
 import { supabase } from '../../lib/supabase.js';
 import { formatCurrency, formatDate, saldoCliente, inRange } from '../../lib/utils.js';
 import {
-  getAllowedEmails, addAllowedEmail, removeAllowedEmail,
+  getAllowedEmails, addAllowedEmail, removeAllowedEmail, updateMemberRol,
   getAlertasConfig, saveAlertasConfig,
   getSuscripciones, updateSuscripcion,
 } from '../../lib/db.js';
 
-export function PerfilPanel({ session, isOwner, clientes, pedidos, gastos, suscripcion, negocioConfig, onNegocioSave, toast }) {
+const ROLES = [
+  { id: 'admin',        label: 'Admin',        desc: 'Acceso completo al sistema',              color: '#ccff00', bg: 'rgba(204,255,0,0.1)' },
+  { id: 'vendedor',     label: 'Vendedor',      desc: 'Gestiona pedidos y clientes',             color: '#60a5fa', bg: 'rgba(96,165,250,0.1)' },
+  { id: 'visualizador', label: 'Solo lectura',  desc: 'Puede ver todo pero no modificar nada',  color: '#aaaaaa', bg: 'rgba(170,170,170,0.08)' },
+];
+
+function RolBadge({ rol }) {
+  const r = ROLES.find(x => x.id === rol);
+  if (!r) return null;
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 999, background: r.bg, border: `1px solid ${r.color}44`, color: r.color, fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }}>
+      {r.label}
+    </span>
+  );
+}
+
+export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gastos, suscripcion, negocioConfig, onNegocioSave, toast }) {
   const email = session?.user?.email || null;
   const inicial = email ? email[0].toUpperCase() : '?';
 
@@ -39,7 +55,9 @@ export function PerfilPanel({ session, isOwner, clientes, pedidos, gastos, suscr
 
   const [allowedEmails, setAllowedEmails] = useState([]);
   const [newEmail, setNewEmail] = useState('');
+  const [newRol, setNewRol] = useState('vendedor');
   const [adding, setAdding] = useState(false);
+  const [editingRolId, setEditingRolId] = useState(null);
 
   // Alertas config
   const [diasAlerta, setDiasAlerta] = useState(7);
@@ -69,14 +87,25 @@ export function PerfilPanel({ session, isOwner, clientes, pedidos, gastos, suscr
     if (!newEmail.trim()) return;
     setAdding(true);
     try {
-      const arr = await addAllowedEmail(newEmail.trim());
+      const arr = await addAllowedEmail(newEmail.trim(), newRol);
       setAllowedEmails(arr);
       setNewEmail('');
-      toast('Email autorizado');
+      toast('Miembro agregado al equipo');
     } catch (e) {
-      toast(e.message.includes('unique') ? 'Ese email ya está en la lista' : e.message, 'error');
+      toast(e.message.includes('unique') ? 'Ese email ya está en el equipo' : e.message, 'error');
     } finally {
       setAdding(false);
+    }
+  }
+
+  async function handleChangeRol(id, rol) {
+    try {
+      const arr = await updateMemberRol(id, rol);
+      setAllowedEmails(arr);
+      setEditingRolId(null);
+      toast('Rol actualizado');
+    } catch (e) {
+      toast(e.message, 'error');
     }
   }
 
@@ -243,54 +272,123 @@ export function PerfilPanel({ session, isOwner, clientes, pedidos, gastos, suscr
         </div>
       </div>
 
-      {/* Accesos autorizados — solo owner */}
-      {isOwner && (
+      {/* Equipo — solo owner o admin */}
+      {(isOwner || userRole === 'admin') && (
         <div style={{ padding: '0 var(--space-4)', marginBottom: 'var(--space-4)' }}>
-          <div className="section-label">Accesos autorizados</div>
-          <div className="card" style={{ gap: 'var(--space-3)' }}>
-            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+          <div className="section-label">Equipo</div>
+          <div className="card" style={{ gap: 'var(--space-4)' }}>
+
+            {/* Invitar nuevo miembro */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+              <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>Invitar miembro</div>
               <input
                 type="email"
-                placeholder="nuevo@email.com"
+                placeholder="email@empresa.com"
                 value={newEmail}
                 onChange={e => setNewEmail(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleAdd()}
-                style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-sm)' }}
+                style={{ minHeight: 40, fontSize: 'var(--text-sm)' }}
               />
+              {/* Role picker */}
+              <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+                {ROLES.map(r => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => setNewRol(r.id)}
+                    style={{
+                      flex: 1, minWidth: 90, minHeight: 52, padding: '6px 10px',
+                      borderRadius: 'var(--radius-md)',
+                      border: `1px solid ${newRol === r.id ? r.color : 'var(--border)'}`,
+                      background: newRol === r.id ? r.bg : 'var(--bg-3)',
+                      color: newRol === r.id ? r.color : 'var(--ink-3)',
+                      cursor: 'pointer', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 2,
+                      transition: 'all 140ms',
+                    }}
+                  >
+                    <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700 }}>{r.label}</span>
+                    <span style={{ fontSize: 10, opacity: 0.7, lineHeight: 1.3 }}>{r.desc}</span>
+                  </button>
+                ))}
+              </div>
               <button
-                className="btn btn-primary"
-                style={{ minHeight: 40, padding: '0 var(--space-4)', fontSize: 'var(--text-sm)' }}
+                className="btn btn-primary btn-full"
+                style={{ minHeight: 40, fontSize: 'var(--text-sm)' }}
                 onClick={handleAdd}
                 disabled={adding || !newEmail.trim()}
               >
-                + Agregar
+                {adding ? 'Agregando...' : '+ Agregar al equipo'}
               </button>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+
+            {/* Lista de miembros */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', borderTop: '1px solid var(--border)', paddingTop: 'var(--space-3)' }}>
+              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Miembros actuales
+              </div>
               {allowedEmails.length === 0 ? (
-                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-3)' }}>Sin emails autorizados.</p>
+                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-3)' }}>Sin miembros en el equipo.</p>
               ) : (
-                allowedEmails.map(e => (
-                  <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                    <span style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {e.email} {e.is_owner && <span style={{ color: '#ccff00', fontSize: 'var(--text-xs)' }}>owner</span>}
-                    </span>
-                    {!e.is_owner && (
-                      <button
-                        className="btn-icon danger"
-                        onClick={() => handleRemove(e.id)}
-                        aria-label="Quitar acceso"
-                      >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <polyline points="3 6 5 6 21 6" />
-                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                        </svg>
-                      </button>
+                allowedEmails.map(m => (
+                  <div key={m.id} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', padding: 'var(--space-3)', background: 'var(--bg-3)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--bg-4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
+                        {m.email[0].toUpperCase()}
+                      </div>
+                      <span style={{ fontSize: 'var(--text-sm)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--ink)' }}>
+                        {m.email}
+                      </span>
+                      {m.is_owner
+                        ? <span style={{ padding: '2px 8px', borderRadius: 999, background: 'rgba(204,255,0,0.1)', border: '1px solid rgba(204,255,0,0.4)', color: '#ccff00', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>Dueño</span>
+                        : <RolBadge rol={m.rol || 'vendedor'} />
+                      }
+                    </div>
+
+                    {/* Cambiar rol inline — solo si no es owner */}
+                    {!m.is_owner && isOwner && (
+                      editingRolId === m.id ? (
+                        <div style={{ display: 'flex', gap: 'var(--space-1)', flexWrap: 'wrap' }}>
+                          {ROLES.map(r => (
+                            <button
+                              key={r.id}
+                              type="button"
+                              onClick={() => handleChangeRol(m.id, r.id)}
+                              style={{
+                                padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                                border: `1px solid ${(m.rol || 'vendedor') === r.id ? r.color : 'var(--border)'}`,
+                                background: (m.rol || 'vendedor') === r.id ? r.bg : 'none',
+                                color: (m.rol || 'vendedor') === r.id ? r.color : 'var(--ink-3)',
+                                transition: 'all 120ms',
+                              }}
+                            >
+                              {r.label}
+                            </button>
+                          ))}
+                          <button onClick={() => setEditingRolId(null)} style={{ padding: '4px 8px', borderRadius: 999, fontSize: 11, background: 'none', border: '1px solid var(--border)', color: 'var(--ink-3)', cursor: 'pointer' }}>✕</button>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                          <button
+                            onClick={() => setEditingRolId(m.id)}
+                            style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+                          >
+                            Cambiar rol
+                          </button>
+                          <span style={{ color: 'var(--ink-3)', fontSize: 'var(--text-xs)' }}>·</span>
+                          <button
+                            onClick={() => handleRemove(m.id)}
+                            style={{ fontSize: 'var(--text-xs)', color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                          >
+                            Quitar acceso
+                          </button>
+                        </div>
+                      )
                     )}
                   </div>
                 ))
               )}
             </div>
+
           </div>
         </div>
       )}

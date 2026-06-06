@@ -9,6 +9,7 @@ import {
   getCategorias,
   procesarCuotasVencidas,
   isOwnerEmail,
+  getUserRole,
   getSuscripcion, crearSuscripcionTrial,
   getAlertasConfig,
   getDevoluciones,
@@ -56,6 +57,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   const [isOwner, setIsOwner] = useState(false);
+  const [userRole, setUserRole] = useState('owner');
   const [suscripcion, setSuscripcion] = useState(null);
   const [diasSinCobro, setDiasSinCobro] = useState(7);
   const [negocioConfig, setNegocioConfig] = useState(null);
@@ -157,6 +159,7 @@ export default function App() {
     if (authChecked && session) {
       loadAll();
       isOwnerEmail(session.user.email).then(setIsOwner);
+      getUserRole(session.user.email).then(r => setUserRole(r || 'vendedor'));
       getSuscripcion().then(async sus => {
         if (!sus) {
           const nueva = await crearSuscripcionTrial();
@@ -488,6 +491,7 @@ export default function App() {
             key="perfil-panel"
             session={session}
             isOwner={isOwner}
+            userRole={userRole}
             clientes={clientes}
             pedidos={pedidos}
             gastos={gastos}

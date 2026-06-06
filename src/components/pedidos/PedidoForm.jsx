@@ -159,8 +159,8 @@ function ItemRow({ item, idx, productos, tipoPrecio, onChangeProducto, onChangeC
 
       {/* Entregado */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 4, borderTop: '1px solid var(--border)', marginTop: 4 }}>
-        <div className="toggle-row" style={{ minHeight: 'unset', padding: 0 }}>
-          <label style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-2)' }}>Entregado</label>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+          <label style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-2)', cursor: 'pointer', userSelect: 'none' }} onClick={() => onToggleEntregado(idx)}>Entregado</label>
           <div className="toggle">
             <input type="checkbox" checked={item.entregado} onChange={() => onToggleEntregado(idx)} />
             <span className="toggle-track" onClick={() => onToggleEntregado(idx)} />

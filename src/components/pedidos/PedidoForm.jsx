@@ -444,12 +444,12 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
             </div>
           </div>
           {descuentoHab && (
-            <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
-              <select value={descuentoTipo} onChange={e => setDescuentoTipo(e.target.value)} style={{ flex: '0 0 auto', minHeight: 40, fontSize: 'var(--text-sm)' }}>
-                <option value="porcentaje">%</option>
-                <option value="monto_fijo">$ fijo</option>
-              </select>
-              <input type="number" min="0" step="0.01" placeholder={descuentoTipo === 'porcentaje' ? '10' : '500'} value={descuentoVal} onChange={e => { setDescuentoVal(e.target.value); setFinalManual(false); setTotalFinalVal(''); }} style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-sm)' }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+              <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                <button type="button" className={`filter-chip${descuentoTipo === 'porcentaje' ? ' active' : ''}`} style={{ flex: 1, minHeight: 38 }} onClick={() => setDescuentoTipo('porcentaje')}>%</button>
+                <button type="button" className={`filter-chip${descuentoTipo === 'monto_fijo' ? ' active' : ''}`} style={{ flex: 1, minHeight: 38 }} onClick={() => setDescuentoTipo('monto_fijo')}>$ fijo</button>
+              </div>
+              <input type="number" inputMode="decimal" min="0" step="0.01" placeholder={descuentoTipo === 'porcentaje' ? '10' : '500'} value={descuentoVal} onChange={e => { setDescuentoVal(e.target.value); setFinalManual(false); setTotalFinalVal(''); }} style={{ minHeight: 40, fontSize: 'var(--text-sm)' }} />
             </div>
           )}
         </div>

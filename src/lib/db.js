@@ -238,6 +238,8 @@ export async function getPedidos() {
       cantidad: i.cantidad,
       precioUnitario: i.precio_unitario,
       costoUnitario: i.costo_unitario || 0,
+      entregado: i.entregado || false,
+      fechaEntrega: i.fecha_entrega || null,
     })),
   }));
   lsSet('pedidos', mapped);
@@ -291,6 +293,8 @@ export async function savePedido(data) {
       cantidad: i.cantidad,
       precio_unitario: i.precioUnitario,
       costo_unitario: i.costoUnitario || 0,
+      entregado: i.entregado || false,
+      fecha_entrega: i.fechaEntrega || null,
     }));
     const { error: eItems } = await supabase.from('pedido_items').insert(items);
     if (eItems) throw eItems;

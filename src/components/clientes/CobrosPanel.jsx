@@ -19,7 +19,7 @@ export function CobrosPanel({ clientes, pedidos, devoluciones, onBack }) {
   function handleEnviar(cliente) {
     const num = (cliente.contacto || '').replace(/\D/g, '');
     const fechaUlt = cliente.ultimoPedido ? formatDate(cliente.ultimoPedido.fecha) : 'reciente';
-    const msg = `Hola ${cliente.nombre}, te paso a recordar que tenés un saldo pendiente de ${formatCurrency(cliente.saldo)} del pedido del ${fechaUlt}. Cuando puedas me avisas, gracias!`;
+    const msg = `Hola ${cliente.nombre}, te paso a recordar que tenés un pago pendiente de ${formatCurrency(cliente.saldo)} correspondiente al pedido del ${fechaUlt}. Quedamos esperando tu pago, gracias!`;
 
     const url = `https://wa.me/${num ? '54' + num : ''}?text=${encodeURIComponent(msg)}`;
     window.open(url, '_blank');

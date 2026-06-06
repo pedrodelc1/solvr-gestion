@@ -3,9 +3,9 @@ import { AnimatePresence, motion } from 'framer-motion';
 function ToastItem({ t }) {
   return (
     <motion.div
-      initial={{ y: -20, opacity: 0 }}
+      initial={{ y: 20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      exit={{ y: -20, opacity: 0 }}
+      exit={{ y: 20, opacity: 0 }}
       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
       style={{
         background: 'var(--bg-3)',

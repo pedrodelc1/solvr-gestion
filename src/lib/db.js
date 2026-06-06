@@ -474,16 +474,28 @@ export async function toggleTrialAcceso(emailId, email, activo) {
 
   const { data: sus } = await supabase
     .from('suscripciones')
-    .select('id, estado')
+    .select('id')
     .eq('user_email', email.toLowerCase().trim())
     .maybeSingle();
 
   if (sus) {
-    const nuevoEstado = activo ? (sus.estado === 'bloqueada' ? 'prueba' : sus.estado) : 'bloqueada';
-    await supabase
-      .from('suscripciones')
-      .update({ estado: nuevoEstado, updated_at: new Date().toISOString() })
-      .eq('id', sus.id);
+    const hoy = new Date();
+    const vencimiento = new Date(hoy);
+    if (activo) {
+      vencimiento.setDate(vencimiento.getDate() + 14);
+      await supabase.from('suscripciones').update({
+        estado: 'prueba',
+        fecha_vencimiento: vencimiento.toISOString().slice(0, 10),
+        updated_at: hoy.toISOString(),
+      }).eq('id', sus.id);
+    } else {
+      vencimiento.setFullYear(vencimiento.getFullYear() + 1);
+      await supabase.from('suscripciones').update({
+        estado: 'activa',
+        fecha_vencimiento: vencimiento.toISOString().slice(0, 10),
+        updated_at: hoy.toISOString(),
+      }).eq('id', sus.id);
+    }
   }
 
   return getAllowedEmails();
@@ -546,21 +558,33 @@ export async function getSuscripcion() {
   return data;
 }
 
-// Crea una suscripción de prueba de 14 días
 export async function crearSuscripcionTrial() {
   if (!useSupabase()) return null;
   const userId = await getUserId();
   const email = await getUserEmail();
   if (!userId) return null;
+
+  const { data: allowed } = await supabase
+    .from('allowed_emails')
+    .select('trial_activo')
+    .eq('email', email.toLowerCase().trim())
+    .maybeSingle();
+
+  const esTrial = !allowed || allowed.trial_activo !== false;
   const hoy = new Date();
   const vencimiento = new Date(hoy);
-  vencimiento.setDate(vencimiento.getDate() + 14);
+  if (esTrial) {
+    vencimiento.setDate(vencimiento.getDate() + 14);
+  } else {
+    vencimiento.setFullYear(vencimiento.getFullYear() + 1);
+  }
+
   const { data, error } = await supabase
     .from('suscripciones')
     .insert({
       user_id: userId,
       user_email: email,
-      estado: 'prueba',
+      estado: esTrial ? 'prueba' : 'activa',
       fecha_inicio: hoy.toISOString().slice(0, 10),
       fecha_vencimiento: vencimiento.toISOString().slice(0, 10),
     })

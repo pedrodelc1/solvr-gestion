@@ -259,7 +259,7 @@ export function PerfilPanel({ session, isOwner, clientes, pedidos, gastos, suscr
                             flexShrink: 0,
                           }}
                         >
-                          {e.trial_activo ? 'Prueba ON' : 'Prueba OFF'}
+                          {e.trial_activo ? 'En prueba' : 'Cliente'}
                         </button>
                         <button
                           className="btn-icon danger"

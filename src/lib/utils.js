@@ -7,8 +7,9 @@ export function formatCurrency(n) {
 
 export function formatDate(s) {
   if (!s) return '';
-  const [y, m, d] = s.split('-');
-  return `${d}/${m}/${y}`;
+  const d = new Date(s);
+  if (isNaN(d)) return s;
+  return d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
 }
 
 export function today() {

@@ -77,6 +77,28 @@ src/
       PerfilPanel.jsx      — sesión, whitelist de emails, export CSV
 ```
 
+## Principio de doble verificación (Frontend + Backend)
+
+Toda validación crítica debe existir en AMBAS capas. Nunca confíes solo en una.
+
+### Reglas:
+
+1. **Formularios:** Valida en el componente React (formato, campos requeridos) Y también en las RLS policies de Supabase.
+2. **Permisos/roles:** No ocultes solo en el UI. Verifica el rol también en el backend antes de ejecutar cualquier query sensible.
+3. **Operaciones de escritura:** Antes de hacer INSERT/UPDATE/DELETE, valida los datos en el frontend Y aplica constraints o checks en Supabase.
+4. **Cálculos de negocio** (precios, totales, descuentos): No calcules solo en el frontend. El backend debe recalcular y confirmar antes de guardar.
+5. **Al crear cualquier feature nueva:** Pregúntate explícitamente "¿qué pasa si alguien bypassea el frontend?" y cubre ese caso en el backend.
+
+### Roles implementados:
+- **owner / admin**: acceso total a los 7 tabs
+- **vendedor**: clientes, pedidos, stats, catálogo — puede crear/editar/cobrar, no puede eliminar ni gestionar productos/gastos/perfil
+- **visualizador**: solo lectura — ve datos pero no puede crear, editar, eliminar, cobrar, enviar mensajes ni hacer pedidos
+
+### Arquitectura de roles (Supabase):
+- `get_my_role()`: función SQL que devuelve el rol del usuario actual
+- `is_my_owner_data(user_id)`: función SQL que verifica si la fila pertenece al owner del miembro
+- Policies: `team_insert/update/delete_*` en clientes, pedidos, productos con check de rol
+
 ## Preferencias de Pedro
 - Responder siempre en español
 - Commits y deploys con cada cambio importante

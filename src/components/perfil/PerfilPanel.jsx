@@ -174,11 +174,12 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
         </motion.div>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontWeight: 700, fontSize: 'var(--text-lg)' }}>{email}</div>
-          {isOwner && (
-            <div style={{ fontSize: 'var(--text-xs)', color: '#ccff00', fontWeight: 700, marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              Dueño
-            </div>
-          )}
+          <div style={{ marginTop: 6 }}>
+            {isOwner
+              ? <span style={{ fontSize: 'var(--text-xs)', color: '#ccff00', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Dueño</span>
+              : <RolBadge rol={userRole} />
+            }
+          </div>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: 'var(--text-sm)', color: '#ccff00' }}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#ccff00', display: 'inline-block', boxShadow: '0 0 6px #ccff00' }} />
             Conectado
@@ -196,28 +197,55 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
         </div>
       )}
 
-      {/* Nombre del negocio */}
-      <div style={{ padding: '0 var(--space-4) var(--space-4)' }}>
-        <div className="settings-card" style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-          <div style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Nombre del negocio</div>
-          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-            <input
-              type="text"
-              placeholder="Ej: Ferrari Repuestos"
-              value={negocioNombre}
-              onChange={e => setNegocioNombre(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSaveNegocio()}
-              style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-sm)' }}
-              autoComplete="off"
-              autoCorrect="off"
-            />
-            <button className="btn btn-primary" onClick={handleSaveNegocio} disabled={savingNegocio || !negocioNombre.trim()} style={{ minHeight: 40, padding: '0 var(--space-4)', flexShrink: 0 }}>
-              {savingNegocio ? '...' : 'Guardar'}
-            </button>
+      {/* Nombre del negocio — solo owner/admin */}
+      {(isOwner || userRole === 'admin') && (
+        <div style={{ padding: '0 var(--space-4) var(--space-4)' }}>
+          <div className="settings-card" style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+            <div style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Nombre del negocio</div>
+            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+              <input
+                type="text"
+                placeholder="Ej: Ferrari Repuestos"
+                value={negocioNombre}
+                onChange={e => setNegocioNombre(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSaveNegocio()}
+                style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-sm)' }}
+                autoComplete="off"
+                autoCorrect="off"
+              />
+              <button className="btn btn-primary" onClick={handleSaveNegocio} disabled={savingNegocio || !negocioNombre.trim()} style={{ minHeight: 40, padding: '0 var(--space-4)', flexShrink: 0 }}>
+                {savingNegocio ? '...' : 'Guardar'}
+              </button>
+            </div>
+            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>Aparece en el encabezado de los remitos.</div>
           </div>
-          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>Aparece en el encabezado de los remitos.</div>
         </div>
-      </div>
+      )}
+
+      {/* Tu acceso — solo para vendedor/visualizador */}
+      {!isOwner && userRole !== 'admin' && (
+        <div style={{ padding: '0 var(--space-4)', marginBottom: 'var(--space-4)' }}>
+          <div className="section-label">Tu acceso</div>
+          <div className="card" style={{ gap: 'var(--space-3)' }}>
+            {userRole === 'vendedor' ? (
+              <ul style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-2)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', paddingLeft: 'var(--space-4)', margin: 0 }}>
+                <li>✓ Crear y editar clientes y pedidos</li>
+                <li>✓ Registrar cobros y pagos parciales</li>
+                <li>✓ Ver catálogo y estadísticas</li>
+                <li style={{ color: 'var(--ink-3)' }}>✗ Gastos, Caja, configuración del negocio</li>
+                <li style={{ color: 'var(--ink-3)' }}>✗ Eliminar registros</li>
+              </ul>
+            ) : (
+              <ul style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-2)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', paddingLeft: 'var(--space-4)', margin: 0 }}>
+                <li>✓ Ver clientes, pedidos, catálogo y estadísticas</li>
+                <li>✓ Ver cuenta corriente y descargarla</li>
+                <li style={{ color: 'var(--ink-3)' }}>✗ Crear, editar o eliminar cualquier registro</li>
+                <li style={{ color: 'var(--ink-3)' }}>✗ Registrar cobros ni enviar mensajes</li>
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', padding: '0 var(--space-4) var(--space-4)' }}>
@@ -243,8 +271,8 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
         ))}
       </div>
 
-      {/* Alertas de cobro */}
-      <div style={{ padding: '0 var(--space-4)', marginBottom: 'var(--space-4)' }}>
+      {/* Alertas de cobro — solo owner/admin */}
+      {(isOwner || userRole === 'admin') && <div style={{ padding: '0 var(--space-4)', marginBottom: 'var(--space-4)' }}>
         <div className="section-label">Alertas de cobro</div>
         <div className="card" style={{ gap: 'var(--space-3)' }}>
           <p style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>
@@ -270,7 +298,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
             </button>
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* Equipo — solo owner o admin */}
       {(isOwner || userRole === 'admin') && (

@@ -60,8 +60,8 @@ export default function App() {
   const ALLOWED_TABS = {
     owner:        ['clientes', 'pedidos', 'gastos', 'stats', 'productos', 'caja', 'perfil'],
     admin:        ['clientes', 'pedidos', 'gastos', 'stats', 'productos', 'caja', 'perfil'],
-    vendedor:     ['clientes', 'pedidos', 'stats', 'productos'],
-    visualizador: ['clientes', 'pedidos', 'stats', 'productos'],
+    vendedor:     ['clientes', 'pedidos', 'stats', 'productos', 'perfil'],
+    visualizador: ['clientes', 'pedidos', 'stats', 'productos', 'perfil'],
   };
 
   const [isOwner, setIsOwner] = useState(false);

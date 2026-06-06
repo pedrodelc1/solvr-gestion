@@ -133,7 +133,6 @@ function ItemRow({ item, idx, productos, tipoPrecio, onChangeProducto, onChangeC
               />
             </div>
             <input type="number" className="item-qty" min="1" value={item.cantidad} onChange={e => onChangeCantidad(idx, e.target.value)} />
-            <span className="item-subtotal">{item.productoId ? formatCurrency(subtotal) : '—'}</span>
             <button className="btn-icon danger" type="button" onClick={() => onDelete(idx)} disabled={!canDelete} aria-label="Quitar" style={{ opacity: canDelete ? 1 : 0.3 }}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
@@ -145,7 +144,6 @@ function ItemRow({ item, idx, productos, tipoPrecio, onChangeProducto, onChangeC
             <input type="text" placeholder="Nombre del ítem" value={item.manualNombre || ''} onChange={e => onChangeManual(idx, { manualNombre: e.target.value })} style={{ minHeight: 40, fontSize: 'var(--text-sm)', padding: 'var(--space-2) var(--space-3)' }} />
             <input type="number" placeholder="Precio" min="0" step="0.01" value={item.manualPrecio || ''} onChange={e => onChangeManual(idx, { manualPrecio: e.target.value })} style={{ minHeight: 40, fontSize: 'var(--text-sm)', padding: 'var(--space-2) var(--space-3)' }} />
             <input type="number" className="item-qty" min="1" value={item.cantidad} onChange={e => onChangeCantidad(idx, e.target.value)} />
-            <span className="item-subtotal">{item.manualPrecio ? formatCurrency(manualSubtotal) : '—'}</span>
             <button className="btn-icon danger" type="button" onClick={() => onDelete(idx)} disabled={!canDelete} aria-label="Quitar" style={{ opacity: canDelete ? 1 : 0.3 }}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>

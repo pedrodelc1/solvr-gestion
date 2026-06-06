@@ -197,17 +197,17 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
             const items = p.items || [];
             const todoEntregado = items.length > 0 && items.every(it => it.entregado);
 
-            let estadoBadge, estadoMonto;
-            if (esPresupuesto) {
-              estadoBadge = <span className="badge badge-info">Presupuesto</span>;
-              estadoMonto = <span className="card-amount amount-neutral">{formatCurrency(total)}</span>;
-            } else if (todoEntregado) {
-              estadoBadge = <span className="badge badge-ok">Entregado</span>;
-              estadoMonto = <span className="card-amount amount-paid">{formatCurrency(total)}</span>;
-            } else {
-              estadoBadge = <span className="badge badge-neutral">No entregado</span>;
-              estadoMonto = <span className="card-amount amount-debt">{formatCurrency(total)}</span>;
-            }
+            const estadoBadge = esPresupuesto
+              ? <span className="badge badge-info">Presupuesto</span>
+              : todoEntregado
+                ? <span className="badge badge-ok">Entregado</span>
+                : <span className="badge badge-neutral">No entregado</span>;
+
+            const estadoMonto = esPresupuesto
+              ? <span className="card-amount amount-neutral">{formatCurrency(total)}</span>
+              : p.cobrado
+                ? <span className="card-amount amount-paid">{formatCurrency(total)}</span>
+                : <span className="card-amount amount-debt">{formatCurrency(resta > 0 ? resta : total)}</span>;
 
             return (
               <motion.div

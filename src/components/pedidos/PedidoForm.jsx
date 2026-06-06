@@ -6,6 +6,7 @@ function SearchableSelect({ value, options, onChange, placeholder = 'Buscar...' 
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);
+  const inputRef = useRef(null);
 
   const selected = options.find(o => o.value === value);
   const filtered = q.trim()
@@ -14,39 +15,63 @@ function SearchableSelect({ value, options, onChange, placeholder = 'Buscar...' 
 
   useEffect(() => {
     if (!open) return;
-    function onDown(e) { if (!wrapRef.current?.contains(e.target)) setOpen(false); }
+    function onDown(e) { if (!wrapRef.current?.contains(e.target)) { setOpen(false); setQ(''); } }
     document.addEventListener('pointerdown', onDown);
     return () => document.removeEventListener('pointerdown', onDown);
   }, [open]);
 
+  function handleOpen() {
+    setOpen(true);
+    setQ('');
+    setTimeout(() => inputRef.current?.focus(), 0);
+  }
+
   return (
     <div ref={wrapRef} style={{ position: 'relative' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '0 12px', minHeight: 40 }}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2" style={{ flexShrink: 0 }}>
-          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-        </svg>
-        <input
-          type="text"
-          value={open ? q : (selected?.label || '')}
-          placeholder={placeholder}
-          onChange={e => setQ(e.target.value)}
-          onFocus={() => { setOpen(true); setQ(''); }}
-          style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none', fontSize: 'var(--text-sm)', color: 'var(--ink)', minHeight: 38 }}
-        />
-      </div>
+      {/* Trigger — shows selected value */}
+      {!open ? (
+        <div
+          onPointerDown={handleOpen}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '0 12px', minHeight: 40, cursor: 'pointer' }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2" style={{ flexShrink: 0 }}>
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <span style={{ flex: 1, fontSize: 'var(--text-sm)', color: selected ? 'var(--ink)' : 'var(--ink-3)' }}>
+            {selected?.label || placeholder}
+          </span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface)', border: '1px solid #ccff00', borderRadius: 8, padding: '0 12px', minHeight: 40 }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2" style={{ flexShrink: 0 }}>
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input
+            ref={inputRef}
+            type="text"
+            value={q}
+            placeholder="Escribí para buscar..."
+            onChange={e => setQ(e.target.value)}
+            style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none', fontSize: 'var(--text-sm)', color: 'var(--ink)', minHeight: 38 }}
+          />
+        </div>
+      )}
+
+      {/* Dropdown list */}
       {open && (
-        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, zIndex: 200, maxHeight: 200, overflowY: 'auto', boxShadow: '0 4px 20px rgba(0,0,0,0.5)' }}>
+        <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: '#1a1a1a', border: '1px solid var(--border)', borderRadius: 8, zIndex: 999, maxHeight: 220, overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.8)' }}>
           {filtered.map(o => (
             <div
               key={o.value}
               onPointerDown={e => { e.preventDefault(); onChange(o.value); setOpen(false); setQ(''); }}
-              style={{ padding: '10px 12px', fontSize: 'var(--text-sm)', color: o.value === value ? '#ccff00' : 'var(--ink)', cursor: 'pointer', borderBottom: '1px solid var(--border)' }}
+              style={{ padding: '12px 14px', fontSize: 'var(--text-sm)', color: o.value === value ? '#ccff00' : 'var(--ink)', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.06)', background: o.value === value ? 'rgba(204,255,0,0.08)' : 'transparent' }}
             >
               {o.label}
             </div>
           ))}
           {filtered.length === 0 && (
-            <div style={{ padding: '10px 12px', color: 'var(--ink-3)', fontSize: 'var(--text-sm)' }}>Sin resultados</div>
+            <div style={{ padding: '12px 14px', color: 'var(--ink-3)', fontSize: 'var(--text-sm)' }}>Sin resultados</div>
           )}
         </div>
       )}
@@ -146,25 +171,25 @@ function ItemRow({ item, idx, productos, tipoPrecio, onChangeProducto, onChangeC
         <NewProductInline onCreated={(np) => onNewProductCreated(idx, np)} onCancel={() => onChangeProducto(idx, '')} toast={toast} />
       )}
 
-      {/* Entregado toggle + fecha */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', paddingTop: 2 }}>
-        <button
-          type="button"
-          onClick={() => onToggleEntregado(idx)}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, padding: '4px 0', fontSize: 'var(--text-xs)', color: item.entregado ? '#ccff00' : 'var(--ink-3)', flexShrink: 0 }}
-        >
-          <span style={{ width: 15, height: 15, borderRadius: 3, border: `1.5px solid ${item.entregado ? '#ccff00' : 'var(--ink-3)'}`, background: item.entregado ? '#ccff00' : 'transparent', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            {item.entregado && <svg width="9" height="7" viewBox="0 0 9 7" fill="none"><polyline points="1,3.5 3.5,6 8,1" stroke="#000" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-          </span>
-          Entregado
-        </button>
+      {/* Entregado */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 4, borderTop: '1px solid var(--border)', marginTop: 4 }}>
+        <div className="toggle-row" style={{ minHeight: 'unset', padding: 0 }}>
+          <label style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-2)' }}>Entregado</label>
+          <div className="toggle">
+            <input type="checkbox" checked={item.entregado} onChange={() => onToggleEntregado(idx)} />
+            <span className="toggle-track" onClick={() => onToggleEntregado(idx)} />
+          </div>
+        </div>
         {item.entregado && (
-          <input
-            type="date"
-            value={item.fechaEntrega || ''}
-            onChange={e => onChangeFechaEntrega(idx, e.target.value)}
-            style={{ fontSize: 'var(--text-xs)', minHeight: 28, padding: '2px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--ink)' }}
-          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <label style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', whiteSpace: 'nowrap' }}>Fecha entrega</label>
+            <input
+              type="date"
+              value={item.fechaEntrega || ''}
+              onChange={e => onChangeFechaEntrega(idx, e.target.value)}
+              style={{ flex: 1, fontSize: 'var(--text-sm)', minHeight: 34, padding: '4px 8px' }}
+            />
+          </div>
         )}
       </div>
     </div>

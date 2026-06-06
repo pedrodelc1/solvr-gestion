@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
+import { createPortal } from 'react-dom';
 
 function ToastItem({ t }) {
   return (
@@ -40,13 +41,14 @@ function ToastItem({ t }) {
 }
 
 export function ToastContainer({ toasts }) {
-  return (
+  return createPortal(
     <div className="toast-container">
       <AnimatePresence>
         {toasts.map(t => (
           <ToastItem key={t.id} t={t} />
         ))}
       </AnimatePresence>
-    </div>
+    </div>,
+    document.body
   );
 }

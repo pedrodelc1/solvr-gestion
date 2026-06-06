@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { createPortal } from 'react-dom';
 
 export function Modal({ open, title, onClose, children }) {
   useEffect(() => {
@@ -11,7 +12,7 @@ export function Modal({ open, title, onClose, children }) {
     return () => document.removeEventListener('keydown', handler);
   }, [open, onClose]);
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
@@ -70,7 +71,8 @@ export function Modal({ open, title, onClose, children }) {
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
 

@@ -3,7 +3,8 @@ import { formatCurrency, formatDate, saldoCliente } from '../../lib/utils.js';
 import { registrarComunicacion } from '../../lib/db.js';
 import { listItem } from '../../lib/animations.js';
 
-export function CobrosPanel({ clientes, pedidos, devoluciones, onBack }) {
+export function CobrosPanel({ clientes, pedidos, devoluciones, onBack, userRole = 'owner' }) {
+  const canCobrar = ['owner', 'admin', 'vendedor'].includes(userRole);
 
   const conSaldo = clientes
     .map(c => {
@@ -63,7 +64,7 @@ export function CobrosPanel({ clientes, pedidos, devoluciones, onBack }) {
                   {formatCurrency(c.saldo)}
                 </span>
               </div>
-              {c.contacto && (
+              {canCobrar && c.contacto && (
                 <button
                   className="btn btn-secondary"
                   style={{ minHeight: 40, fontSize: 'var(--text-sm)', gap: 'var(--space-2)' }}
@@ -75,7 +76,7 @@ export function CobrosPanel({ clientes, pedidos, devoluciones, onBack }) {
                   Enviar recordatorio
                 </button>
               )}
-              {!c.contacto && (
+              {canCobrar && !c.contacto && (
                 <p style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>Sin teléfono registrado.</p>
               )}
             </motion.div>

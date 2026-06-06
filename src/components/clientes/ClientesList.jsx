@@ -25,6 +25,7 @@ export function ClientesList({ clientes, pedidos, devoluciones, onSelect, onNew,
         pedidos={pedidos}
         devoluciones={devoluciones}
         onBack={() => setVerCobros(false)}
+        userRole={userRole}
       />
     );
   }

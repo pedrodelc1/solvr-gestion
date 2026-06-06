@@ -230,6 +230,8 @@ export async function getPedidos() {
     montoAbonado: r.monto_abonado || 0,
     nota: r.nota || null,
     createdAt: r.created_at || r.fecha,
+    diasPlazo: r.dias_plazo || 0,
+    tasaMora: r.tasa_mora || 0,
     tipo: r.tipo || 'pedido',
     descuentoTipo: r.descuento_tipo || null,
     descuentoValor: r.descuento_valor || 0,
@@ -283,6 +285,8 @@ export async function savePedido(data) {
       tipo: data.tipo || 'pedido',
       descuento_tipo: data.descuentoTipo || null,
       descuento_valor: data.descuentoValor || 0,
+      dias_plazo: data.diasPlazo || 0,
+      tasa_mora: data.tasaMora || 0,
     })
     .select()
     .single();
@@ -334,6 +338,8 @@ export async function updatePedido(id, data) {
   if ('fecha' in data) update.fecha = data.fecha;
   if ('descuentoTipo' in data) update.descuento_tipo = data.descuentoTipo;
   if ('descuentoValor' in data) update.descuento_valor = data.descuentoValor;
+  if ('diasPlazo' in data) update.dias_plazo = data.diasPlazo;
+  if ('tasaMora' in data) update.tasa_mora = data.tasaMora;
 
   const userId = await getUserId();
   if (!userId) throw new Error('Not authenticated');

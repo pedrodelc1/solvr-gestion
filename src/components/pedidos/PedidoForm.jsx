@@ -199,6 +199,9 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
   const [descuentoHab, setDescuentoHab] = useState(!!(existing?.descuentoTipo));
   const [descuentoTipo, setDescuentoTipo] = useState(existing?.descuentoTipo || 'porcentaje');
   const [descuentoVal, setDescuentoVal] = useState(existing?.descuentoValor ? String(existing.descuentoValor) : '');
+  const [plazoHab, setPlazoHab] = useState(!!(existing?.diasPlazo));
+  const [diasPlazo, setDiasPlazo] = useState(existing?.diasPlazo ? String(existing.diasPlazo) : '30');
+  const [tasaMora, setTasaMora] = useState(existing?.tasaMora ? String(existing.tasaMora) : '');
   const [saving, setSaving] = useState(false);
 
   const tipoPrecio = clientes.find(c => c.id === clienteId)?.tipo_precio || 'minorista';
@@ -324,6 +327,8 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
       nota: nota.trim() || null, tipo,
       descuentoTipo: descuentoHab ? descuentoTipo : null,
       descuentoValor: descuentoHab ? (parseFloat(descuentoVal) || 0) : 0,
+      diasPlazo: tipo === 'pedido' && plazoHab ? (parseInt(diasPlazo) || 0) : 0,
+      tasaMora: tipo === 'pedido' && plazoHab ? (parseFloat(tasaMora) || 0) : 0,
     });
   }
 
@@ -433,6 +438,48 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
               <input type="checkbox" id="pf-cobrado" checked={cobrado} onChange={e => setCobrado(e.target.checked)} />
               <span className="toggle-track" onClick={() => setCobrado(v => !v)} />
             </div>
+          </div>
+        )}
+
+        {tipo === 'pedido' && (
+          <div>
+            <div className="toggle-row" style={{ marginBottom: plazoHab ? 'var(--space-3)' : 0 }}>
+              <label>Venta a plazo</label>
+              <div className="toggle">
+                <input type="checkbox" id="pf-plazo" checked={plazoHab} onChange={e => setPlazoHab(e.target.checked)} />
+                <span className="toggle-track" onClick={() => setPlazoHab(v => !v)} />
+              </div>
+            </div>
+            {plazoHab && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                <div className="form-group">
+                  <label style={{ fontSize: 'var(--text-sm)', fontWeight: 500, color: 'var(--ink-2)' }}>Días de plazo</label>
+                  <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+                    {['15','30','45','60','90'].map(d => (
+                      <button key={d} type="button" className={`filter-chip${diasPlazo === d ? ' active' : ''}`} style={{ minHeight: 36 }} onClick={() => setDiasPlazo(d)}>{d} días</button>
+                    ))}
+                    <input
+                      type="number" inputMode="numeric" min="1" placeholder="Otro"
+                      value={['15','30','45','60','90'].includes(diasPlazo) ? '' : diasPlazo}
+                      onChange={e => setDiasPlazo(e.target.value)}
+                      style={{ width: 80, minHeight: 36, fontSize: 'var(--text-sm)', padding: '4px 10px' }}
+                    />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label style={{ fontSize: 'var(--text-sm)', fontWeight: 500, color: 'var(--ink-2)' }}>
+                    Tasa de mora mensual % <span style={{ color: 'var(--ink-3)', fontWeight: 400 }}>(opcional)</span>
+                  </label>
+                  <input type="number" inputMode="decimal" min="0" step="0.1" placeholder="Ej: 3" value={tasaMora} onChange={e => setTasaMora(e.target.value)} style={{ minHeight: 40, fontSize: 'var(--text-sm)' }} />
+                </div>
+                {diasPlazo && (
+                  <div style={{ background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 6, padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>
+                    Vence el {formatDate((() => { const d = new Date(fecha); d.setUTCDate(d.getUTCDate() + parseInt(diasPlazo||0)); return d.toISOString().slice(0,10); })())}
+                    {tasaMora && parseFloat(tasaMora) > 0 && ` · ${tasaMora}% mensual de mora si no paga`}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 

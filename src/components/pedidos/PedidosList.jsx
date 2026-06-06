@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { formatCurrency, formatDate } from '../../lib/utils.js';
+import { formatCurrency, formatDate, calcularMora, fechaVencimiento } from '../../lib/utils.js';
 import { ConfirmModal, Modal } from '../shared/Modal.jsx';
 import { listItem } from '../../lib/animations.js';
 import { convertirPresupuesto } from '../../lib/db.js';
@@ -193,9 +193,14 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
             const total = p.totalFinal ?? p.totalCalculado;
             const abonado = p.montoAbonado || 0;
             const resta = total - abonado;
+            const mora = calcularMora(p);
             const esPresupuesto = p.tipo === 'presupuesto';
             const items = p.items || [];
             const todoEntregado = items.length > 0 && items.every(it => it.entregado);
+
+            const venc = !esPresupuesto && !p.cobrado && p.diasPlazo ? fechaVencimiento(p) : null;
+            const hoy = new Date().toISOString().slice(0, 10);
+            const diasRestantes = venc ? Math.round((new Date(venc) - new Date(hoy)) / (1000 * 60 * 60 * 24)) : null;
 
             const estadoBadge = esPresupuesto
               ? <span className="badge badge-info">Presupuesto</span>
@@ -207,7 +212,7 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
               ? <span className="card-amount amount-neutral">{formatCurrency(total)}</span>
               : p.cobrado
                 ? <span className="card-amount amount-paid">{formatCurrency(total)}</span>
-                : <span className="card-amount amount-debt">{formatCurrency(resta > 0 ? resta : total)}</span>;
+                : <span className="card-amount amount-debt">{formatCurrency((resta > 0 ? resta : total) + mora)}</span>;
 
             return (
               <motion.div
@@ -226,6 +231,16 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
                   <MedioPill medio={p.medioPago} cuotas={p.cuotas} />
                   {estadoBadge}
                 </div>
+                {venc && (
+                  <div className="card-row" style={{ marginTop: -4 }}>
+                    {diasRestantes > 0
+                      ? <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>Vence en {diasRestantes} día{diasRestantes !== 1 ? 's' : ''} ({formatDate(venc)})</span>
+                      : diasRestantes === 0
+                        ? <span style={{ fontSize: 'var(--text-xs)', color: 'var(--warning, #f59e0b)', fontWeight: 600 }}>Vence hoy</span>
+                        : <span style={{ fontSize: 'var(--text-xs)', color: 'var(--danger)', fontWeight: 600 }}>Vencido hace {Math.abs(diasRestantes)} día{Math.abs(diasRestantes) !== 1 ? 's' : ''}{mora > 0 ? ` · Mora: ${formatCurrency(mora)}` : ''}</span>
+                    }
+                  </div>
+                )}
                 <div className="card-sub" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {items.map(it => `${it.nombre} x${it.cantidad}`).join(' · ')}
                 </div>

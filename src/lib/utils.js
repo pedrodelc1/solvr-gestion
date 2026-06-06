@@ -53,12 +53,33 @@ export function uid() {
   return crypto.randomUUID();
 }
 
+export function calcularMora(pedido) {
+  if (!pedido.diasPlazo || pedido.diasPlazo <= 0) return 0;
+  if (!pedido.tasaMora || pedido.tasaMora <= 0) return 0;
+  if (pedido.cobrado) return 0;
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  const venc = new Date(pedido.fecha);
+  venc.setUTCDate(venc.getUTCDate() + pedido.diasPlazo);
+  venc.setHours(0, 0, 0, 0);
+  const diasMora = Math.floor((hoy - venc) / (1000 * 60 * 60 * 24));
+  if (diasMora <= 0) return 0;
+  const total = pedido.totalFinal ?? pedido.totalCalculado;
+  return Math.round(total * (pedido.tasaMora / 100 / 30) * diasMora * 100) / 100;
+}
+
+export function fechaVencimiento(pedido) {
+  if (!pedido.diasPlazo) return null;
+  const d = new Date(pedido.fecha);
+  d.setUTCDate(d.getUTCDate() + pedido.diasPlazo);
+  return d.toISOString().slice(0, 10);
+}
+
 export function saldoCliente(clienteOrId, pedidos, devoluciones = []) {
   const clienteId = typeof clienteOrId === 'object' ? clienteOrId.id : clienteOrId;
   const saldoInicial = typeof clienteOrId === 'object' ? (clienteOrId.saldo_inicial || 0) : 0;
   const deuda = pedidos
     .filter(p => p.clienteId === clienteId && !p.cobrado && p.tipo !== 'presupuesto')
-    .reduce((s, p) => s + (p.totalFinal ?? p.totalCalculado) - (p.montoAbonado || 0), 0);
+    .reduce((s, p) => s + (p.totalFinal ?? p.totalCalculado) - (p.montoAbonado || 0) + calcularMora(p), 0);
   const creditos = devoluciones
     .filter(d => d.clienteId === clienteId)
     .reduce((s, d) => s + d.montoTotal, 0);
@@ -66,5 +87,5 @@ export function saldoCliente(clienteOrId, pedidos, devoluciones = []) {
 }
 
 export function saldoPedido(pedido) {
-  return (pedido.totalFinal ?? pedido.totalCalculado) - (pedido.montoAbonado || 0);
+  return (pedido.totalFinal ?? pedido.totalCalculado) - (pedido.montoAbonado || 0) + calcularMora(pedido);
 }

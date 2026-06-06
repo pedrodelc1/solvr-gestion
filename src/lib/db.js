@@ -215,7 +215,7 @@ export async function getPedidos() {
   const { data, error } = await supabase
     .from('pedidos')
     .select('*, pedido_items(*)')
-    .order('fecha', { ascending: false });
+    .order('created_at', { ascending: false });
   if (error) return lsGet('pedidos', []);
   const mapped = data.map(r => ({
     id: r.id,

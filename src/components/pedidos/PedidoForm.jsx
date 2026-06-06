@@ -240,6 +240,16 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
   const efectivoCobrado = esTarjeta ? false : cobrado;
   const pctInteres = medioPago === 'tarjeta' ? (parseFloat(interes) || 0) : 0;
 
+  const fechaVenc = (() => {
+    try {
+      const dias = parseInt(diasPlazo) || 0;
+      if (!dias || !fecha) return null;
+      const d = new Date(fecha);
+      d.setUTCDate(d.getUTCDate() + dias);
+      return d.toISOString().slice(0, 10);
+    } catch { return null; }
+  })();
+
   const totalCalculado = items.reduce((s, item) => {
     if (item.mode === 'catalog') {
       const p = getProd(item.productoId);
@@ -472,9 +482,9 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
                   </label>
                   <input type="number" inputMode="decimal" min="0" step="0.1" placeholder="Ej: 3" value={tasaMora} onChange={e => setTasaMora(e.target.value)} style={{ minHeight: 40, fontSize: 'var(--text-sm)' }} />
                 </div>
-                {diasPlazo && (
+                {fechaVenc && (
                   <div style={{ background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 6, padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>
-                    Vence el {formatDate((() => { const d = new Date(fecha); d.setUTCDate(d.getUTCDate() + parseInt(diasPlazo||0)); return d.toISOString().slice(0,10); })())}
+                    Vence el {formatDate(fechaVenc)}
                     {tasaMora && parseFloat(tasaMora) > 0 && ` · ${tasaMora}% mensual de mora si no paga`}
                   </div>
                 )}

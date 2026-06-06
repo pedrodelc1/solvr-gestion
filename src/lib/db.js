@@ -318,6 +318,7 @@ export async function updatePedido(id, data) {
     lsSet('pedidos', arr);
     return arr;
   }
+
   const update = {};
   if ('cobrado' in data) update.cobrado = data.cobrado;
   if ('montoAbonado' in data) update.monto_abonado = data.montoAbonado;
@@ -327,8 +328,34 @@ export async function updatePedido(id, data) {
   if ('cuotas' in data) update.cuotas = data.cuotas;
   if ('nota' in data) update.nota = data.nota;
   if ('tipo' in data) update.tipo = data.tipo;
+  if ('clienteId' in data) update.cliente_id = data.clienteId;
+  if ('fecha' in data) update.fecha = data.fecha;
+  if ('descuentoTipo' in data) update.descuento_tipo = data.descuentoTipo;
+  if ('descuentoValor' in data) update.descuento_valor = data.descuentoValor;
+
   const { error } = await supabase.from('pedidos').update(update).eq('id', id);
   if (error) throw error;
+
+  // Re-sync items: delete old, insert new
+  if (data.items) {
+    const { error: eDel } = await supabase.from('pedido_items').delete().eq('pedido_id', id);
+    if (eDel) throw eDel;
+    if (data.items.length > 0) {
+      const newItems = data.items.map(i => ({
+        pedido_id: id,
+        producto_id: i.productoId || null,
+        nombre: i.nombre,
+        cantidad: i.cantidad,
+        precio_unitario: i.precioUnitario,
+        costo_unitario: i.costoUnitario || 0,
+        entregado: i.entregado || false,
+        fecha_entrega: i.fechaEntrega || null,
+      }));
+      const { error: eIns } = await supabase.from('pedido_items').insert(newItems);
+      if (eIns) throw eIns;
+    }
+  }
+
   return getPedidos();
 }
 

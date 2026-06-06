@@ -579,10 +579,33 @@ export async function isOwnerEmail(email) {
   return !!data?.is_owner;
 }
 
-export async function addAllowedEmail(email) {
+export async function getUserRole(email) {
+  if (!useSupabase() || !email) return 'owner';
+  const superadmin = import.meta.env.VITE_SUPERADMIN_EMAIL;
+  if (superadmin && email.toLowerCase().trim() === superadmin.toLowerCase().trim()) return 'owner';
+  const { data } = await supabase
+    .from('allowed_emails')
+    .select('is_owner, rol')
+    .eq('email', email.toLowerCase().trim())
+    .maybeSingle();
+  if (!data) return null;
+  if (data.is_owner) return 'owner';
+  return data.rol || 'vendedor';
+}
+
+export async function addAllowedEmail(email, rol = 'vendedor') {
   const { error } = await supabase
     .from('allowed_emails')
-    .insert({ email: email.toLowerCase().trim() });
+    .insert({ email: email.toLowerCase().trim(), rol });
+  if (error) throw error;
+  return getAllowedEmails();
+}
+
+export async function updateMemberRol(id, rol) {
+  const { error } = await supabase
+    .from('allowed_emails')
+    .update({ rol })
+    .eq('id', id);
   if (error) throw error;
   return getAllowedEmails();
 }

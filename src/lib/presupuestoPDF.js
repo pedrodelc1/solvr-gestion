@@ -12,12 +12,21 @@ export async function compartirPresupuestoPDF(pedido, clienteNombre) {
   doc.setFillColor(12, 12, 12);
   doc.rect(0, 0, W, 28, 'F');
 
-  doc.setTextColor(204, 255, 0);
-  doc.setFontSize(20);
+  // Logo icon: white rounded square with "S." inside
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(margin, 6, 14, 14, 2.5, 2.5, 'F');
+  doc.setTextColor(12, 12, 12);
+  doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
-  doc.text('SOLVNT', margin, 17);
+  doc.text('S.', margin + 7, 15.5, { align: 'center' });
 
-  doc.setTextColor(180, 180, 180);
+  // Brand name
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Solvnt.', margin + 17, 15.5);
+
+  doc.setTextColor(160, 160, 160);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.text('PRESUPUESTO', W - margin, 17, { align: 'right' });

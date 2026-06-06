@@ -50,7 +50,9 @@ export function OnboardingWizard({ onComplete }) {
   const [medioPago, setMedioPago] = useState('efectivo');
 
   async function handleSkip() {
-    await saveNegocioConfig({ nombre: negocioNombre || 'Mi Negocio', logo_url: null, onboarding_done: true });
+    try {
+      await saveNegocioConfig({ nombre: negocioNombre || 'Mi Negocio', logo_url: null, onboarding_done: true });
+    } catch (_) {}
     onComplete();
   }
 

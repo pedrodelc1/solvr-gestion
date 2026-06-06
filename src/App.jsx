@@ -40,6 +40,7 @@ import { SkeletonLoader } from './components/shared/SkeletonLoader.jsx';
 import { SuscripcionBlocker } from './components/suscripciones/SuscripcionBlocker.jsx';
 import { TrialBanner } from './components/shared/TrialBanner.jsx';
 import { OnboardingWizard } from './components/onboarding/OnboardingWizard.jsx';
+import { TeamWelcomeScreen } from './components/onboarding/TeamWelcomeScreen.jsx';
 
 let _toastId = 0;
 
@@ -66,6 +67,7 @@ export default function App() {
 
   const [isOwner, setIsOwner] = useState(false);
   const [userRole, setUserRole] = useState('owner');
+  const [teamWelcomeSeen, setTeamWelcomeSeen] = useState(() => !!sessionStorage.getItem('sg_team_welcome'));
   const [suscripcion, setSuscripcion] = useState(null);
   const [diasSinCobro, setDiasSinCobro] = useState(7);
   const [negocioConfig, setNegocioConfig] = useState(null);
@@ -394,7 +396,8 @@ export default function App() {
     return <SuscripcionBlocker suscripcion={suscripcion} onRenovada={() => setSuscripcion(s => ({ ...s, estado: 'activa' }))} />;
   }
 
-  const showOnboarding = negocioConfig !== null && !negocioConfig.onboarding_done;
+  const showOnboarding = isOwner && negocioConfig !== null && !negocioConfig.onboarding_done;
+  const showTeamWelcome = !isOwner && userRole !== 'owner' && negocioConfig !== null && !teamWelcomeSeen;
 
   const selectedCliente = clientes.find(c => c.id === selectedClienteId) || null;
   const negocioNombre = negocioConfig?.nombre || 'Mi Negocio';
@@ -610,6 +613,17 @@ export default function App() {
             await loadAll();
           }}
           toast={toast}
+        />
+      )}
+
+      {showTeamWelcome && (
+        <TeamWelcomeScreen
+          userRole={userRole}
+          negocioConfig={negocioConfig}
+          onDismiss={() => {
+            sessionStorage.setItem('sg_team_welcome', '1');
+            setTeamWelcomeSeen(true);
+          }}
         />
       )}
 

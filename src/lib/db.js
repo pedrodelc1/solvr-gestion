@@ -449,11 +449,10 @@ export async function isEmailAllowed(email) {
   if (superadmin && email.toLowerCase().trim() === superadmin.toLowerCase().trim()) return true;
   const { data } = await supabase
     .from('allowed_emails')
-    .select('is_owner, trial_activo')
+    .select('id')
     .eq('email', email.toLowerCase().trim())
     .maybeSingle();
-  if (!data) return false;
-  return data.is_owner || !!data.trial_activo;
+  return !!data;
 }
 
 export async function getAllowedEmails() {

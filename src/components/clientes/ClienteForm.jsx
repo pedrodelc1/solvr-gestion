@@ -1,17 +1,53 @@
 import { useState } from 'react';
 import { Modal } from '../shared/Modal.jsx';
 
+const DRAFT_KEY = 'draft_nuevo_cliente';
+
+function loadDraft() {
+  try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); } catch { return null; }
+}
+function saveDraft(data) {
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(data)); } catch {}
+}
+function clearDraft() {
+  localStorage.removeItem(DRAFT_KEY);
+}
+
 export function ClienteForm({ open, existing, onSave, onClose }) {
-  const [nombre, setNombre] = useState(existing?.nombre || '');
-  const [contacto, setContacto] = useState(existing?.contacto || '');
-  const [tipoPrecio, setTipoPrecio] = useState(existing?.tipo_precio || 'minorista');
+  const draft = !existing ? loadDraft() : null;
+
+  const [nombre, setNombre] = useState(existing?.nombre || draft?.nombre || '');
+  const [contacto, setContacto] = useState(existing?.contacto || draft?.contacto || '');
+  const [tipoPrecio, setTipoPrecio] = useState(existing?.tipo_precio || draft?.tipoPrecio || 'minorista');
   const [error, setError] = useState('');
 
   function handleOpen() {
-    setNombre(existing?.nombre || '');
-    setContacto(existing?.contacto || '');
-    setTipoPrecio(existing?.tipo_precio || 'minorista');
+    if (existing) {
+      setNombre(existing.nombre || '');
+      setContacto(existing.contacto || '');
+      setTipoPrecio(existing.tipo_precio || 'minorista');
+    } else {
+      const d = loadDraft();
+      setNombre(d?.nombre || '');
+      setContacto(d?.contacto || '');
+      setTipoPrecio(d?.tipoPrecio || 'minorista');
+    }
     setError('');
+  }
+
+  function handleNombre(val) {
+    setNombre(val);
+    if (!existing) saveDraft({ nombre: val, contacto, tipoPrecio });
+  }
+
+  function handleContacto(val) {
+    setContacto(val);
+    if (!existing) saveDraft({ nombre, contacto: val, tipoPrecio });
+  }
+
+  function handleTipoPrecio(val) {
+    setTipoPrecio(val);
+    if (!existing) saveDraft({ nombre, contacto, tipoPrecio: val });
   }
 
   function handleSave() {
@@ -19,14 +55,20 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
       setError('El nombre es obligatorio');
       return;
     }
+    clearDraft();
     onSave({ ...existing, nombre: nombre.trim(), contacto: contacto.trim(), tipo_precio: tipoPrecio });
+  }
+
+  function handleClose() {
+    clearDraft();
+    onClose();
   }
 
   return (
     <Modal
       open={open}
       title={existing ? 'Editar cliente' : 'Nuevo cliente'}
-      onClose={onClose}
+      onClose={handleClose}
     >
       {open && (
         <>
@@ -38,8 +80,10 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
                 type="text"
                 placeholder="Nombre completo"
                 value={nombre}
-                onChange={e => setNombre(e.target.value)}
+                onChange={e => handleNombre(e.target.value)}
+                autoComplete="off"
                 autoCorrect="off"
+                autoCapitalize="words"
                 autoFocus
               />
             </div>
@@ -50,7 +94,8 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
                 type="tel"
                 placeholder="1123456789"
                 value={contacto}
-                onChange={e => setContacto(e.target.value)}
+                onChange={e => handleContacto(e.target.value)}
+                autoComplete="off"
               />
             </div>
             <div className="form-group">
@@ -60,7 +105,7 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
                   type="button"
                   className={`filter-chip${tipoPrecio === 'minorista' ? ' active' : ''}`}
                   style={{ flex: 1, minHeight: 40 }}
-                  onClick={() => setTipoPrecio('minorista')}
+                  onClick={() => handleTipoPrecio('minorista')}
                 >
                   Minorista
                 </button>
@@ -68,7 +113,7 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
                   type="button"
                   className={`filter-chip${tipoPrecio === 'mayorista' ? ' active' : ''}`}
                   style={{ flex: 1, minHeight: 40 }}
-                  onClick={() => setTipoPrecio('mayorista')}
+                  onClick={() => handleTipoPrecio('mayorista')}
                 >
                   Mayorista
                 </button>
@@ -78,7 +123,7 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', padding: 'var(--space-4)', paddingTop: 0 }}>
             <button className="btn btn-primary btn-full" onClick={handleSave}>Guardar</button>
-            <button className="btn btn-secondary btn-full" onClick={onClose}>Cancelar</button>
+            <button className="btn btn-secondary btn-full" onClick={handleClose}>Cancelar</button>
           </div>
         </>
       )}

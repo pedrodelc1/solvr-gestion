@@ -331,7 +331,7 @@ export default function App() {
   const showOnboarding = negocioConfig !== null && !negocioConfig.onboarding_done;
 
   const selectedCliente = clientes.find(c => c.id === selectedClienteId) || null;
-  const negocioNombre = negocioConfig?.nombre || session?.user?.email?.split('@')[0] || 'Mi Negocio';
+  const negocioNombre = negocioConfig?.nombre || 'Mi Negocio';
 
   const tabVariants = {
     initial: { opacity: 0, x: 20 },
@@ -467,6 +467,8 @@ export default function App() {
             pedidos={pedidos}
             gastos={gastos}
             suscripcion={suscripcion}
+            negocioConfig={negocioConfig}
+            onNegocioSave={async (cfg) => { const saved = await saveNegocioConfig(cfg); setNegocioConfig(saved); }}
             toast={toast}
           />
         );

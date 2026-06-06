@@ -8,7 +8,7 @@ import {
   getSuscripciones, updateSuscripcion,
 } from '../../lib/db.js';
 
-export function PerfilPanel({ session, isOwner, clientes, pedidos, gastos, suscripcion, toast }) {
+export function PerfilPanel({ session, isOwner, clientes, pedidos, gastos, suscripcion, negocioConfig, onNegocioSave, toast }) {
   const email = session?.user?.email || null;
   const inicial = email ? email[0].toUpperCase() : '?';
 
@@ -16,6 +16,26 @@ export function PerfilPanel({ session, isOwner, clientes, pedidos, gastos, suscr
   const pendientes = pedidos.filter(p => !p.cobrado && p.tipo !== 'presupuesto').length;
   const totalDeuda = clientes.reduce((s, c) => s + Math.max(0, saldoCliente(c, pedidos)), 0);
   const totalGastos = gastos.reduce((s, g) => s + g.monto, 0);
+
+  const [negocioNombre, setNegocioNombre] = useState('');
+  const [savingNegocio, setSavingNegocio] = useState(false);
+
+  useEffect(() => {
+    setNegocioNombre(negocioConfig?.nombre || '');
+  }, [negocioConfig]);
+
+  async function handleSaveNegocio() {
+    if (!negocioNombre.trim()) return;
+    setSavingNegocio(true);
+    try {
+      await onNegocioSave({ ...negocioConfig, nombre: negocioNombre.trim() });
+      toast('Nombre guardado');
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setSavingNegocio(false);
+    }
+  }
 
   const [allowedEmails, setAllowedEmails] = useState([]);
   const [newEmail, setNewEmail] = useState('');
@@ -146,6 +166,29 @@ export function PerfilPanel({ session, isOwner, clientes, pedidos, gastos, suscr
           }
         </div>
       )}
+
+      {/* Nombre del negocio */}
+      <div style={{ padding: '0 var(--space-4) var(--space-4)' }}>
+        <div className="settings-card" style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+          <div style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Nombre del negocio</div>
+          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+            <input
+              type="text"
+              placeholder="Ej: Ferrari Repuestos"
+              value={negocioNombre}
+              onChange={e => setNegocioNombre(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSaveNegocio()}
+              style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-sm)' }}
+              autoComplete="off"
+              autoCorrect="off"
+            />
+            <button className="btn btn-primary" onClick={handleSaveNegocio} disabled={savingNegocio || !negocioNombre.trim()} style={{ minHeight: 40, padding: '0 var(--space-4)', flexShrink: 0 }}>
+              {savingNegocio ? '...' : 'Guardar'}
+            </button>
+          </div>
+          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>Aparece en el encabezado de los remitos.</div>
+        </div>
+      </div>
 
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', padding: '0 var(--space-4) var(--space-4)' }}>

@@ -50,7 +50,7 @@ export function inRange(d, a, b) {
 }
 
 export function uid() {
-  return Math.random().toString(36).slice(2, 10);
+  return crypto.randomUUID();
 }
 
 export function saldoCliente(clienteOrId, pedidos, devoluciones = []) {

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { formatCurrency } from '../../lib/utils.js';
 import { ConfirmModal, Modal } from '../shared/Modal.jsx';
 import { ajustarStock } from '../../lib/db.js';
+import { ImportarProductosModal } from './ImportarProductosModal.jsx';
 
 function StockBadge({ stock, stockMinimo }) {
   if (stock === 0) {
@@ -86,6 +87,7 @@ function AjusteStockModal({ open, producto, onClose, onAjustar }) {
 export function ProductosList({ productos, onNew, onEdit, onDelete, onStockChange, toast }) {
   const [confirmDel, setConfirmDel] = useState(null);
   const [ajusteModal, setAjusteModal] = useState(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   function handleDelete(id) {
     onDelete(id);
@@ -105,8 +107,23 @@ export function ProductosList({ productos, onNew, onEdit, onDelete, onStockChang
 
   return (
     <>
+      <ImportarProductosModal
+        open={importOpen}
+        productos={productos}
+        onClose={() => setImportOpen(false)}
+        onImportada={onStockChange}
+        toast={toast}
+      />
+
       <div className="page-header">
         <h1>Catálogo</h1>
+        <button className="btn-icon" aria-label="Importar productos" onClick={() => setImportOpen(true)} title="Importar desde CSV/Excel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+        </button>
         <button className="btn-icon" onClick={onNew} aria-label="Agregar producto">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <line x1="12" y1="5" x2="12" y2="19" />

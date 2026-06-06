@@ -1,7 +1,11 @@
 import { jsPDF } from 'jspdf';
 import { formatCurrency, formatDate } from './utils.js';
 
+let _sharing = false;
+
 export async function compartirPresupuestoPDF(pedido, clienteNombre) {
+  if (_sharing) return;
+  _sharing = true;
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const W = 210;
   const margin = 18;
@@ -144,17 +148,21 @@ export async function compartirPresupuestoPDF(pedido, clienteNombre) {
   const blob = doc.output('blob');
   const file = new File([blob], nombreArchivo, { type: 'application/pdf' });
 
-  if (navigator.canShare?.({ files: [file] })) {
-    await navigator.share({
-      files: [file],
-      title: `Presupuesto para ${clienteNombre}`,
-    });
-  } else {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = nombreArchivo;
-    a.click();
-    URL.revokeObjectURL(url);
+  try {
+    if (navigator.canShare?.({ files: [file] })) {
+      await navigator.share({
+        files: [file],
+        title: `Presupuesto para ${clienteNombre}`,
+      });
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = nombreArchivo;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  } finally {
+    _sharing = false;
   }
 }

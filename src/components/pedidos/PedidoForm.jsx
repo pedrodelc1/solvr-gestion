@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { formatCurrency, today, uid } from '../../lib/utils.js';
+import { formatCurrency, formatDate, today, uid } from '../../lib/utils.js';
 
 // ── Searchable select ────────────────────────────────────────────────────────
 function SearchableSelect({ value, options, onChange, placeholder = 'Buscar...' }) {

@@ -223,29 +223,51 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
       )}
 
       {/* Tu acceso — solo para vendedor/visualizador */}
-      {!isOwner && userRole !== 'admin' && (
-        <div style={{ padding: '0 var(--space-4)', marginBottom: 'var(--space-4)' }}>
-          <div className="section-label">Tu acceso</div>
-          <div className="card" style={{ gap: 'var(--space-3)' }}>
-            {userRole === 'vendedor' ? (
-              <ul style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-2)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', paddingLeft: 'var(--space-4)', margin: 0 }}>
-                <li>✓ Crear y editar clientes y pedidos</li>
-                <li>✓ Registrar cobros y pagos parciales</li>
-                <li>✓ Ver catálogo y estadísticas</li>
-                <li style={{ color: 'var(--ink-3)' }}>✗ Gastos, Caja, configuración del negocio</li>
-                <li style={{ color: 'var(--ink-3)' }}>✗ Eliminar registros</li>
-              </ul>
-            ) : (
-              <ul style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-2)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', paddingLeft: 'var(--space-4)', margin: 0 }}>
-                <li>✓ Ver clientes, pedidos, catálogo y estadísticas</li>
-                <li>✓ Ver cuenta corriente y descargarla</li>
-                <li style={{ color: 'var(--ink-3)' }}>✗ Crear, editar o eliminar cualquier registro</li>
-                <li style={{ color: 'var(--ink-3)' }}>✗ Registrar cobros ni enviar mensajes</li>
-              </ul>
-            )}
+      {!isOwner && userRole !== 'admin' && (() => {
+        const ownerEntry = allowedEmails.find(e => e.is_owner);
+        const ownerEmail = ownerEntry?.email || null;
+        const negocioNombreDisplay = negocioConfig?.nombre || null;
+        return (
+          <div style={{ padding: '0 var(--space-4)', marginBottom: 'var(--space-4)' }}>
+            <div className="section-label">Tu acceso</div>
+            <div className="card" style={{ gap: 'var(--space-3)' }}>
+              {/* Contexto de la cuenta */}
+              {(negocioNombreDisplay || ownerEmail) && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', paddingBottom: 'var(--space-3)', borderBottom: '1px solid var(--border)' }}>
+                  {negocioNombreDisplay && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', fontWeight: 500 }}>EMPRESA</span>
+                      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#ccff00' }}>{negocioNombreDisplay}</span>
+                    </div>
+                  )}
+                  {ownerEmail && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', fontWeight: 500 }}>TITULAR</span>
+                      <span style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>{ownerEmail}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              {userRole === 'vendedor' ? (
+                <ul style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-2)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', paddingLeft: 'var(--space-4)', margin: 0 }}>
+                  <li>✓ Crear y editar clientes y pedidos</li>
+                  <li>✓ Registrar cobros y pagos parciales</li>
+                  <li>✓ Ver catálogo y estadísticas</li>
+                  <li style={{ color: 'var(--ink-3)' }}>✗ Gastos, Caja, configuración del negocio</li>
+                  <li style={{ color: 'var(--ink-3)' }}>✗ Eliminar registros</li>
+                </ul>
+              ) : (
+                <ul style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-2)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', paddingLeft: 'var(--space-4)', margin: 0 }}>
+                  <li>✓ Ver clientes, pedidos, catálogo y estadísticas</li>
+                  <li>✓ Ver cuenta corriente y descargarla</li>
+                  <li style={{ color: 'var(--ink-3)' }}>✗ Crear, editar o eliminar cualquier registro</li>
+                  <li style={{ color: 'var(--ink-3)' }}>✗ Registrar cobros ni enviar mensajes</li>
+                </ul>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', padding: '0 var(--space-4) var(--space-4)' }}>

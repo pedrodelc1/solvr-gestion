@@ -171,7 +171,7 @@ function ItemRow({ item, idx, productos, tipoPrecio, onChangeProducto, onChangeC
               type="date"
               value={item.fechaEntrega || ''}
               onChange={e => onChangeFechaEntrega(idx, e.target.value)}
-              style={{ flex: 1, fontSize: 'var(--text-sm)', minHeight: 34, padding: '4px 8px' }}
+              style={{ width: 140, fontSize: 'var(--text-sm)', minHeight: 34, padding: '4px 8px' }}
             />
           </div>
         )}

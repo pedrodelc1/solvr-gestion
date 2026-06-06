@@ -92,6 +92,20 @@ export default function App() {
     document.title = TAB_TITLES[activeTab] || 'Solvnt Gestión';
   }, [activeTab]);
 
+  // ── Back button (Android / browser) ───────────────────────
+  useEffect(() => {
+    if (!session) return;
+    history.pushState({ solvnt: true }, '');
+    function onPop() {
+      history.pushState({ solvnt: true }, '');
+      if (selectedClienteId) { setSelectedClienteId(null); return; }
+      if (showPedidoForm) { setShowPedidoForm(false); return; }
+      if (activeTab !== 'clientes') { setActiveTab('clientes'); localStorage.setItem('sg_tab', 'clientes'); return; }
+    }
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [session, selectedClienteId, showPedidoForm, activeTab]);
+
   // ── Auth ──────────────────────────────────────────────────
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_ev, sess) => {

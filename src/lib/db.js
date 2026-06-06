@@ -333,7 +333,10 @@ export async function updatePedido(id, data) {
   if ('descuentoTipo' in data) update.descuento_tipo = data.descuentoTipo;
   if ('descuentoValor' in data) update.descuento_valor = data.descuentoValor;
 
-  const { error } = await supabase.from('pedidos').update(update).eq('id', id);
+  const userId = await getUserId();
+  if (!userId) throw new Error('Not authenticated');
+
+  const { error } = await supabase.from('pedidos').update(update).eq('id', id).eq('user_id', userId);
   if (error) throw error;
 
   // Re-sync items: delete old, insert new

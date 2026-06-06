@@ -61,6 +61,8 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
   const [sort, setSort] = useState('fecha-desc');
   const [sortOpen, setSortOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [pagoModal, setPagoModal] = useState(null);
+  const [pagoMonto, setPagoMonto] = useState('');
   const [confirmDel, setConfirmDel] = useState(null);
   const [confirmConvertir, setConfirmConvertir] = useState(null);
 
@@ -88,6 +90,32 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
 
   function getNombre(clienteId) {
     return clientes.find(c => c.id === clienteId)?.nombre || '—';
+  }
+
+  function handleToggle(p) {
+    if (p.cobrado) {
+      onUpdate(p.id, { cobrado: false, montoAbonado: 0 });
+      toast('Pedido reabierto');
+    } else {
+      onUpdate(p.id, { cobrado: true, montoAbonado: p.totalFinal ?? p.totalCalculado });
+      toast('Cobrado');
+    }
+  }
+
+  function handlePagoSave() {
+    const monto = parseFloat(pagoMonto);
+    if (isNaN(monto) || monto <= 0) { toast('Ingresá un monto válido', 'error'); return; }
+    const p = pedidos.find(x => x.id === pagoModal.pedidoId);
+    if (!p) return;
+    const nuevoAbonado = (p.montoAbonado || 0) + monto;
+    const total = p.totalFinal ?? p.totalCalculado;
+    onUpdate(p.id, nuevoAbonado >= total
+      ? { cobrado: true, montoAbonado: total }
+      : { montoAbonado: nuevoAbonado }
+    );
+    setPagoModal(null);
+    setPagoMonto('');
+    toast('Pago registrado');
   }
 
   function handleDelete(id) {
@@ -163,6 +191,8 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
         ) : (
           filtered.map((p, i) => {
             const total = p.totalFinal ?? p.totalCalculado;
+            const abonado = p.montoAbonado || 0;
+            const resta = total - abonado;
             const esPresupuesto = p.tipo === 'presupuesto';
             const items = p.items || [];
             const todoEntregado = items.length > 0 && items.every(it => it.entregado);
@@ -205,43 +235,40 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
                   </div>
                 )}
                 <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-2)', flexWrap: 'wrap' }}>
-                  {esPresupuesto && (
-                    <button
-                      className="btn btn-primary"
-                      style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-sm)' }}
-                      onClick={() => setConfirmConvertir(p.id)}
-                    >
+                  {esPresupuesto ? (
+                    <button className="btn btn-primary" style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-sm)' }} onClick={() => setConfirmConvertir(p.id)}>
                       Convertir a pedido
                     </button>
+                  ) : (
+                    <>
+                      {!p.cobrado && !(p.medioPago === 'tarjeta' && p.cuotas > 1) && (
+                        <button className="btn btn-secondary" style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-sm)' }} onClick={() => { setPagoModal({ pedidoId: p.id, resta }); setPagoMonto(''); }}>
+                          + Pago parcial
+                        </button>
+                      )}
+                      {!(p.medioPago === 'tarjeta' && p.cuotas > 1 && !p.cobrado) && (
+                        <button className={`btn ${p.cobrado ? 'btn-secondary' : 'btn-primary'}`} style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-sm)' }} onClick={() => handleToggle(p)}>
+                          {p.cobrado ? 'Reabrir' : 'Cobrar'}
+                        </button>
+                      )}
+                    </>
                   )}
-                  {!esPresupuesto && !todoEntregado && (
+                  {!esPresupuesto && (
                     <button
-                      className="btn btn-primary"
-                      style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-sm)' }}
-                      onClick={() => onMarcarEntregado(p.id)}
+                      className="btn-icon"
+                      aria-label={todoEntregado ? 'Entregado' : 'Marcar entregado'}
+                      onClick={() => !todoEntregado && onMarcarEntregado(p.id)}
+                      style={{ color: todoEntregado ? 'var(--success)' : 'var(--ink-3)', opacity: todoEntregado ? 1 : 0.7 }}
+                      title={todoEntregado ? 'Entregado' : 'Marcar como entregado'}
                     >
-                      Marcar entregado
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="18" height="18"><polyline points="20 6 9 17 4 12"/></svg>
                     </button>
                   )}
-                  <button
-                    className="btn-icon"
-                    aria-label="Editar pedido"
-                    onClick={() => onEdit && onEdit(p)}
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                    </svg>
+                  <button className="btn-icon" aria-label="Editar pedido" onClick={() => onEdit && onEdit(p)}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                   </button>
-                  <button
-                    className="btn-icon danger"
-                    aria-label="Eliminar pedido"
-                    onClick={() => setConfirmDel(p.id)}
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polyline points="3 6 5 6 21 6" />
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                    </svg>
+                  <button className="btn-icon danger" aria-label="Eliminar pedido" onClick={() => setConfirmDel(p.id)}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
                   </button>
                 </div>
               </motion.div>
@@ -249,6 +276,24 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
           })
         )}
       </div>
+
+      <Modal open={!!pagoModal} title="Registrar pago parcial" onClose={() => setPagoModal(null)}>
+        {pagoModal && (
+          <>
+            <div style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+              <div className="form-group">
+                <label htmlFor="mp-monto">Monto a abonar ($)</label>
+                <input id="mp-monto" type="number" inputMode="decimal" placeholder="0" min="1" step="0.01" value={pagoMonto} onChange={e => setPagoMonto(e.target.value)} autoFocus />
+              </div>
+              <p style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-3)' }}>Saldo restante: {formatCurrency(pagoModal.resta)}</p>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', padding: 'var(--space-4)', paddingTop: 0 }}>
+              <button className="btn btn-primary btn-full" onClick={handlePagoSave}>Registrar pago</button>
+              <button className="btn btn-secondary btn-full" onClick={() => setPagoModal(null)}>Cancelar</button>
+            </div>
+          </>
+        )}
+      </Modal>
 
       <ConfirmModal
         open={!!confirmDel}

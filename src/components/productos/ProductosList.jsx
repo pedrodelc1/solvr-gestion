@@ -88,6 +88,14 @@ export function ProductosList({ productos, onNew, onEdit, onDelete, onStockChang
   const [confirmDel, setConfirmDel] = useState(null);
   const [ajusteModal, setAjusteModal] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [marcaFiltro, setMarcaFiltro] = useState('all');
+
+  const marcas = [...new Set(productos.map(p => p.marca).filter(Boolean))].sort();
+  const productosFiltrados = marcaFiltro === 'all'
+    ? productos
+    : marcaFiltro === '__sin__'
+      ? productos.filter(p => !p.marca)
+      : productos.filter(p => p.marca === marcaFiltro);
 
   function handleDelete(id) {
     onDelete(id);
@@ -132,8 +140,24 @@ export function ProductosList({ productos, onNew, onEdit, onDelete, onStockChang
         </button>
       </div>
 
+      {marcas.length > 0 && (
+        <div className="filter-bar">
+          <button className={`filter-chip${marcaFiltro === 'all' ? ' active' : ''}`} onClick={() => setMarcaFiltro('all')}>
+            Todas
+          </button>
+          {marcas.map(m => (
+            <button key={m} className={`filter-chip${marcaFiltro === m ? ' active' : ''}`} onClick={() => setMarcaFiltro(m)}>
+              {m}
+            </button>
+          ))}
+          <button className={`filter-chip${marcaFiltro === '__sin__' ? ' active' : ''}`} onClick={() => setMarcaFiltro('__sin__')}>
+            Sin marca
+          </button>
+        </div>
+      )}
+
       <div className="list-section">
-        {productos.length === 0 ? (
+        {productosFiltrados.length === 0 ? (
           <div className="empty-state">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
@@ -141,7 +165,7 @@ export function ProductosList({ productos, onNew, onEdit, onDelete, onStockChang
             <p>Sin productos. Tocá + para agregar.</p>
           </div>
         ) : (
-          productos.map((p, i) => {
+          productosFiltrados.map((p, i) => {
             const margen = p.costo ? p.precio - p.costo : null;
             const stockBajo = p.stock <= p.stock_minimo;
             return (
@@ -154,8 +178,11 @@ export function ProductosList({ productos, onNew, onEdit, onDelete, onStockChang
                 style={stockBajo ? { borderColor: p.stock === 0 ? 'var(--danger)' : 'rgba(239,68,68,0.3)' } : {}}
               >
                 <div className="card-row">
-                  <span style={{ fontWeight: 600, flex: 1, overflowWrap: 'anywhere' }}>{p.nombre}</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ fontWeight: 600, overflowWrap: 'anywhere' }}>{p.nombre}</span>
+                    {p.marca && <span style={{ marginLeft: 6, fontSize: 'var(--text-xs)', color: 'var(--ink-3)', fontWeight: 500 }}>{p.marca}</span>}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexShrink: 0 }}>
                     <span className="card-amount amount-neutral">{formatCurrency(p.precio)}</span>
                     <button
                       className="btn-icon"

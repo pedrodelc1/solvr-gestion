@@ -57,7 +57,9 @@ const SORT_LABELS = {
   'precio-asc':  'Menor precio primero',
 };
 
-export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEdit, onMarcarEntregado, onRefresh, toast }) {
+export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEdit, onMarcarEntregado, onRefresh, toast, userRole = 'owner' }) {
+  const canWrite = ['owner', 'admin', 'vendedor'].includes(userRole);
+  const canDelete = ['owner', 'admin'].includes(userRole);
   const [filter, setFilter] = useState('all');
   const [sort, setSort] = useState('fecha-desc');
   const [sortOpen, setSortOpen] = useState(false);
@@ -142,12 +144,14 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
     <>
       <div className="page-header">
         <h1>Pedidos</h1>
-        <button className="btn-icon" onClick={onNew} aria-label="Nuevo pedido">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-        </button>
+        {canWrite && (
+          <button className="btn-icon" onClick={onNew} aria-label="Nuevo pedido">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+        )}
       </div>
 
       <div className="filter-bar">
@@ -300,12 +304,16 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
                       </svg>
                     </button>
                   )}
-                  <button className="btn-icon" aria-label="Editar pedido" onClick={() => onEdit && onEdit(p)}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                  </button>
-                  <button className="btn-icon danger" aria-label="Eliminar pedido" onClick={() => setConfirmDel(p.id)}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-                  </button>
+                  {canWrite && (
+                    <button className="btn-icon" aria-label="Editar pedido" onClick={() => onEdit && onEdit(p)}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    </button>
+                  )}
+                  {canDelete && (
+                    <button className="btn-icon danger" aria-label="Eliminar pedido" onClick={() => setConfirmDel(p.id)}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                    </button>
+                  )}
                 </div>
               </motion.div>
             );

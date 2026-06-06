@@ -57,6 +57,13 @@ export default function App() {
   const [comunicaciones, setComunicaciones] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const ALLOWED_TABS = {
+    owner:        ['clientes', 'pedidos', 'gastos', 'stats', 'productos', 'caja', 'perfil'],
+    admin:        ['clientes', 'pedidos', 'gastos', 'stats', 'productos', 'caja', 'perfil'],
+    vendedor:     ['clientes', 'pedidos', 'stats', 'productos'],
+    visualizador: ['clientes', 'pedidos', 'stats', 'productos'],
+  };
+
   const [isOwner, setIsOwner] = useState(false);
   const [userRole, setUserRole] = useState('owner');
   const [suscripcion, setSuscripcion] = useState(null);
@@ -95,6 +102,15 @@ export default function App() {
   useEffect(() => {
     document.title = TAB_TITLES[activeTab] || 'Solvnt Gestión';
   }, [activeTab]);
+
+  // Redirect to clientes if current tab is not allowed for this role
+  useEffect(() => {
+    const allowed = ALLOWED_TABS[userRole] || ALLOWED_TABS.owner;
+    if (!allowed.includes(activeTab)) {
+      setActiveTab('clientes');
+      localStorage.setItem('sg_tab', 'clientes');
+    }
+  }, [userRole]);
 
   // ── Back button (Android / browser) ───────────────────────
   useEffect(() => {
@@ -425,6 +441,7 @@ export default function App() {
             onNew={() => { setEditingCliente(null); setClienteFormOpen(true); }}
             onRefresh={loadAll}
             toast={toast}
+            userRole={userRole}
           />
         );
 
@@ -456,6 +473,7 @@ export default function App() {
             onMarcarEntregado={handleMarcarEntregado}
             onRefresh={loadAll}
             toast={toast}
+            userRole={userRole}
           />
         );
 
@@ -495,6 +513,7 @@ export default function App() {
             onDelete={handleDeleteProducto}
             onStockChange={loadAll}
             toast={toast}
+            userRole={userRole}
           />
         );
 
@@ -556,7 +575,7 @@ export default function App() {
         </AnimatePresence>
       </div>
 
-      <BottomNav activeTab={activeTab} onTabChange={handleTabChange} alertCount={alertCount} />
+      <BottomNav activeTab={activeTab} onTabChange={handleTabChange} alertCount={alertCount} allowedTabs={ALLOWED_TABS[userRole] || ALLOWED_TABS.owner} />
 
       <ClienteForm
         open={clienteFormOpen}

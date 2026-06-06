@@ -80,8 +80,6 @@ const TABS = [
   },
 ];
 
-const TAB_PCT = 100 / TABS.length;
-
 function getDockScale(index, hoveredIndex) {
   if (hoveredIndex === null) return 1;
   const dist = Math.abs(index - hoveredIndex);
@@ -91,24 +89,25 @@ function getDockScale(index, hoveredIndex) {
   return 1;
 }
 
-export function BottomNav({ activeTab, onTabChange, alertCount = 0 }) {
+export function BottomNav({ activeTab, onTabChange, alertCount = 0, allowedTabs }) {
+  const visibleTabs = allowedTabs ? TABS.filter(t => allowedTabs.includes(t.id)) : TABS;
+  const tabPct = 100 / visibleTabs.length;
   const navRef = useRef(null);
-  const activeIndex = TABS.findIndex(t => t.id === activeTab);
+  const activeIndex = visibleTabs.findIndex(t => t.id === activeTab);
   const [hoveredIndex, setHoveredIndex] = useState(null);
 
   function handleDragEnd(_, info) {
     const nav = navRef.current;
     if (!nav) return;
-    const tabWidth = nav.getBoundingClientRect().width / TABS.length;
-    const newIndex = Math.max(0, Math.min(TABS.length - 1,
+    const tabWidth = nav.getBoundingClientRect().width / visibleTabs.length;
+    const newIndex = Math.max(0, Math.min(visibleTabs.length - 1,
       Math.round((activeIndex * tabWidth + info.offset.x) / tabWidth)
     ));
-    onTabChange(TABS[newIndex].id);
+    onTabChange(visibleTabs[newIndex].id);
   }
 
   return (
     <nav ref={navRef} className="bottom-nav" aria-label="Navegación">
-      {/* Draggable bubble */}
       <motion.div
         className="nav-indicator"
         drag="x"
@@ -116,13 +115,13 @@ export function BottomNav({ activeTab, onTabChange, alertCount = 0 }) {
         dragElastic={0.05}
         dragMomentum={false}
         onDragEnd={handleDragEnd}
-        animate={{ left: `${activeIndex * TAB_PCT}%`, x: 0 }}
+        animate={{ left: `${activeIndex * tabPct}%`, x: 0 }}
         transition={{ type: 'spring', stiffness: 420, damping: 36 }}
-        style={{ position: 'absolute', top: 5, bottom: 5, width: `${TAB_PCT}%`, cursor: 'grab', zIndex: 0 }}
+        style={{ position: 'absolute', top: 5, bottom: 5, width: `${tabPct}%`, cursor: 'grab', zIndex: 0 }}
         whileDrag={{ cursor: 'grabbing', scale: 1.04 }}
       />
 
-      {TABS.map((tab, i) => (
+      {visibleTabs.map((tab, i) => (
         <motion.button
           key={tab.id}
           className={`nav-btn${activeTab === tab.id ? ' active' : ''}`}

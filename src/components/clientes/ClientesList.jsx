@@ -5,7 +5,8 @@ import { listItem } from '../../lib/animations.js';
 import { CobrosPanel } from './CobrosPanel.jsx';
 import { ImportarClientesModal } from './ImportarClientesModal.jsx';
 
-export function ClientesList({ clientes, pedidos, devoluciones, onSelect, onNew, onRefresh, toast }) {
+export function ClientesList({ clientes, pedidos, devoluciones, onSelect, onNew, onRefresh, toast, userRole = 'owner' }) {
+  const canWrite = ['owner', 'admin', 'vendedor'].includes(userRole);
   const [query, setQuery] = useState('');
   const [verCobros, setVerCobros] = useState(false);
   const [importarOpen, setImportarOpen] = useState(false);
@@ -32,26 +33,28 @@ export function ClientesList({ clientes, pedidos, devoluciones, onSelect, onNew,
     <>
       <div className="page-header">
         <h1>Clientes</h1>
-        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-          <button
-            className="btn-icon"
-            onClick={() => setImportarOpen(true)}
-            aria-label="Importar clientes"
-            title="Importar desde CSV/Excel"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="17 8 12 3 7 8"/>
-              <line x1="12" y1="3" x2="12" y2="15"/>
-            </svg>
-          </button>
-          <button className="btn-icon" onClick={onNew} aria-label="Agregar cliente">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-          </button>
-        </div>
+        {canWrite && (
+          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+            <button
+              className="btn-icon"
+              onClick={() => setImportarOpen(true)}
+              aria-label="Importar clientes"
+              title="Importar desde CSV/Excel"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+            </button>
+            <button className="btn-icon" onClick={onNew} aria-label="Agregar cliente">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            </button>
+          </div>
+        )}
       </div>
 
       {cobrosCount > 0 && (

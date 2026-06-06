@@ -9,9 +9,9 @@ import {
 } from '../../lib/db.js';
 
 const ROLES = [
-  { id: 'admin',        label: 'Admin',        desc: 'Acceso completo al sistema',              color: '#ccff00', bg: 'rgba(204,255,0,0.1)' },
-  { id: 'vendedor',     label: 'Vendedor',      desc: 'Gestiona pedidos y clientes',             color: '#60a5fa', bg: 'rgba(96,165,250,0.1)' },
-  { id: 'visualizador', label: 'Solo lectura',  desc: 'Puede ver todo pero no modificar nada',  color: '#aaaaaa', bg: 'rgba(170,170,170,0.08)' },
+  { id: 'admin',        label: 'Admin',        desc: 'Acceso completo al sistema',             color: '#ccff00', bg: 'rgba(204,255,0,0.1)' },
+  { id: 'vendedor',     label: 'Vendedor',      desc: 'Gestiona pedidos y clientes',            color: '#ccff00', bg: 'rgba(204,255,0,0.1)' },
+  { id: 'visualizador', label: 'Solo lectura',  desc: 'Puede ver todo pero no modificar nada', color: '#ccff00', bg: 'rgba(204,255,0,0.1)' },
 ];
 
 function RolBadge({ rol }) {

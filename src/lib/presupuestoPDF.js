@@ -152,7 +152,6 @@ export async function compartirPresupuestoPDF(pedido, clienteNombre) {
     if (navigator.canShare?.({ files: [file] })) {
       await navigator.share({
         files: [file],
-        title: `Presupuesto para ${clienteNombre}`,
       });
     } else {
       const url = URL.createObjectURL(blob);

@@ -69,7 +69,7 @@ export function CuentaCorriente({ cliente, pedidos, onBack }) {
         const blob = await (await fetch(dataUrl)).blob();
         const file = new File([blob], fileName, { type: 'image/png' });
         if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: `Cuenta corriente — ${cliente.nombre}` });
+          await navigator.share({ files: [file] });
           return;
         }
       } catch (_) {}

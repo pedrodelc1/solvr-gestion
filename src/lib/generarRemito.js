@@ -107,7 +107,7 @@ export async function compartirRemito(pdf, nombreCliente) {
     const file = new File([blob], fileName, { type: 'application/pdf' });
     if (navigator.canShare?.({ files: [file] })) {
       try {
-        await navigator.share({ files: [file], title: `Remito — ${nombreCliente}` });
+        await navigator.share({ files: [file] });
         return;
       } catch (e) {
         if (e.name === 'AbortError') return;

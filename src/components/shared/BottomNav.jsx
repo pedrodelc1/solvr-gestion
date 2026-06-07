@@ -150,7 +150,7 @@ export function BottomNav({ activeTab, onTabChange, alertCount = 0, allowedTabs 
               }}>{alertCount > 9 ? '9+' : alertCount}</span>
             )}
           </motion.span>
-          <span style={{ position: 'relative', zIndex: 1, display: 'block', marginTop: '2px' }}>{tab.label}</span>
+          <span className="nav-btn-label" style={{ position: 'relative', zIndex: 1, display: 'block', marginTop: '2px' }}>{tab.label}</span>
         </button>
       ))}
     </nav>

@@ -95,13 +95,7 @@ function Num({ value, color = 'var(--ink)', size = 'var(--text-2xl)', weight = 8
 // Filter panel
 function FilterPanel({ clientes, productos, statCliente, setStatCliente, statProducto, setStatProducto, clienteSearch, setClienteSearch, productoSearch, setProductoSearch, visibleClientes, visibleProductos }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: -8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -8 }}
-      transition={{ duration: 0.18 }}
-      style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-2)' }}
-    >
+    <div style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-2)' }}>
       <div style={{ padding: 'var(--space-3) var(--space-4) var(--space-4)' }}>
         {/* Clientes */}
         <div style={{ marginBottom: 'var(--space-4)' }}>
@@ -379,18 +373,16 @@ export function StatsPanel({ pedidos, gastos, clientes, productos, devoluciones 
       </div>
 
       {/* Filter panel */}
-      <AnimatePresence>
-        {filterOpen && (
-          <FilterPanel
-            clientes={clientes} productos={productos}
-            statCliente={statCliente} setStatCliente={setStatCliente}
-            statProducto={statProducto} setStatProducto={setStatProducto}
-            clienteSearch={clienteSearch} setClienteSearch={setClienteSearch}
-            productoSearch={productoSearch} setProductoSearch={setProductoSearch}
-            visibleClientes={visibleClientes} visibleProductos={visibleProductos}
-          />
-        )}
-      </AnimatePresence>
+      {filterOpen && (
+        <FilterPanel
+          clientes={clientes} productos={productos}
+          statCliente={statCliente} setStatCliente={setStatCliente}
+          statProducto={statProducto} setStatProducto={setStatProducto}
+          clienteSearch={clienteSearch} setClienteSearch={setClienteSearch}
+          productoSearch={productoSearch} setProductoSearch={setProductoSearch}
+          visibleClientes={visibleClientes} visibleProductos={visibleProductos}
+        />
+      )}
 
       {/* Content */}
       {noRange && period === 'custom' ? (

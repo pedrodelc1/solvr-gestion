@@ -62,8 +62,8 @@ export function StatsPanel({ pedidos, gastos, clientes, productos, devoluciones 
   const [appliedCustom, setAppliedCustom] = useState({ from: '', to: '' });
   const [statCliente, setStatCliente] = useState('all');
   const [statProducto, setStatProducto] = useState('all');
-  const [searchVisible, setSearchVisible] = useState(false);
   const [clienteSearch, setClienteSearch] = useState('');
+  const [productoSearch, setProductoSearch] = useState('');
 
   const PERIODS = [
     { id: 'today', label: 'Hoy' },
@@ -193,6 +193,8 @@ export function StatsPanel({ pedidos, gastos, clientes, productos, devoluciones 
 
   const q = clienteSearch.toLowerCase();
   const visibleClientes = clientes.filter(c => !q || c.nombre.toLowerCase().includes(q));
+  const qp = productoSearch.toLowerCase();
+  const visibleProductos = productos.filter(p => !qp || p.nombre.toLowerCase().includes(qp));
 
   function handleApplyRange() {
     if (!customFrom || !customTo) return;
@@ -255,11 +257,12 @@ export function StatsPanel({ pedidos, gastos, clientes, productos, devoluciones 
       </div>
 
       {/* Period bar */}
-      <div className="period-bar">
+      <div style={{ display: 'flex', gap: 'var(--space-2)', padding: 'var(--space-3) var(--space-4)', borderBottom: '1px solid var(--border)', overflowX: 'auto', scrollbarWidth: 'none', flexShrink: 0 }}>
         {PERIODS.map(p => (
           <button
             key={p.id}
             className={`filter-chip${period === p.id ? ' active' : ''}`}
+            style={{ flexShrink: 0 }}
             onClick={() => setPeriod(p.id)}
           >
             {p.label}
@@ -285,70 +288,47 @@ export function StatsPanel({ pedidos, gastos, clientes, productos, devoluciones 
       )}
 
       {/* Client filter */}
-      <div className="filter-bar">
-        <button
-          className="btn-icon"
-          style={{
-            flexShrink: 0,
-            minHeight: 32,
-            minWidth: 32,
-            padding: 4,
-            color: searchVisible ? 'var(--ink)' : 'var(--ink-2)',
-          }}
-          onClick={() => { setSearchVisible(v => !v); if (searchVisible) setClienteSearch(''); }}
-          aria-label="Buscar cliente"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+      <div style={{ borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+        <div style={{ position: 'relative', padding: 'var(--space-2) var(--space-4) 0' }}>
+          <svg style={{ position: 'absolute', left: 'calc(var(--space-4) + 10px)', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--ink-3)' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
-        </button>
-        {searchVisible && (
-          <div className="search-bar-wrapper" style={{ flex: 1, minWidth: 100, maxWidth: 180 }}>
-            <input
-              type="search"
-              placeholder="Buscar cliente..."
-              value={clienteSearch}
-              onChange={e => setClienteSearch(e.target.value)}
-              autoFocus
-              style={{ minHeight: 32, fontSize: 'var(--text-sm)', padding: 'var(--space-1) var(--space-3)' }}
-            />
-          </div>
-        )}
-        <button
-          className={`filter-chip${statCliente === 'all' ? ' active' : ''}`}
-          onClick={() => setStatCliente('all')}
-        >
-          Todos
-        </button>
-        {visibleClientes.map(c => (
-          <button
-            key={c.id}
-            className={`filter-chip${statCliente === c.id ? ' active' : ''}`}
-            onClick={() => setStatCliente(c.id)}
-          >
-            {c.nombre}
-          </button>
-        ))}
+          <input
+            type="search"
+            placeholder="Buscar cliente..."
+            value={clienteSearch}
+            onChange={e => setClienteSearch(e.target.value)}
+            style={{ width: '100%', minHeight: 34, paddingLeft: 32, paddingRight: 'var(--space-3)', fontSize: 'var(--text-sm)', background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-full)', color: 'var(--ink)', boxSizing: 'border-box' }}
+          />
+        </div>
+        <div style={{ display: 'flex', gap: 'var(--space-2)', padding: 'var(--space-2) var(--space-4)', overflowX: 'auto', scrollbarWidth: 'none' }}>
+          <button className={`filter-chip${statCliente === 'all' ? ' active' : ''}`} style={{ flexShrink: 0 }} onClick={() => setStatCliente('all')}>Todos</button>
+          {visibleClientes.map(c => (
+            <button key={c.id} className={`filter-chip${statCliente === c.id ? ' active' : ''}`} style={{ flexShrink: 0 }} onClick={() => setStatCliente(c.id)}>{c.nombre}</button>
+          ))}
+        </div>
       </div>
 
       {/* Product filter */}
-      <div className="filter-bar">
-        <button
-          className={`filter-chip${statProducto === 'all' ? ' active' : ''}`}
-          onClick={() => setStatProducto('all')}
-        >
-          Todos
-        </button>
-        {productos.map(p => (
-          <button
-            key={p.id}
-            className={`filter-chip${statProducto === p.id ? ' active' : ''}`}
-            onClick={() => setStatProducto(p.id)}
-          >
-            {p.nombre}
-          </button>
-        ))}
+      <div style={{ borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+        <div style={{ position: 'relative', padding: 'var(--space-2) var(--space-4) 0' }}>
+          <svg style={{ position: 'absolute', left: 'calc(var(--space-4) + 10px)', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--ink-3)' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            type="search"
+            placeholder="Buscar producto..."
+            value={productoSearch}
+            onChange={e => setProductoSearch(e.target.value)}
+            style={{ width: '100%', minHeight: 34, paddingLeft: 32, paddingRight: 'var(--space-3)', fontSize: 'var(--text-sm)', background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-full)', color: 'var(--ink)', boxSizing: 'border-box' }}
+          />
+        </div>
+        <div style={{ display: 'flex', gap: 'var(--space-2)', padding: 'var(--space-2) var(--space-4)', overflowX: 'auto', scrollbarWidth: 'none' }}>
+          <button className={`filter-chip${statProducto === 'all' ? ' active' : ''}`} style={{ flexShrink: 0 }} onClick={() => setStatProducto('all')}>Todos</button>
+          {visibleProductos.map(p => (
+            <button key={p.id} className={`filter-chip${statProducto === p.id ? ' active' : ''}`} style={{ flexShrink: 0 }} onClick={() => setStatProducto(p.id)}>{p.nombre}</button>
+          ))}
+        </div>
       </div>
 
       {noRange && period === 'custom' ? (

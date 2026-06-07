@@ -358,7 +358,7 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
       <div className="form-wrap" style={{ paddingBottom: 'var(--space-8)' }}>
         <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
           <button type="button" className={`filter-chip${tipo === 'pedido' ? ' active' : ''}`} style={{ flex: 1, minHeight: 44 }} onClick={() => setTipo('pedido')}>Pedido</button>
-          <button type="button" className={`filter-chip${tipo === 'presupuesto' ? ' active' : ''}`} style={{ flex: 1, minHeight: 44 }} onClick={() => setTipo('presupuesto')}>Presupuesto</button>
+          <button type="button" className={`filter-chip${tipo === 'presupuesto' ? ' active' : ''}`} style={{ flex: 1, minHeight: 44 }} onClick={() => setTipo('presupuesto')} disabled={existing?.tipo === 'pedido'}>Presupuesto</button>
         </div>
         {tipo === 'presupuesto' && (
           <div style={{ background: 'var(--tarjeta-bg)', border: '1px solid var(--tarjeta)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--text-sm)', color: 'var(--tarjeta)' }}>

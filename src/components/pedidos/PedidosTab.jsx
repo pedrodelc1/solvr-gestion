@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { formatCurrency, formatDate, saldoPedido } from '../../lib/utils.js';
 import { PedidoForm } from './PedidoForm.jsx';
 import { PedidoDetail } from './PedidoDetail.jsx';
+import { MedioPill } from '../shared/MedioPill.jsx';
 
 const FILTROS = [
   { id: 'todos', label: 'Todos' },
@@ -11,16 +12,7 @@ const FILTROS = [
   { id: 'tarjeta', label: 'Tarjeta' },
 ];
 
-function MedioPill({ medio, cuotas }) {
-  const map = {
-    efectivo:      ['medio-efectivo', '💵 Efectivo'],
-    transferencia: ['medio-transferencia', '🏦 Transf.'],
-    tarjeta:       ['medio-tarjeta', `💳${cuotas && cuotas > 1 ? ` ${cuotas}c` : ''}`],
-    fiado:         ['medio-tarjeta', `💳${cuotas && cuotas > 1 ? ` ${cuotas}c` : ''}`],
-  };
-  const [cls, label] = map[medio] || ['', medio];
-  return <span className={`medio-pill ${cls}`}>{label}</span>;
-}
+import { MedioPill } from '../shared/MedioPill.jsx';
 
 export function PedidosTab({
   pedidos, clientes, productos,

@@ -6,31 +6,7 @@ import { listItem } from '../../lib/animations.js';
 import { convertirPresupuesto } from '../../lib/db.js';
 import { compartirPresupuestoPDF } from '../../lib/presupuestoPDF.js';
 
-const SvgCard = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-    <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
-    <line x1="1" y1="10" x2="23" y2="10"/>
-  </svg>
-);
-
-function MedioPill({ medio, cuotas }) {
-  if (medio === 'efectivo') {
-    return <span className="medio-pill medio-efectivo">💵 Efectivo</span>;
-  }
-  if (medio === 'transferencia') {
-    return <span className="medio-pill medio-transferencia">🏦 Transf.</span>;
-  }
-  if (medio === 'tarjeta' || medio === 'fiado') {
-    const label = cuotas && cuotas > 1 ? `${cuotas} cuotas` : 'Tarjeta';
-    return (
-      <span className="medio-pill medio-tarjeta" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-        <SvgCard />
-        {label}
-      </span>
-    );
-  }
-  return <span className="medio-pill">{medio}</span>;
-}
+import { MedioPill } from '../shared/MedioPill.jsx';
 
 const FILTERS = [
   { id: 'all', label: 'Todos' },

@@ -160,7 +160,7 @@ export default function App() {
         setToasts(t => {
           const id = ++_toastId;
           setTimeout(() => setToasts(prev => prev.filter(x => x.id !== id)), 8000);
-          return [...t, { id, msg: '⚠️ Pedidos no se pudieron cargar. Revisá las políticas RLS en Supabase.', type: 'error' }];
+          return [...t, { id, msg: 'Pedidos no se pudieron cargar. Revisá las políticas RLS en Supabase.', type: 'error' }];
         });
       }
 

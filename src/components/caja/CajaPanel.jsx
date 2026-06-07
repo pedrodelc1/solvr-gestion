@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { formatCurrency, formatDate, today } from '../../lib/utils.js';
 import { listItem } from '../../lib/animations.js';
+import { MedioIcon } from '../shared/MedioPill.jsx';
 
 function SvgChevron({ dir = 'left' }) {
   return (
@@ -118,7 +119,7 @@ export function CajaPanel({ pedidos, gastos, clientes }) {
                 <div className="card-row">
                   <span className="card-sub">{p.items.map(i => `${i.nombre} x${i.cantidad}`).join(' · ')}</span>
                   <span className="badge" style={{ fontSize: 10 }}>
-                    {p.medioPago === 'efectivo' ? '💵' : p.medioPago === 'transferencia' ? '🏦' : '💳'} {p.medioPago}
+                    <MedioIcon medio={p.medioPago} /> {p.medioPago}
                   </span>
                 </div>
               </motion.div>

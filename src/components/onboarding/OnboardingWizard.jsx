@@ -206,7 +206,12 @@ export function OnboardingWizard({ onComplete }) {
 
           {step === 3 && (
             <motion.div key="step3" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 64, marginBottom: 'var(--space-4)' }}>🎉</div>
+              <div style={{ marginBottom: 'var(--space-4)', display: 'flex', justifyContent: 'center' }}>
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <polyline points="7 12 10.5 15.5 17 8.5"/>
+                </svg>
+              </div>
               <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: 800, marginBottom: 'var(--space-3)' }}>¡Todo listo!</h2>
               <p style={{ color: 'var(--ink-2)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-8)', lineHeight: 1.7 }}>
                 Tu negocio está configurado.<br />Podés seguir agregando clientes, productos y pedidos.

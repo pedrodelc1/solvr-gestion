@@ -1,17 +1,7 @@
 import { useState } from 'react';
 import { formatCurrency, formatDate, saldoPedido } from '../../lib/utils.js';
 import { ConfirmModal } from '../shared/Modal.jsx';
-
-function MedioPill({ medio, cuotas }) {
-  const map = {
-    efectivo:      ['medio-efectivo', '💵 Efectivo'],
-    transferencia: ['medio-transferencia', '🏦 Transf.'],
-    tarjeta:       ['medio-tarjeta', `💳${cuotas && cuotas > 1 ? ` ${cuotas}c` : ''}`],
-    fiado:         ['medio-tarjeta', `💳${cuotas && cuotas > 1 ? ` ${cuotas}c` : ''}`],
-  };
-  const [cls, label] = map[medio] || ['', medio];
-  return <span className={`medio-pill ${cls}`}>{label}</span>;
-}
+import { MedioPill } from '../shared/MedioPill.jsx';
 
 export function PedidoDetail({ pedido, clientes, onBack, onUpdatePedido, onDeletePedido }) {
   const [confirmDel, setConfirmDel] = useState(false);

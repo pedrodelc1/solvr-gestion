@@ -344,7 +344,7 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
     });
   }
 
-  const clienteOptions = clientes.map(c => ({ value: c.id, label: c.nombre + (c.tipo_precio === 'mayorista' ? ' ★' : '') }));
+  const clienteOptions = clientes.map(c => ({ value: c.id, label: c.nombre + (c.tipo_precio === 'mayorista' ? ' [may.]' : '') }));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
@@ -377,7 +377,7 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
 
         {tipoPrecio === 'mayorista' && (
           <div style={{ background: 'rgba(204,255,0,0.08)', border: '1px solid rgba(204,255,0,0.3)', borderRadius: 'var(--radius-md)', padding: 'var(--space-2) var(--space-3)', fontSize: 'var(--text-xs)', color: 'var(--primary)', fontWeight: 600 }}>
-            ★ Cliente mayorista — se aplican precios mayoristas automáticamente
+            Cliente mayorista — se aplican precios mayoristas automáticamente
           </div>
         )}
 

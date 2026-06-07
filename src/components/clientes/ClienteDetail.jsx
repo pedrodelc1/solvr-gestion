@@ -4,13 +4,7 @@ import { ConfirmModal } from '../shared/Modal.jsx';
 import { generarRemito, compartirRemito } from '../../lib/generarRemito.js';
 import { CuentaCorriente } from './CuentaCorriente.jsx';
 import { DevolucionModal } from '../pedidos/DevolucionModal.jsx';
-
-const SvgCard = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-    <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
-    <line x1="1" y1="10" x2="23" y2="10"/>
-  </svg>
-);
+import { MedioPill } from '../shared/MedioPill.jsx';
 
 const SvgPhone = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
@@ -18,19 +12,6 @@ const SvgPhone = () => (
   </svg>
 );
 
-function MedioPill({ medio, cuotas }) {
-  if (medio === 'efectivo') return <span className="medio-pill medio-efectivo">💵 Efectivo</span>;
-  if (medio === 'transferencia') return <span className="medio-pill medio-transferencia">🏦 Transf.</span>;
-  if (medio === 'tarjeta' || medio === 'fiado') {
-    const label = cuotas && cuotas > 1 ? `${cuotas} cuotas` : 'Tarjeta';
-    return (
-      <span className="medio-pill medio-tarjeta" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-        <SvgCard />{label}
-      </span>
-    );
-  }
-  return <span className="medio-pill">{medio}</span>;
-}
 
 function TipoComBadge({ tipo }) {
   const map = { recordatorio: 'Recordatorio', presupuesto: 'Presupuesto', otro: 'Otro' };

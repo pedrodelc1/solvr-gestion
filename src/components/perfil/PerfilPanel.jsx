@@ -294,7 +294,19 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
             style={{ gap: 'var(--space-1)' }}
           >
             <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', fontWeight: 500 }}>{item.label}</div>
-            <div style={{ fontSize: 'var(--text-xl)', fontWeight: 800, color: item.accent ? 'var(--danger)' : 'var(--ink)' }}>
+            <div style={{
+              fontSize: typeof item.value === 'string' && item.value.length > 12
+                ? '14px'
+                : typeof item.value === 'string' && item.value.length > 9
+                  ? '17px'
+                  : 'var(--text-xl)',
+              fontWeight: 800,
+              color: item.accent ? 'var(--danger)' : 'var(--ink)',
+              whiteSpace: 'nowrap',
+              textOverflow: 'ellipsis',
+              overflow: 'hidden',
+              width: '100%'
+            }}>
               {item.value}
             </div>
           </motion.div>

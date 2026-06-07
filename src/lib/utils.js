@@ -5,7 +5,7 @@ export function formatCurrency(n) {
     if (negocio && negocio.moneda) symbol = negocio.moneda;
   } catch (_) {}
 
-  return symbol + ' ' + Number(n || 0).toLocaleString('es-AR', {
+  return symbol + '\u00A0' + Number(n || 0).toLocaleString('es-AR', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });

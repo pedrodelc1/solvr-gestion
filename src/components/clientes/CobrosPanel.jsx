@@ -3,7 +3,7 @@ import { formatCurrency, formatDate, saldoCliente } from '../../lib/utils.js';
 import { registrarComunicacion } from '../../lib/db.js';
 import { listItem } from '../../lib/animations.js';
 
-export function CobrosPanel({ clientes, pedidos, devoluciones, onBack, userRole = 'owner' }) {
+export function CobrosPanel({ clientes, pedidos, devoluciones, negocioConfig, onBack, userRole = 'owner' }) {
   const canCobrar = ['owner', 'admin', 'vendedor'].includes(userRole);
 
   const conSaldo = clientes
@@ -20,7 +20,13 @@ export function CobrosPanel({ clientes, pedidos, devoluciones, onBack, userRole 
   function handleEnviar(cliente) {
     const num = (cliente.contacto || '').replace(/\D/g, '');
     const fechaUlt = cliente.ultimoPedido ? formatDate(cliente.ultimoPedido.fecha) : 'reciente';
-    const msg = `Hola ${cliente.nombre}, te paso a recordar que tenés un pago pendiente de ${formatCurrency(cliente.saldo)} correspondiente al pedido del ${fechaUlt}. Quedamos esperando tu pago, gracias!`;
+    const plantilla = negocioConfig?.recordatorio_plantilla || '';
+    const defaultTemplate = "Hola {cliente}, te paso a recordar que tenés un pago pendiente de {saldo} correspondiente al pedido del {fecha}. Quedamos esperando tu pago, gracias!";
+
+    const msg = (plantilla || defaultTemplate)
+      .replace(/{cliente}/g, cliente.nombre)
+      .replace(/{saldo}/g, formatCurrency(cliente.saldo))
+      .replace(/{fecha}/g, fechaUlt);
 
     const url = `https://wa.me/${num ? '54' + num : ''}?text=${encodeURIComponent(msg)}`;
     window.open(url, '_blank');

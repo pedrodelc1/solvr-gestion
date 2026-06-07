@@ -28,6 +28,73 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
   const email = session?.user?.email || null;
   const inicial = email ? email[0].toUpperCase() : '?';
 
+  const [avatarUrl, setAvatarUrl] = useState(() => {
+    return session?.user?.user_metadata?.avatar_url || localStorage.getItem('sg_avatar_' + (email || '')) || null;
+  });
+  const [hoverAvatar, setHoverAvatar] = useState(false);
+
+  useEffect(() => {
+    if (session?.user?.user_metadata?.avatar_url) {
+      setAvatarUrl(session.user.user_metadata.avatar_url);
+    } else if (email) {
+      setAvatarUrl(localStorage.getItem('sg_avatar_' + email) || null);
+    }
+  }, [session, email]);
+
+  async function handlePhotoChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function (event) {
+      const img = new Image();
+      img.onload = async function () {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 150;
+        const MAX_HEIGHT = 150;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        setAvatarUrl(dataUrl);
+
+        if (email) {
+          localStorage.setItem('sg_avatar_' + email, dataUrl);
+        }
+
+        try {
+          const { error } = await supabase.auth.updateUser({
+            data: { avatar_url: dataUrl }
+          });
+          if (error) throw error;
+          toast('Foto de perfil actualizada');
+        } catch (err) {
+          console.error(err);
+          toast('Guardado localmente', 'info');
+        }
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
   const totalClientes = clientes.length;
   const pendientes = pedidos.filter(p => !p.cobrado && p.tipo !== 'presupuesto').length;
   const totalDeuda = clientes.reduce((s, c) => s + Math.max(0, saldoCliente(c, pedidos)), 0);
@@ -42,6 +109,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
   const [notaPdf, setNotaPdf] = useState('');
   const [numInicial, setNumInicial] = useState(1);
   const [metodosPago, setMetodosPago] = useState('');
+  const [recordatorioPlantilla, setRecordatorioPlantilla] = useState('');
   const [savingNegocio, setSavingNegocio] = useState(false);
 
   useEffect(() => {
@@ -54,6 +122,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
     setNotaPdf(negocioConfig?.nota_pdf || '');
     setNumInicial(negocioConfig?.num_inicial || 1);
     setMetodosPago(negocioConfig?.metodos_pago || 'Efectivo, Transferencia, Tarjeta');
+    setRecordatorioPlantilla(negocioConfig?.recordatorio_plantilla || '');
   }, [negocioConfig]);
 
   async function handleSaveConfig() {
@@ -72,6 +141,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
         nota_pdf: notaPdf.trim(),
         num_inicial: parseInt(numInicial) || 1,
         metodos_pago: metodosPago.trim(),
+        recordatorio_plantilla: recordatorioPlantilla.trim(),
       });
       toast('Configuración guardada');
       if (isMonedaChanged) {
@@ -193,16 +263,50 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+          onMouseEnter={() => setHoverAvatar(true)}
+          onMouseLeave={() => setHoverAvatar(false)}
+          onClick={() => document.getElementById('avatar-upload').click()}
           style={{
             width: 80, height: 80, borderRadius: '50%',
-            background: 'linear-gradient(135deg, #ccff00, #88dd00)',
+            background: avatarUrl ? 'none' : 'linear-gradient(135deg, #ccff00, #88dd00)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 32, fontWeight: 800, color: '#080808',
             boxShadow: '0 0 24px #ccff0044',
+            cursor: 'pointer',
+            position: 'relative',
+            overflow: 'hidden',
           }}
         >
-          {inicial}
+          {avatarUrl ? (
+            <img src={avatarUrl} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} alt="Avatar" />
+          ) : (
+            inicial
+          )}
+          
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            opacity: hoverAvatar ? 1 : 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'opacity 0.2s',
+            borderRadius: '50%',
+          }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+              <circle cx="12" cy="13" r="4"/>
+            </svg>
+          </div>
         </motion.div>
+        <input
+          type="file"
+          id="avatar-upload"
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={handlePhotoChange}
+        />
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontWeight: 700, fontSize: 'var(--text-lg)' }}>{email}</div>
           <div style={{ marginTop: 6 }}>
@@ -437,6 +541,21 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
                   autoCorrect="off"
                 />
                 <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>Separados por comas. Define las opciones disponibles para nuevos cobros.</span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Plantilla de Recordatorio de Pago (WhatsApp)</label>
+                <textarea
+                  placeholder="Hola {cliente}, tenés un pago pendiente de {saldo} correspondiente al pedido del {fecha}."
+                  value={recordatorioPlantilla}
+                  onChange={e => setRecordatorioPlantilla(e.target.value)}
+                  style={{ minHeight: 80, fontSize: 'var(--text-sm)', padding: 'var(--space-2)', background: 'var(--bg-2)', color: 'var(--ink)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)' }}
+                  autoComplete="off"
+                  autoCorrect="off"
+                />
+                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>
+                  Puedes usar las variables: <code>{"{cliente}"}</code>, <code>{"{saldo}"}</code>, y <code>{"{fecha}"}</code>. Si se deja vacío, se usará el mensaje por defecto.
+                </span>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>

@@ -18,7 +18,7 @@ function TipoComBadge({ tipo }) {
   return <span className="badge badge-info" style={{ fontSize: 10 }}>{map[tipo] || tipo}</span>;
 }
 
-export function ClienteDetail({ cliente, pedidos, devoluciones = [], comunicaciones = [], onBack, onEdit, onDelete, onNuevoPedido, onRefresh, negocio, toast, userRole = 'owner' }) {
+export function ClienteDetail({ cliente, pedidos, devoluciones = [], comunicaciones = [], onBack, onEdit, onDelete, onNuevoPedido, onRefresh, negocio, negocioConfig, toast, userRole = 'owner' }) {
   const canWrite = ['owner', 'admin', 'vendedor'].includes(userRole);
   const canDelete = ['owner', 'admin'].includes(userRole);
   const canCobrar = ['owner', 'admin', 'vendedor'].includes(userRole);
@@ -51,7 +51,16 @@ export function ClienteDetail({ cliente, pedidos, devoluciones = [], comunicacio
     .sort((a, b) => b.fecha.localeCompare(a.fecha));
 
   function sendWA() {
-    const msg = `${cliente.nombre}, saldo: ${formatCurrency(saldo)}`;
+    const lastPendingOrder = clientePedidos.filter(p => !p.cobrado && p.tipo !== 'presupuesto')[0];
+    const fechaUlt = lastPendingOrder ? formatDate(lastPendingOrder.fecha) : 'reciente';
+    const plantilla = negocioConfig?.recordatorio_plantilla || '';
+    const defaultTemplate = "Hola {cliente}, te paso a recordar que tenés un pago pendiente de {saldo} correspondiente al pedido del {fecha}. Quedamos esperando tu pago, gracias!";
+    
+    const msg = (plantilla || defaultTemplate)
+      .replace(/{cliente}/g, cliente.nombre)
+      .replace(/{saldo}/g, formatCurrency(saldo))
+      .replace(/{fecha}/g, fechaUlt);
+
     const num = (cliente.contacto || '').replace(/\D/g, '');
     window.open(
       `https://wa.me/${num ? '54' + num : ''}?text=${encodeURIComponent(msg)}`,

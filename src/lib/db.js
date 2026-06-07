@@ -840,6 +840,7 @@ const DEFAULT_NEGOCIO_CONFIG = {
   nota_pdf: '',
   num_inicial: 1,
   metodos_pago: 'Efectivo, Transferencia, Tarjeta',
+  recordatorio_plantilla: '',
   onboarding_done: false
 };
 

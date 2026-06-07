@@ -5,7 +5,7 @@ import { listItem } from '../../lib/animations.js';
 import { CobrosPanel } from './CobrosPanel.jsx';
 import { ImportarClientesModal } from './ImportarClientesModal.jsx';
 
-export function ClientesList({ clientes, pedidos, devoluciones, onSelect, onNew, onRefresh, toast, userRole = 'owner' }) {
+export function ClientesList({ clientes, pedidos, devoluciones, negocioConfig, onSelect, onNew, onRefresh, toast, userRole = 'owner' }) {
   const canWrite = ['owner', 'admin', 'vendedor'].includes(userRole);
   const [query, setQuery] = useState('');
   const [verCobros, setVerCobros] = useState(false);
@@ -24,6 +24,7 @@ export function ClientesList({ clientes, pedidos, devoluciones, onSelect, onNew,
         clientes={clientes}
         pedidos={pedidos}
         devoluciones={devoluciones}
+        negocioConfig={negocioConfig}
         onBack={() => setVerCobros(false)}
         userRole={userRole}
       />

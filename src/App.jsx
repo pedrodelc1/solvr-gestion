@@ -434,6 +434,7 @@ export default function App() {
               devoluciones={devoluciones}
               comunicaciones={comunicaciones}
               negocio={negocioNombre}
+              negocioConfig={negocioConfig}
               onBack={() => setSelectedClienteId(null)}
               onEdit={() => { setEditingCliente(selectedCliente); setClienteFormOpen(true); }}
               onDelete={() => handleDeleteCliente(selectedClienteId)}
@@ -455,6 +456,7 @@ export default function App() {
             clientes={clientes}
             pedidos={pedidos}
             devoluciones={devoluciones}
+            negocioConfig={negocioConfig}
             onSelect={id => setSelectedClienteId(id)}
             onNew={() => { setEditingCliente(null); setClienteFormOpen(true); }}
             onRefresh={loadAll}

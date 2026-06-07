@@ -125,33 +125,33 @@ export function CuentaCorriente({ cliente, pedidos, onBack }) {
         ) : (
           <>
             {/* Encabezado de columnas */}
-            <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr 90px 90px', gap: 'var(--space-2)', padding: 'var(--space-2) 0', borderBottom: '1px solid var(--border)', marginBottom: 'var(--space-2)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '70px 1fr 110px 110px', gap: 'var(--space-1)', padding: 'var(--space-2) 0', borderBottom: '1px solid var(--border)', marginBottom: 'var(--space-2)' }}>
               <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Fecha</span>
               <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Descripción</span>
               <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'right' }}>Monto</span>
               <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'right' }}>Saldo</span>
             </div>
-
+ 
             {movimientos.map(m => (
               <div
                 key={m.id}
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '80px 1fr 90px 90px',
-                  gap: 'var(--space-2)',
+                  gridTemplateColumns: '70px 1fr 110px 110px',
+                  gap: 'var(--space-1)',
                   padding: 'var(--space-3) 0',
                   borderBottom: '1px solid var(--border)',
                   alignItems: 'center',
                 }}
               >
-                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>{formatDate(m.fecha)}</span>
-                <span style={{ fontSize: 'var(--text-sm)', color: m.tipo === 'credito' ? 'var(--success)' : 'var(--ink-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: '11px', color: 'var(--ink-3)' }}>{formatDate(m.fecha)}</span>
+                <span style={{ fontSize: '12px', color: m.tipo === 'credito' ? 'var(--success)' : 'var(--ink-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {m.tipo === 'credito' ? '↓ ' : '↑ '}{m.descripcion}
                 </span>
-                <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: m.tipo === 'credito' ? 'var(--success)' : 'var(--ink)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: m.tipo === 'credito' ? 'var(--success)' : 'var(--ink)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                   {m.tipo === 'credito' ? '-' : '+'}{formatCurrency(m.monto)}
                 </span>
-                <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: m.saldoAcumulado > 0 ? 'var(--danger)' : 'var(--success)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: m.saldoAcumulado > 0 ? 'var(--danger)' : 'var(--success)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                   {formatCurrency(m.saldoAcumulado)}
                 </span>
               </div>

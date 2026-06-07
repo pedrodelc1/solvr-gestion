@@ -309,19 +309,18 @@ export function StatsPanel({ pedidos, gastos, clientes, productos, onExportCSV }
   }, 0);
   const margenPorcentaje = ventas > 0 ? ((ventas - costoTotalVendido) / ventas) * 100 : 0;
 
-  // Medios de pago (Breakdown de cobros)
+  // Medios de pago (Breakdown de ventas por medio de pago)
   const mediosBars = useMemo(() => {
     const map = {};
     filteredPedidos.forEach(p => {
-      const pagado = p.cobrado ? p.totalFinal : (p.montoAbonado || 0);
-      if (pagado <= 0) return;
       const medio = p.medioPago || 'efectivo';
       const label = medio.charAt(0).toUpperCase() + medio.slice(1);
       if (!map[label]) map[label] = 0;
-      map[label] += pagado;
+      map[label] += p.totalFinal;
     });
     return Object.entries(map)
       .map(([label, value]) => ({ label, value }))
+      .filter(item => item.value > 0)
       .sort((a, b) => b.value - a.value);
   }, [filteredPedidos]);
 

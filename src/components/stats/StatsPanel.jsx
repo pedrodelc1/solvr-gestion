@@ -96,11 +96,11 @@ function Num({ value, color = 'var(--ink)', size = 'var(--text-2xl)', weight = 8
 function FilterPanel({ clientes, productos, statCliente, setStatCliente, statProducto, setStatProducto, clienteSearch, setClienteSearch, productoSearch, setProductoSearch, visibleClientes, visibleProductos }) {
   return (
     <motion.div
-      initial={{ height: 0, opacity: 0 }}
-      animate={{ height: 'auto', opacity: 1 }}
-      exit={{ height: 0, opacity: 0 }}
-      transition={{ duration: 0.22, ease: [0, 0, 0.2, 1] }}
-      style={{ overflow: 'hidden', borderBottom: '1px solid var(--border)', background: 'var(--bg-2)' }}
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -8 }}
+      transition={{ duration: 0.18 }}
+      style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-2)' }}
     >
       <div style={{ padding: 'var(--space-3) var(--space-4) var(--space-4)' }}>
         {/* Clientes */}
@@ -404,7 +404,7 @@ export function StatsPanel({ pedidos, gastos, clientes, productos, devoluciones 
           <button className="btn btn-secondary" style={{ marginTop: 'var(--space-3)' }} onClick={() => setPeriod('all')}>Ver todo el historial</button>
         </div>
       ) : (
-        <div style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+        <div style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', minHeight: 0 }}>
 
           {/* Hero card — Ventas + Cobrado ratio */}
           <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>

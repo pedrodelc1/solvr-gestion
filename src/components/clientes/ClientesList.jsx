@@ -63,30 +63,29 @@ export function ClientesList({ clientes, pedidos, devoluciones, onSelect, onNew,
           className="card"
           style={{
             width: 'fit-content',
-            margin: '0 auto var(--space-4)',
-            textAlign: 'left',
+            margin: 'var(--space-1) auto var(--space-3)',
             cursor: 'pointer',
             display: 'flex',
+            flexDirection: 'row',
             alignItems: 'center',
-            gap: 'var(--space-4)',
-            padding: 'var(--space-3) var(--space-5)',
+            justifyContent: 'center',
+            gap: 'var(--space-2)',
+            padding: '8px 14px',
             background: 'var(--danger-bg, rgba(239,68,68,0.08))',
             borderColor: 'rgba(239,68,68,0.3)',
-            borderRadius: 'var(--radius-md)',
+            borderRadius: 'var(--radius-full)',
           }}
           onClick={() => setVerCobros(true)}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" strokeWidth="2.5">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-            <span style={{ fontWeight: 600, fontSize: 'var(--text-xs)', color: 'var(--danger)', letterSpacing: '0.01em' }}>
-              Cobros pendientes
-            </span>
-          </div>
-          <span style={{ background: 'var(--danger)', color: '#fff', borderRadius: 999, fontSize: '10px', fontWeight: 700, padding: '1px 6px', marginLeft: 'var(--space-2)' }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <span style={{ fontWeight: 600, fontSize: 'var(--text-xs)', color: 'var(--danger)', letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>
+            Cobros pendientes
+          </span>
+          <span style={{ background: 'var(--danger)', color: '#fff', borderRadius: 999, fontSize: '10px', fontWeight: 700, padding: '1px 6px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
             {cobrosCount}
           </span>
         </button>

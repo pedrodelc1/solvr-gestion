@@ -64,13 +64,20 @@ function BarChart({ items, colorVar = '--primary' }) {
   );
 }
 
+// Large currency formatter for chart axis labels (e.g. $15k, $1.2M)
+function formatLargeCurrency(val) {
+  if (val >= 1000000) return `$${(val / 1000000).toFixed(1)}M`;
+  if (val >= 1000) return `$${(val / 1000).toFixed(0)}k`;
+  return `$${val}`;
+}
+
 // Custom SVG Area Chart for sales timeline
 function AreaChart({ data }) {
   if (!data || data.length === 0) return null;
 
   const width = 500;
   const height = 150;
-  const paddingLeft = 25;
+  const paddingLeft = 35;
   const paddingRight = 15;
   const paddingTop = 20;
   const paddingBottom = 25;
@@ -123,8 +130,8 @@ function AreaChart({ data }) {
                 strokeDasharray="4 4"
                 opacity="0.3"
               />
-              <text x={0} y={y + 3} fill="var(--ink-3)" fontSize="8" fontWeight="500">
-                {formatCurrency(val).replace(/[\$,]/g, '').substring(0, 5)}
+              <text x={0} y={y + 3} fill="var(--ink-3)" fontSize="8" fontWeight="600">
+                {formatLargeCurrency(val)}
               </text>
             </g>
           );
@@ -248,6 +255,112 @@ function DonutChart({ items }) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// Custom SVG Grouped Vertical Bar Chart (Revenues vs Expenses)
+function GroupedBarChart({ data }) {
+  if (!data || data.length === 0) return null;
+
+  const width = 500;
+  const height = 180;
+  const paddingLeft = 40;
+  const paddingRight = 15;
+  const paddingTop = 20;
+  const paddingBottom = 25;
+
+  const maxVal = Math.max(
+    ...data.map(d => Math.max(d.revenue, d.expenses)),
+    1000 // default minimum scale
+  );
+
+  const chartWidth = width - paddingLeft - paddingRight;
+  const chartHeight = height - paddingTop - paddingBottom;
+
+  const numGroups = data.length;
+  const groupWidth = chartWidth / numGroups;
+  const barWidth = Math.max(groupWidth * 0.25, 6); // width of each individual bar
+  const barGap = 3; // gap between revenue and expense bar
+
+  return (
+    <div style={{ position: 'relative', width: '100%', padding: 'var(--space-1) 0' }}>
+      <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: 'auto', display: 'block', overflow: 'visible' }}>
+        {/* Horizontal grid lines and Y-axis labels */}
+        {[0, 0.5, 1].map((ratio, idx) => {
+          const y = paddingTop + chartHeight * ratio;
+          const val = maxVal - (maxVal * ratio);
+          return (
+            <g key={idx}>
+              <line 
+                x1={paddingLeft}
+                y1={y}
+                x2={width - paddingRight}
+                y2={y}
+                stroke="var(--border)"
+                strokeWidth="1"
+                strokeDasharray="4 4"
+                opacity="0.25"
+              />
+              <text x={0} y={y + 3} fill="var(--ink-3)" fontSize="8" fontWeight="600">
+                {formatLargeCurrency(val)}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Bars */}
+        {data.map((d, i) => {
+          const groupX = paddingLeft + (i * groupWidth);
+          const centerX = groupX + (groupWidth / 2);
+
+          const revHeight = (d.revenue / maxVal) * chartHeight;
+          const expHeight = (d.expenses / maxVal) * chartHeight;
+
+          const revY = paddingTop + chartHeight - revHeight;
+          const expY = paddingTop + chartHeight - expHeight;
+
+          return (
+            <g key={i}>
+              {/* Revenue Bar (Green) */}
+              {d.revenue > 0 && (
+                <rect
+                  x={centerX - barWidth - (barGap / 2)}
+                  y={revY}
+                  width={barWidth}
+                  height={revHeight}
+                  fill="var(--success)"
+                  rx="2"
+                />
+              )}
+
+              {/* Expenses Bar (Red) */}
+              {d.expenses > 0 && (
+                <rect
+                  x={centerX + (barGap / 2)}
+                  y={expY}
+                  width={barWidth}
+                  height={expHeight}
+                  fill="var(--danger)"
+                  rx="2"
+                />
+              )}
+
+              {/* Group Label */}
+              <text
+                x={centerX}
+                y={height - 5}
+                fill="var(--ink-2)"
+                fontSize="9"
+                fontWeight="600"
+                textAnchor="middle"
+              >
+                {d.label}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
     </div>
   );
 }
@@ -435,6 +548,64 @@ export function StatsPanel({ pedidos, gastos, clientes, productos, onExportCSV }
     return list;
   }, [filteredPedidos, from, to]);
 
+  // Grouped comparative data (Revenues vs Expenses)
+  const comparisonData = useMemo(() => {
+    if (!from || !to) return [];
+
+    const groups = {};
+    const fromDate = new Date(from);
+    const toDate = new Date(to);
+    const diffTime = Math.abs(toDate - fromDate);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays <= 35) {
+      // Group by Week (divide range into 4 equal segments)
+      const step = Math.ceil(diffDays / 4);
+      for (let i = 0; i < 4; i++) {
+        const start = new Date(fromDate);
+        start.setDate(fromDate.getDate() + (i * step));
+        const end = new Date(fromDate);
+        end.setDate(fromDate.getDate() + ((i + 1) * step) - 1);
+        if (end > toDate) end.setDate(toDate.getDate());
+
+        const label = `Sem ${i + 1}`;
+        groups[label] = { label, revenue: 0, expenses: 0, sortKey: i };
+
+        filteredPedidos.forEach(p => {
+          const d = new Date(p.fecha + 'T00:00:00');
+          if (d >= start && d <= end) {
+            groups[label].revenue += p.totalFinal;
+          }
+        });
+        filteredGastos.forEach(g => {
+          const d = new Date(g.fecha + 'T00:00:00');
+          if (d >= start && d <= end) {
+            groups[label].expenses += g.monto;
+          }
+        });
+      }
+    } else {
+      // Group by Month
+      const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+      
+      filteredPedidos.forEach(p => {
+        const d = new Date(p.fecha + 'T00:00:00');
+        const label = `${monthNames[d.getMonth()]} ${d.getFullYear().toString().substring(2)}`;
+        if (!groups[label]) groups[label] = { label, revenue: 0, expenses: 0, sortKey: d.getFullYear() * 12 + d.getMonth() };
+        groups[label].revenue += p.totalFinal;
+      });
+      
+      filteredGastos.forEach(g => {
+        const d = new Date(g.fecha + 'T00:00:00');
+        const label = `${monthNames[d.getMonth()]} ${d.getFullYear().toString().substring(2)}`;
+        if (!groups[label]) groups[label] = { label, revenue: 0, expenses: 0, sortKey: d.getFullYear() * 12 + d.getMonth() };
+        groups[label].expenses += g.monto;
+      });
+    }
+
+    return Object.values(groups).sort((a, b) => a.sortKey - b.sortKey);
+  }, [filteredPedidos, filteredGastos, from, to]);
+
   function handleExport() {
     if (!from || !to) return;
     setDownloading(true);
@@ -508,6 +679,14 @@ export function StatsPanel({ pedidos, gastos, clientes, productos, onExportCSV }
               <Num value={Math.max(0, ventas - cobrado)} color="var(--warning)" size="var(--text-xl)" />
             </div>
           </div>
+
+          {/* Comparativa: Ingresos vs Gastos (GroupedBarChart) */}
+          {comparisonData.length > 0 && (
+            <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-5)' }}>
+              <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 'var(--space-3)' }}>Comparativa: Ingresos vs Gastos</div>
+              <GroupedBarChart data={comparisonData} />
+            </div>
+          )}
 
           {/* Evolución de Ventas (AreaChart) */}
           {timelineData.length > 1 && (

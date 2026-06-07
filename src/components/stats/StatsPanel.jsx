@@ -64,6 +64,194 @@ function BarChart({ items, colorVar = '--primary' }) {
   );
 }
 
+// Custom SVG Area Chart for sales timeline
+function AreaChart({ data }) {
+  if (!data || data.length === 0) return null;
+
+  const width = 500;
+  const height = 150;
+  const paddingLeft = 25;
+  const paddingRight = 15;
+  const paddingTop = 20;
+  const paddingBottom = 25;
+
+  const values = data.map(d => d.value);
+  const maxVal = Math.max(...values, 1000);
+  const minVal = 0;
+  const valRange = maxVal - minVal;
+
+  const chartWidth = width - paddingLeft - paddingRight;
+  const chartHeight = height - paddingTop - paddingBottom;
+
+  const points = data.map((d, i) => {
+    const x = paddingLeft + (i / Math.max(data.length - 1, 1)) * chartWidth;
+    const y = paddingTop + chartHeight - ((d.value - minVal) / valRange) * chartHeight;
+    return { x, y, label: d.label, value: d.value };
+  });
+
+  const pathD = points.length > 0 
+    ? `M ${points[0].x} ${points[0].y} ` + points.slice(1).map(p => `L ${p.x} ${p.y}`).join(' ') 
+    : '';
+
+  const areaD = points.length > 0
+    ? `${pathD} L ${points[points.length - 1].x} ${paddingTop + chartHeight} L ${points[0].x} ${paddingTop + chartHeight} Z`
+    : '';
+
+  return (
+    <div style={{ position: 'relative', width: '100%', padding: 'var(--space-2) 0' }}>
+      <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: 'auto', display: 'block', overflow: 'visible' }}>
+        <defs>
+          <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.25" />
+            <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.0" />
+          </linearGradient>
+        </defs>
+
+        {/* Grid lines */}
+        {[0, 0.5, 1].map((ratio, idx) => {
+          const y = paddingTop + chartHeight * ratio;
+          const val = maxVal - (maxVal * ratio);
+          return (
+            <g key={idx}>
+              <line 
+                x1={paddingLeft}
+                y1={y}
+                x2={width - paddingRight}
+                y2={y}
+                stroke="var(--border)"
+                strokeWidth="1"
+                strokeDasharray="4 4"
+                opacity="0.3"
+              />
+              <text x={0} y={y + 3} fill="var(--ink-3)" fontSize="8" fontWeight="500">
+                {formatCurrency(val).replace(/[\$,]/g, '').substring(0, 5)}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* SVG Area */}
+        {points.length > 1 && (
+          <path d={areaD} fill="url(#areaGrad)" />
+        )}
+
+        {/* SVG Path */}
+        {points.length > 1 && (
+          <path 
+            d={pathD} 
+            fill="none" 
+            stroke="var(--primary)" 
+            strokeWidth="3" 
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+          />
+        )}
+
+        {/* Dots */}
+        {points.length <= 20 && points.map((p, idx) => (
+          <circle 
+            key={idx} 
+            cx={p.x} 
+            cy={p.y} 
+            r="3.5" 
+            fill="#ffffff" 
+            stroke="var(--primary)" 
+            strokeWidth="2.5" 
+          />
+        ))}
+
+        {/* Timeline labels */}
+        {points.length > 1 && [points[0], points[Math.floor(points.length / 2)], points[points.length - 1]].map((p, idx) => {
+          if (!p) return null;
+          let textAnchor = "middle";
+          if (idx === 0) textAnchor = "start";
+          if (idx === 2) textAnchor = "end";
+          return (
+            <text
+              key={idx}
+              x={p.x}
+              y={height - 5}
+              fill="var(--ink-3)"
+              fontSize="9"
+              fontWeight="600"
+              textAnchor={textAnchor}
+            >
+              {p.label}
+            </text>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+// Custom SVG Donut Chart
+function DonutChart({ items }) {
+  const total = items.reduce((s, i) => s + i.value, 0);
+  if (total === 0) return null;
+
+  let accumulatedPercent = 0;
+  const radius = 35;
+  const strokeWidth = 10;
+  const circ = 2 * Math.PI * radius;
+
+  const colors = [
+    'var(--primary)',
+    'var(--success)',
+    'var(--warning)',
+    'var(--danger)',
+    '#9c27b0',
+    '#00bcd4'
+  ];
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-6)', padding: 'var(--space-2) 0' }}>
+      <svg viewBox="0 0 100 100" style={{ width: 110, height: 110, transform: 'rotate(-90deg)', flexShrink: 0, overflow: 'visible' }}>
+        {items.map((item, idx) => {
+          const pct = item.value / total;
+          const strokeLength = circ * pct;
+          const strokeOffset = circ - (circ * accumulatedPercent);
+          accumulatedPercent += pct;
+          
+          return (
+            <circle
+              key={idx}
+              cx="50"
+              cy="50"
+              r={radius}
+              fill="transparent"
+              stroke={colors[idx % colors.length]}
+              strokeWidth={strokeWidth}
+              strokeDasharray={`${strokeLength} ${circ}`}
+              strokeDashoffset={strokeOffset}
+              strokeLinecap="round"
+              style={{ transition: 'stroke-dashoffset 0.5s ease' }}
+            />
+          );
+        })}
+      </svg>
+      
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', flex: 1 }}>
+        {items.map((item, idx) => {
+          const pct = (item.value / total) * 100;
+          return (
+            <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 'var(--text-xs)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 8, height: 8, borderRadius: '2px', background: colors[idx % colors.length] }} />
+                <span style={{ color: 'var(--ink-2)', fontWeight: 500 }}>{item.label}</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                <span style={{ fontWeight: 700, color: 'var(--ink)' }}>{pct.toFixed(0)}%</span>
+                <span style={{ fontSize: 9, color: 'var(--ink-3)' }}>{formatCurrency(item.value)}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // Animated number
 function Num({ value, color = 'var(--ink)', size = 'var(--text-2xl)', weight = 800 }) {
   const v = useCountUp(value);
@@ -212,6 +400,41 @@ export function StatsPanel({ pedidos, gastos, clientes, productos, onExportCSV }
       .slice(0, 4);
   }, [filteredGastos]);
 
+  // Timeline data for AreaChart (daily sales)
+  const timelineData = useMemo(() => {
+    if (filteredPedidos.length === 0 || !from || !to) return [];
+
+    const groups = {};
+    filteredPedidos.forEach(p => {
+      const dateStr = p.fecha;
+      if (!groups[dateStr]) groups[dateStr] = 0;
+      groups[dateStr] += p.totalFinal;
+    });
+
+    const list = [];
+    let curr = new Date(from);
+    const end = new Date(to);
+    
+    let iterations = 0;
+    while (curr <= end && iterations < 366) {
+      iterations++;
+      const dateStr = curr.toISOString().split('T')[0];
+      list.push({
+        date: dateStr,
+        label: dateStr.substring(8, 10) + '/' + dateStr.substring(5, 7),
+        value: groups[dateStr] || 0
+      });
+      curr.setDate(curr.getDate() + 1);
+    }
+
+    if (list.length > 30) {
+      const step = Math.ceil(list.length / 15);
+      return list.filter((_, idx) => idx % step === 0 || idx === list.length - 1);
+    }
+
+    return list;
+  }, [filteredPedidos, from, to]);
+
   function handleExport() {
     if (!from || !to) return;
     setDownloading(true);
@@ -286,6 +509,14 @@ export function StatsPanel({ pedidos, gastos, clientes, productos, onExportCSV }
             </div>
           </div>
 
+          {/* Evolución de Ventas (AreaChart) */}
+          {timelineData.length > 1 && (
+            <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-5)' }}>
+              <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 'var(--space-3)' }}>Evolución de Facturación</div>
+              <AreaChart data={timelineData} />
+            </div>
+          )}
+
           {/* BI KPIs GRID: Ticket Promedio, Margen Promedio, Pedidos Totales */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-2)' }}>
             <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-3) var(--space-2)', textAlign: 'center' }}>
@@ -302,11 +533,11 @@ export function StatsPanel({ pedidos, gastos, clientes, productos, onExportCSV }
             </div>
           </div>
 
-          {/* Medios de Pago Breakdown */}
+          {/* Medios de Pago Donut Breakdown */}
           {mediosBars.length > 0 && (
             <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-5)' }}>
-              <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 'var(--space-4)' }}>Flujo por Medio de Pago</div>
-              <BarChart items={mediosBars} colorVar="--primary" />
+              <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 'var(--space-4)' }}>Distribución de Cobros (Medios)</div>
+              <DonutChart items={mediosBars} />
             </div>
           )}
 
@@ -347,4 +578,3 @@ export function StatsPanel({ pedidos, gastos, clientes, productos, onExportCSV }
     </>
   );
 }
-

@@ -26,26 +26,29 @@ export function Modal({ open, title, onClose, children }) {
             background: 'var(--overlay)',
             zIndex: 200,
             display: 'flex',
-            alignItems: 'flex-end',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 'var(--space-4)',
           }}
           onClick={(e) => {
             if (e.target === e.currentTarget) onClose();
           }}
         >
           <motion.div
-            initial={{ scale: 0.92, opacity: 0, y: 40 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.92, opacity: 0, y: 40 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 420, damping: 30 }}
             style={{
               background: 'var(--bg-2)',
-              borderTop: '1px solid var(--border)',
-              borderRadius: 'var(--radius-lg) var(--radius-lg) 0 0',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-lg)',
               width: '100%',
-              maxHeight: '92dvh',
+              maxWidth: '420px',
+              maxHeight: '85dvh',
               overflowY: 'auto',
               WebkitOverflowScrolling: 'touch',
-              paddingBottom: 'env(safe-area-inset-bottom, 0)',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2)',
             }}
           >
             <div style={{

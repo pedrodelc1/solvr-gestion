@@ -68,24 +68,25 @@ export function ClientesList({ clientes, pedidos, devoluciones, onSelect, onNew,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: 'var(--space-3) var(--space-4)',
-            background: 'var(--danger-bg, rgba(239,68,68,0.1))',
-            border: '1px solid var(--danger)',
-            marginBottom: 'var(--space-2)',
+            padding: 'var(--space-2) var(--space-3)',
+            background: 'var(--danger-bg, rgba(239,68,68,0.08))',
+            borderColor: 'rgba(239,68,68,0.3)',
+            marginBottom: 'var(--space-3)',
+            minHeight: 'auto',
           }}
           onClick={() => setVerCobros(true)}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" strokeWidth="2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" strokeWidth="2.5">
               <circle cx="12" cy="12" r="10" />
               <line x1="12" y1="8" x2="12" y2="12" />
               <line x1="12" y1="16" x2="12.01" y2="16" />
             </svg>
-            <span style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--danger)' }}>
+            <span style={{ fontWeight: 600, fontSize: 'var(--text-xs)', color: 'var(--danger)', letterSpacing: '0.01em' }}>
               Cobros pendientes
             </span>
           </div>
-          <span style={{ background: 'var(--danger)', color: '#fff', borderRadius: 999, fontSize: 'var(--text-xs)', fontWeight: 700, padding: '2px 8px' }}>
+          <span style={{ background: 'var(--danger)', color: '#fff', borderRadius: 999, fontSize: '10px', fontWeight: 700, padding: '1px 6px' }}>
             {cobrosCount}
           </span>
         </button>

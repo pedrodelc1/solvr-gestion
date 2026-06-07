@@ -214,7 +214,8 @@ body {
 
 .nav-indicator {
   position: absolute;
-  inset: 5px 8px;
+  top: 5px;
+  bottom: 5px;
   border-radius: 999px;
   background: rgba(204, 255, 0, 0.06);
   border: 0.5px solid rgba(204, 255, 0, 0.5);

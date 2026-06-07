@@ -115,9 +115,9 @@ export function BottomNav({ activeTab, onTabChange, alertCount = 0, allowedTabs 
         dragElastic={0.05}
         dragMomentum={false}
         onDragEnd={handleDragEnd}
-        animate={{ left: `${activeIndex * tabPct}%`, x: 0 }}
+        animate={{ left: `calc(${activeIndex * tabPct}% + 6px)`, x: 0 }}
         transition={{ type: 'spring', stiffness: 420, damping: 36 }}
-        style={{ position: 'absolute', top: 5, bottom: 5, width: `${tabPct}%`, cursor: 'grab', zIndex: 0 }}
+        style={{ position: 'absolute', top: 5, bottom: 5, width: `calc(${tabPct}% - 12px)`, cursor: 'grab', zIndex: 0 }}
         whileDrag={{ cursor: 'grabbing', scale: 1.04 }}
       />
 

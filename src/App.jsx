@@ -248,6 +248,30 @@ export default function App() {
     }
   }, [authChecked, session, loadAll]);
 
+  // ── Realtime Database Sync ────────────────────────────────
+  useEffect(() => {
+    if (!session) return;
+
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+        },
+        (payload) => {
+          // Background refresh when a change is detected on the DB
+          loadAll();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [session, loadAll]);
+
   // ── Toast ─────────────────────────────────────────────────
   const toast = useCallback((msg, type = 'success') => {
     const id = ++_toastId;

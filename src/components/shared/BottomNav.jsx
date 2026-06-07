@@ -122,23 +122,24 @@ export function BottomNav({ activeTab, onTabChange, alertCount = 0, allowedTabs 
       />
 
       {visibleTabs.map((tab, i) => (
-        <motion.button
+        <button
           key={tab.id}
           className={`nav-btn${activeTab === tab.id ? ' active' : ''}`}
           onClick={() => onTabChange(tab.id)}
           aria-label={tab.label}
           onMouseEnter={() => setHoveredIndex(i)}
           onMouseLeave={() => setHoveredIndex(null)}
-          animate={{ scale: getDockScale(i, hoveredIndex) }}
-          whileTap={{ scale: 0.88 }}
-          transition={{ type: 'spring', stiffness: 380, damping: 22 }}
-          style={{ position: 'relative', zIndex: 1, originY: 1 }}
+          style={{ position: 'relative', zIndex: 1 }}
         >
-          <span style={{ position: 'relative', zIndex: 1, display: 'contents' }}>
+          <motion.span
+            animate={{ scale: getDockScale(i, hoveredIndex) }}
+            transition={{ type: 'spring', stiffness: 380, damping: 22 }}
+            style={{ position: 'relative', zIndex: 1, display: 'inline-flex', originY: 1 }}
+          >
             {tab.icon}
             {tab.id === 'clientes' && alertCount > 0 && (
               <span style={{
-                position: 'absolute', top: 0, right: 0,
+                position: 'absolute', top: -2, right: -2,
                 background: 'var(--danger)', color: '#fff',
                 borderRadius: '999px', fontSize: 9, fontWeight: 800,
                 minWidth: 16, height: 16, display: 'flex',
@@ -146,9 +147,9 @@ export function BottomNav({ activeTab, onTabChange, alertCount = 0, allowedTabs 
                 padding: '0 4px', lineHeight: 1,
               }}>{alertCount > 9 ? '9+' : alertCount}</span>
             )}
-          </span>
-          <span style={{ position: 'relative', zIndex: 1 }}>{tab.label}</span>
-        </motion.button>
+          </motion.span>
+          <span style={{ position: 'relative', zIndex: 1, display: 'block', marginTop: '2px' }}>{tab.label}</span>
+        </button>
       ))}
     </nav>
   );

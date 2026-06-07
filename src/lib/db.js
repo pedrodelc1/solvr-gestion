@@ -223,24 +223,32 @@ export async function ajustarStock(productoId, delta) {
 
 export async function getPedidos() {
   if (!useSupabase()) return lsGet('pedidos', []);
-  let { data, error } = await supabase
-    .from('pedidos')
-    .select('*, pedido_items(*)')
-    .order('created_at', { ascending: false });
-  if (error) {
-    console.error('[getPedidos] join failed, retrying without items:', error.message);
-    // Fallback: fetch pedidos without items (avoids pedido_items RLS issues)
-    const { data: d2, error: e2 } = await supabase
-      .from('pedidos')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (e2) {
-      console.error('[getPedidos] fallback also failed:', e2.message);
-      return lsGet('pedidos', []);
-    }
-    data = d2.map(r => ({ ...r, pedido_items: [] }));
+
+  // Fetch pedidos and items in separate queries to avoid RLS join issues
+  const [{ data: pedRows, error: pedErr }, { data: itemRows, error: itemErr }] = await Promise.all([
+    supabase.from('pedidos').select('*').order('created_at', { ascending: false }),
+    supabase.from('pedido_items').select('*'),
+  ]);
+
+  if (pedErr) {
+    console.error('[getPedidos] pedidos query failed:', pedErr.message);
+    return lsGet('pedidos', []);
   }
-  const mapped = data.map((r, idx) => ({
+  if (!pedRows || pedRows.length === 0) {
+    console.warn('[getPedidos] pedidos returned empty — possible RLS issue or no data');
+    return lsGet('pedidos', []);
+  }
+
+  // Build items map (ignore if items query failed due to RLS)
+  const itemsByPedido = {};
+  if (!itemErr && itemRows) {
+    itemRows.forEach(i => {
+      if (!itemsByPedido[i.pedido_id]) itemsByPedido[i.pedido_id] = [];
+      itemsByPedido[i.pedido_id].push(i);
+    });
+  }
+
+  const mapped = pedRows.map((r, idx) => ({
     id: r.id,
     fetchOrder: idx,
     clienteId: r.cliente_id,
@@ -258,7 +266,7 @@ export async function getPedidos() {
     tipo: r.tipo || 'pedido',
     descuentoTipo: r.descuento_tipo || null,
     descuentoValor: r.descuento_valor || 0,
-    items: (r.pedido_items || []).map(i => ({
+    items: (itemsByPedido[r.id] || []).map(i => ({
       id: i.id,
       productoId: i.producto_id,
       nombre: i.nombre,

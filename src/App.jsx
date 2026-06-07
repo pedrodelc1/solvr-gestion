@@ -156,6 +156,14 @@ export default function App() {
       setDevoluciones(devs);
       setComunicaciones(coms);
 
+      if (c.length > 0 && pe.length === 0) {
+        setToasts(t => {
+          const id = ++_toastId;
+          setTimeout(() => setToasts(prev => prev.filter(x => x.id !== id)), 8000);
+          return [...t, { id, msg: '⚠️ Pedidos no se pudieron cargar. Revisá las políticas RLS en Supabase.', type: 'error' }];
+        });
+      }
+
       const { pedidos: peActualizados, procesados } = await procesarCuotasVencidas(pe);
       setPedidos(peActualizados);
       if (procesados.length) {

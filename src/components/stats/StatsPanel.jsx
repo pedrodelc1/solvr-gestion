@@ -56,7 +56,7 @@ function AnimatedStatCard({ label, value, className, full }) {
 }
 
 export function StatsPanel({ pedidos, gastos, clientes, productos, devoluciones = [], categorias, onExportCSV }) {
-  const [period, setPeriod] = useState('current');
+  const [period, setPeriod] = useState('3m');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
   const [appliedCustom, setAppliedCustom] = useState({ from: '', to: '' });
@@ -70,6 +70,7 @@ export function StatsPanel({ pedidos, gastos, clientes, productos, devoluciones 
     { id: 'current', label: 'Mes actual' },
     { id: 'prev', label: 'Mes anterior' },
     { id: '3m', label: '3 meses' },
+    { id: 'all', label: 'Todo' },
     { id: 'custom', label: 'Personalizado' },
   ];
 
@@ -77,6 +78,9 @@ export function StatsPanel({ pedidos, gastos, clientes, productos, devoluciones 
   if (period === 'custom') {
     from = appliedCustom.from;
     to = appliedCustom.to;
+  } else if (period === 'all') {
+    from = '2000-01-01';
+    to = '2099-12-31';
   } else {
     const range = getRange(period);
     if (range) { [from, to] = range; }
@@ -338,6 +342,18 @@ export function StatsPanel({ pedidos, gastos, clientes, productos, devoluciones 
       {noRange && period === 'custom' ? (
         <div className="empty-state">
           <p>Seleccioná el rango de fechas y tocá Aplicar.</p>
+        </div>
+      ) : filteredPedidos.length === 0 && filteredGastos.length === 0 && !noRange ? (
+        <div className="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <line x1="18" y1="20" x2="18" y2="10" />
+            <line x1="12" y1="20" x2="12" y2="4" />
+            <line x1="6" y1="20" x2="6" y2="14" />
+          </svg>
+          <p>Sin datos para este período.</p>
+          <button className="btn btn-secondary" style={{ marginTop: 'var(--space-3)' }} onClick={() => setPeriod('all')}>
+            Ver todo el historial
+          </button>
         </div>
       ) : (
         <>

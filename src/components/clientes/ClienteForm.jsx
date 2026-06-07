@@ -22,6 +22,8 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
   const [direccion, setDireccion] = useState('');
   const [tipoPrecio, setTipoPrecio] = useState('minorista');
   const [saldoInicial, setSaldoInicial] = useState('');
+  const [fotoUrl, setFotoUrl] = useState('');
+  const [hoverFoto, setHoverFoto] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -33,6 +35,7 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
       setDireccion(existing.direccion || '');
       setTipoPrecio(existing.tipo_precio || 'minorista');
       setSaldoInicial(existing.saldo_inicial || '');
+      setFotoUrl(existing.foto_url || '');
     } else {
       const d = loadDraft();
       setNombre(d?.nombre || '');
@@ -41,12 +44,53 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
       setDireccion(d?.direccion || '');
       setTipoPrecio(d?.tipoPrecio || 'minorista');
       setSaldoInicial(d?.saldoInicial || '');
+      setFotoUrl(d?.fotoUrl || '');
     }
     setError('');
   }, [open, existing]);
 
   function ds() {
-    return { nombre, contacto, email, direccion, tipoPrecio, saldoInicial };
+    return { nombre, contacto, email, direccion, tipoPrecio, saldoInicial, fotoUrl };
+  }
+
+  function handleFotoChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(event) {
+      const img = new Image();
+      img.onload = function() {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 120;
+        const MAX_HEIGHT = 120;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        setFotoUrl(dataUrl);
+        if (!existing) {
+          saveDraft({ ...ds(), fotoUrl: dataUrl });
+        }
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
   }
 
   function handleSave() {
@@ -67,6 +111,7 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
       direccion: direccion.trim(),
       tipo_precio: tipoPrecio,
       saldo_inicial: parseFloat(saldoInicial) || 0,
+      foto_url: fotoUrl || null,
     });
   }
 
@@ -84,6 +129,58 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
       {open && (
         <>
           <div style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+            {/* Foto del Cliente */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-2)' }}>
+              <div
+                onMouseEnter={() => setHoverFoto(true)}
+                onMouseLeave={() => setHoverFoto(false)}
+                onClick={() => document.getElementById('cliente-foto-upload').click()}
+                style={{
+                  width: 72, height: 72, borderRadius: '50%',
+                  background: fotoUrl ? 'none' : 'var(--bg-3)',
+                  border: '1px solid var(--border)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 24, fontWeight: 700, color: 'var(--ink-3)',
+                  cursor: 'pointer',
+                  position: 'relative',
+                  overflow: 'hidden',
+                }}
+              >
+                {fotoUrl ? (
+                  <img src={fotoUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Foto cliente" />
+                ) : (
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                  </svg>
+                )}
+                
+                <div style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'rgba(0,0,0,0.5)',
+                  opacity: hoverFoto ? 1 : 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'opacity 0.2s',
+                }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                    <circle cx="12" cy="13" r="4"/>
+                  </svg>
+                </div>
+              </div>
+              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>Foto del Cliente (opcional)</span>
+              <input
+                type="file"
+                id="cliente-foto-upload"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={handleFotoChange}
+              />
+            </div>
+
             <div className="form-group">
               <label htmlFor="fc-nombre">Nombre</label>
               <input

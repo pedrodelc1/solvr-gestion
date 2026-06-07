@@ -82,13 +82,20 @@ export function ClienteDetail({ cliente, pedidos, devoluciones = [], comunicacio
 
   return (
     <>
-      <div className="detail-header">
+      <div className="detail-header" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
         <button className="btn-icon" onClick={onBack} aria-label="Volver">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <polyline points="15 18 9 12 15 6" />
           </svg>
         </button>
-        <h2>{cliente.nombre}</h2>
+        <div className="cliente-avatar" style={{ width: 32, height: 32, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          {cliente.foto_url ? (
+            <img src={cliente.foto_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={cliente.nombre} />
+          ) : (
+            cliente.nombre.charAt(0)
+          )}
+        </div>
+        <h2 style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>{cliente.nombre}</h2>
         {canWrite && (
           <button className="btn-icon" onClick={onEdit} aria-label="Editar">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

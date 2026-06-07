@@ -130,7 +130,13 @@ export function ClientesList({ clientes, pedidos, devoluciones, negocioConfig, o
               >
                 <div className="card-row">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', minWidth: 0, flex: 1 }}>
-                    <div className="cliente-avatar">{c.nombre.charAt(0)}</div>
+                    <div className="cliente-avatar" style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {c.foto_url ? (
+                        <img src={c.foto_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={c.nombre} />
+                      ) : (
+                        c.nombre.charAt(0)
+                      )}
+                    </div>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
                         <span className="card-name">{c.nombre}</span>

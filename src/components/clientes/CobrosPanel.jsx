@@ -58,7 +58,13 @@ export function CobrosPanel({ clientes, pedidos, devoluciones, negocioConfig, on
             <motion.div key={c.id} className="card" {...listItem(i)}>
               <div className="card-row">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flex: 1, minWidth: 0 }}>
-                  <div className="cliente-avatar">{c.nombre.charAt(0)}</div>
+                  <div className="cliente-avatar" style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {c.foto_url ? (
+                      <img src={c.foto_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={c.nombre} />
+                    ) : (
+                      c.nombre.charAt(0)
+                    )}
+                  </div>
                   <div style={{ minWidth: 0 }}>
                     <div className="card-name" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.nombre}</div>
                     {c.ultimoPedido && (

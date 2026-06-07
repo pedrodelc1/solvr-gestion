@@ -259,47 +259,92 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
 
       {/* Avatar + info */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 'var(--space-8) var(--space-4) var(--space-6)', gap: 'var(--space-3)' }}>
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-          onMouseEnter={() => setHoverAvatar(true)}
-          onMouseLeave={() => setHoverAvatar(false)}
-          onClick={() => document.getElementById('avatar-upload').click()}
-          style={{
-            width: 80, height: 80, borderRadius: '50%',
-            background: avatarUrl ? 'none' : 'linear-gradient(135deg, #ccff00, #88dd00)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 32, fontWeight: 800, color: '#080808',
-            boxShadow: '0 0 24px #ccff0044',
-            cursor: 'pointer',
-            position: 'relative',
-            overflow: 'hidden',
-          }}
-        >
-          {avatarUrl ? (
-            <img src={avatarUrl} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} alt="Avatar" />
-          ) : (
-            inicial
+        <div style={{ position: 'relative', width: 80, height: 80 }}>
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+            onMouseEnter={() => setHoverAvatar(true)}
+            onMouseLeave={() => setHoverAvatar(false)}
+            onClick={() => document.getElementById('avatar-upload').click()}
+            style={{
+              width: '100%', height: '100%', borderRadius: '50%',
+              background: avatarUrl ? 'none' : 'linear-gradient(135deg, #ccff00, #88dd00)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 32, fontWeight: 800, color: '#080808',
+              boxShadow: '0 0 24px #ccff0044',
+              cursor: 'pointer',
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+          >
+            {avatarUrl ? (
+              <img src={avatarUrl} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} alt="Avatar" />
+            ) : (
+              inicial
+            )}
+            
+            <div style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'rgba(0,0,0,0.5)',
+              opacity: hoverAvatar ? 1 : 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'opacity 0.2s',
+              borderRadius: '50%',
+            }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+            </div>
+          </motion.div>
+
+          {avatarUrl && (
+            <button
+              onClick={async (e) => {
+                e.stopPropagation();
+                setAvatarUrl(null);
+                if (email) {
+                  localStorage.removeItem('sg_avatar_' + email);
+                }
+                try {
+                  const { error } = await supabase.auth.updateUser({
+                    data: { avatar_url: null }
+                  });
+                  if (error) throw error;
+                  toast('Foto de perfil eliminada');
+                } catch (err) {
+                  console.error(err);
+                  toast('Error al actualizar en la nube', 'error');
+                }
+              }}
+              style={{
+                position: 'absolute',
+                top: -4,
+                right: -4,
+                width: 22,
+                height: 22,
+                borderRadius: '50%',
+                background: 'var(--danger)',
+                color: '#fff',
+                border: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                fontSize: 12,
+                fontWeight: 700,
+                boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+                zIndex: 10,
+              }}
+            >
+              ✕
+            </button>
           )}
-          
-          <div style={{
-            position: 'absolute',
-            inset: 0,
-            background: 'rgba(0,0,0,0.5)',
-            opacity: hoverAvatar ? 1 : 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'opacity 0.2s',
-            borderRadius: '50%',
-          }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-              <circle cx="12" cy="13" r="4"/>
-            </svg>
-          </div>
-        </motion.div>
+        </div>
         <input
           type="file"
           id="avatar-upload"

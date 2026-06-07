@@ -828,11 +828,12 @@ export async function saveNegocioConfig(cfg) {
   }
   const userId = await getUserId();
   if (!userId) return cfg;
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('negocio_config')
     .upsert({ user_id: userId, ...cfg, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
     .select()
     .single();
+  if (error) throw new Error(error.message);
   return data || cfg;
 }
 

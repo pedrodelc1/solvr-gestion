@@ -64,7 +64,7 @@ export function ClientesList({ clientes, pedidos, devoluciones, negocioConfig, o
           className="card"
           style={{
             width: 'fit-content',
-            margin: 'var(--space-1) auto var(--space-3)',
+            margin: 'var(--space-4) auto var(--space-3)',
             cursor: 'pointer',
             display: 'flex',
             flexDirection: 'row',

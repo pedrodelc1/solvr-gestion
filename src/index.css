@@ -225,15 +225,6 @@ body {
   z-index: 0;
 }
 
-@media (max-width: 480px) {
-  .nav-btn-label {
-    display: none !important;
-  }
-  .nav-btn {
-    padding: 0;
-    gap: 0;
-  }
-}
 
 /* ── Page header ────────────────────────── */
 .page-header {

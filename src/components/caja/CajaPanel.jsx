@@ -25,7 +25,7 @@ export function CajaPanel({ pedidos, gastos, clientes }) {
   const cobrosDelDia = useMemo(() =>
     pedidos.filter(p =>
       p.tipo !== 'presupuesto' &&
-      p.cobrado &&
+      (p.cobrado || (p.montoAbonado || 0) > 0) &&
       p.fecha === fecha
     ), [pedidos, fecha]);
 
@@ -34,10 +34,12 @@ export function CajaPanel({ pedidos, gastos, clientes }) {
     [gastos, fecha]
   );
 
-  const totalEfectivo = cobrosDelDia.filter(p => p.medioPago === 'efectivo').reduce((s, p) => s + p.totalFinal, 0);
-  const totalTransferencia = cobrosDelDia.filter(p => p.medioPago === 'transferencia').reduce((s, p) => s + p.totalFinal, 0);
-  const totalTarjeta = cobrosDelDia.filter(p => p.medioPago === 'tarjeta' || p.medioPago === 'fiado').reduce((s, p) => s + p.totalFinal, 0);
-  const totalCobros = cobrosDelDia.reduce((s, p) => s + p.totalFinal, 0);
+  const montoCobrado = p => p.cobrado ? p.totalFinal : (p.montoAbonado || 0);
+
+  const totalEfectivo = cobrosDelDia.filter(p => p.medioPago === 'efectivo').reduce((s, p) => s + montoCobrado(p), 0);
+  const totalTransferencia = cobrosDelDia.filter(p => p.medioPago === 'transferencia').reduce((s, p) => s + montoCobrado(p), 0);
+  const totalTarjeta = cobrosDelDia.filter(p => p.medioPago === 'tarjeta' || p.medioPago === 'fiado').reduce((s, p) => s + montoCobrado(p), 0);
+  const totalCobros = cobrosDelDia.reduce((s, p) => s + montoCobrado(p), 0);
   const totalGastos = gastosDelDia.reduce((s, g) => s + g.monto, 0);
   const neto = totalCobros - totalGastos;
 
@@ -110,8 +112,8 @@ export function CajaPanel({ pedidos, gastos, clientes }) {
             {cobrosDelDia.map((p, i) => (
               <motion.div key={p.id} className="card" {...listItem(i)}>
                 <div className="card-row">
-                  <span style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>{clienteNombre(p.clienteId)}</span>
-                  <span style={{ fontWeight: 800, color: 'var(--success)', fontSize: 'var(--text-sm)' }}>{formatCurrency(p.totalFinal)}</span>
+                  <span style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>{clienteNombre(p.clienteId)}{!p.cobrado ? ' (parcial)' : ''}</span>
+                  <span style={{ fontWeight: 800, color: 'var(--success)', fontSize: 'var(--text-sm)' }}>{formatCurrency(montoCobrado(p))}</span>
                 </div>
                 <div className="card-row">
                   <span className="card-sub">{p.items.map(i => `${i.nombre} x${i.cantidad}`).join(' · ')}</span>

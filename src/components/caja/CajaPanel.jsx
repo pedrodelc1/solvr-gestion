@@ -1,12 +1,11 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { formatCurrency, formatDate, today } from '../../lib/utils.js';
+import { formatCurrency, today } from '../../lib/utils.js';
 import { listItem } from '../../lib/animations.js';
-import { MedioIcon } from '../shared/MedioPill.jsx';
 
 function SvgChevron({ dir = 'left' }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       {dir === 'left' ? <polyline points="15 18 9 12 15 6" /> : <polyline points="9 18 15 12 9 6" />}
     </svg>
   );
@@ -17,6 +16,17 @@ function addDays(dateStr, n) {
   d.setDate(d.getDate() + n);
   return d.toISOString().split('T')[0];
 }
+
+function formatFecha(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const t = today();
+  if (dateStr === t) return 'Hoy';
+  const ayer = addDays(t, -1);
+  if (dateStr === ayer) return 'Ayer';
+  return d.toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+}
+
+const MEDIO_LABEL = { efectivo: 'Efectivo', transferencia: 'Transferencia', tarjeta: 'Tarjeta', fiado: 'Tarjeta' };
 
 export function CajaPanel({ pedidos, gastos, clientes }) {
   const [fecha, setFecha] = useState(today());
@@ -44,86 +54,108 @@ export function CajaPanel({ pedidos, gastos, clientes }) {
   const totalGastos = gastosDelDia.reduce((s, g) => s + g.monto, 0);
   const neto = totalCobros - totalGastos;
 
+  const medios = [
+    { label: 'Efectivo', value: totalEfectivo },
+    { label: 'Transferencia', value: totalTransferencia },
+    { label: 'Tarjeta', value: totalTarjeta },
+  ].filter(m => m.value > 0);
+
   return (
     <>
       <div className="page-header">
         <h1>Caja del día</h1>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', padding: '0 var(--space-4) var(--space-4)' }}>
-        <button className="btn-icon" onClick={() => setFecha(f => addDays(f, -1))} aria-label="Día anterior">
+      {/* Date navigator */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', padding: '0 var(--space-4) var(--space-5)' }}>
+        <button className="btn-icon" onClick={() => setFecha(f => addDays(f, -1))} aria-label="Día anterior" style={{ flexShrink: 0 }}>
           <SvgChevron dir="left" />
         </button>
-        <input
-          type="date"
-          value={fecha}
-          onChange={e => setFecha(e.target.value)}
-          style={{ flex: 1, minHeight: 40, textAlign: 'center', fontSize: 'var(--text-sm)', fontWeight: 600 }}
-        />
-        <button className="btn-icon" onClick={() => setFecha(f => addDays(f, 1))} aria-label="Día siguiente" disabled={fecha >= today()}>
+        <div style={{ flex: 1, textAlign: 'center' }}>
+          <div style={{ fontWeight: 700, fontSize: 'var(--text-base)', color: 'var(--ink)' }}>{formatFecha(fecha)}</div>
+          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', marginTop: 2 }}>
+            {new Date(fecha + 'T00:00:00').toLocaleDateString('es-AR', { weekday: 'long', timeZone: 'UTC' })}
+          </div>
+        </div>
+        <button className="btn-icon" onClick={() => setFecha(f => addDays(f, 1))} aria-label="Día siguiente" disabled={fecha >= today()} style={{ flexShrink: 0 }}>
           <SvgChevron dir="right" />
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', padding: '0 var(--space-4) var(--space-3)' }}>
-        <div className="card" style={{ textAlign: 'center', padding: 'var(--space-5) var(--space-4)' }}>
-          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 'var(--space-2)' }}>Cobrado</div>
-          <div style={{ fontSize: 'var(--text-2xl)', fontWeight: 800, color: 'var(--success)', letterSpacing: '-0.02em' }}>{formatCurrency(totalCobros)}</div>
-        </div>
-        <div className="card" style={{ textAlign: 'center', padding: 'var(--space-5) var(--space-4)' }}>
-          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 'var(--space-2)' }}>Gastos</div>
-          <div style={{ fontSize: 'var(--text-2xl)', fontWeight: 800, color: 'var(--danger)', letterSpacing: '-0.02em' }}>{formatCurrency(totalGastos)}</div>
+      {/* Summary hero card */}
+      <div style={{ margin: '0 var(--space-4) var(--space-4)' }}>
+        <div style={{
+          background: 'var(--bg-2)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-lg)',
+          overflow: 'hidden',
+        }}>
+          {/* Neto principal */}
+          <div style={{ padding: 'var(--space-5) var(--space-5) var(--space-4)', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 'var(--space-2)' }}>
+              Resultado neto
+            </div>
+            <div style={{
+              fontSize: 'clamp(28px, 8vw, 40px)',
+              fontWeight: 800,
+              letterSpacing: '-0.03em',
+              color: neto >= 0 ? 'var(--success)' : 'var(--danger)',
+              lineHeight: 1,
+            }}>
+              {formatCurrency(neto)}
+            </div>
+          </div>
+
+          {/* Cobrado / Gastos */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+            <div style={{ padding: 'var(--space-4) var(--space-5)', borderRight: '1px solid var(--border)' }}>
+              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 'var(--space-1)' }}>Cobrado</div>
+              <div style={{ fontSize: 'var(--text-lg)', fontWeight: 800, color: 'var(--success)', letterSpacing: '-0.02em' }}>{formatCurrency(totalCobros)}</div>
+            </div>
+            <div style={{ padding: 'var(--space-4) var(--space-5)' }}>
+              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 'var(--space-1)' }}>Gastos</div>
+              <div style={{ fontSize: 'var(--text-lg)', fontWeight: 800, color: totalGastos > 0 ? 'var(--danger)' : 'var(--ink-3)', letterSpacing: '-0.02em' }}>{formatCurrency(totalGastos)}</div>
+            </div>
+          </div>
+
+          {/* Desglose por medio */}
+          {medios.length > 0 && (
+            <div style={{ borderTop: '1px solid var(--border)', display: 'flex' }}>
+              {medios.map((m, i) => (
+                <div key={m.label} style={{
+                  flex: 1,
+                  padding: 'var(--space-3) var(--space-4)',
+                  borderRight: i < medios.length - 1 ? '1px solid var(--border)' : 'none',
+                  textAlign: 'center',
+                }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>{m.label}</div>
+                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{formatCurrency(m.value)}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="card" style={{ margin: '0 var(--space-4) var(--space-3)', padding: 'var(--space-5) var(--space-4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontWeight: 600, color: 'var(--ink-2)', fontSize: 'var(--text-sm)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Resultado neto</span>
-        <span style={{ fontSize: 'var(--text-2xl)', fontWeight: 800, letterSpacing: '-0.02em', color: neto >= 0 ? 'var(--success)' : 'var(--danger)' }}>
-          {formatCurrency(neto)}
-        </span>
-      </div>
-
-      {totalCobros > 0 && (
-        <div className="card" style={{ margin: '0 var(--space-4) var(--space-4)', padding: 'var(--space-4)', display: 'flex', gap: 'var(--space-4)' }}>
-          {totalEfectivo > 0 && (
-            <div style={{ flex: 1, textAlign: 'center' }}>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Efectivo</div>
-              <div style={{ fontWeight: 700, fontSize: 'var(--text-base)' }}>{formatCurrency(totalEfectivo)}</div>
-            </div>
-          )}
-          {totalTransferencia > 0 && (
-            <div style={{ flex: 1, textAlign: 'center' }}>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Transf.</div>
-              <div style={{ fontWeight: 700, fontSize: 'var(--text-base)' }}>{formatCurrency(totalTransferencia)}</div>
-            </div>
-          )}
-          {totalTarjeta > 0 && (
-            <div style={{ flex: 1, textAlign: 'center' }}>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Tarjeta</div>
-              <div style={{ fontWeight: 700, fontSize: 'var(--text-base)' }}>{formatCurrency(totalTarjeta)}</div>
-            </div>
-          )}
-        </div>
-      )}
-
+      {/* Cobros list */}
       {cobrosDelDia.length > 0 && (
         <>
-          <div className="section-label">Cobros del día ({cobrosDelDia.length})</div>
+          <div className="section-label">Cobros ({cobrosDelDia.length})</div>
           <div className="list-section">
             {cobrosDelDia.map((p, i) => (
-              <motion.div key={p.id} className="card" {...listItem(i)} style={{ padding: 'var(--space-4)' }}>
-                <div className="card-row" style={{ marginBottom: 'var(--space-2)' }}>
-                  <span style={{ fontWeight: 700, fontSize: 'var(--text-sm)' }}>
-                    {clienteNombre(p.clienteId)}
-                    {!p.cobrado && <span style={{ fontWeight: 400, color: 'var(--ink-3)', fontSize: 'var(--text-xs)', marginLeft: 6 }}>parcial</span>}
-                  </span>
-                  <span style={{ fontWeight: 800, color: 'var(--success)', fontSize: 'var(--text-base)' }}>{formatCurrency(montoCobrado(p))}</span>
-                </div>
+              <motion.div key={p.id} className="card" {...listItem(i)}>
                 <div className="card-row">
-                  <span className="card-sub">{p.items.map(i => `${i.nombre} x${i.cantidad}`).join(' · ')}</span>
-                  <span className="medio-pill" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11 }}>
-                    <MedioIcon medio={p.medioPago} /> {p.medioPago}
-                  </span>
+                  <div>
+                    <span style={{ fontWeight: 700, fontSize: 'var(--text-sm)' }}>{clienteNombre(p.clienteId)}</span>
+                    {!p.cobrado && (
+                      <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 600, color: 'var(--ink-3)', background: 'var(--bg-3)', borderRadius: 4, padding: '1px 6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>parcial</span>
+                    )}
+                  </div>
+                  <span style={{ fontWeight: 800, color: 'var(--success)', fontSize: 'var(--text-base)', letterSpacing: '-0.01em' }}>{formatCurrency(montoCobrado(p))}</span>
+                </div>
+                <div className="card-row" style={{ marginTop: 'var(--space-1)' }}>
+                  <span className="card-sub" style={{ flex: 1 }}>{p.items.map(it => `${it.nombre} x${it.cantidad}`).join(' · ')}</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-3)' }}>{MEDIO_LABEL[p.medioPago] || p.medioPago}</span>
                 </div>
               </motion.div>
             ))}
@@ -131,15 +163,16 @@ export function CajaPanel({ pedidos, gastos, clientes }) {
         </>
       )}
 
+      {/* Gastos list */}
       {gastosDelDia.length > 0 && (
         <>
-          <div className="section-label">Gastos del día ({gastosDelDia.length})</div>
+          <div className="section-label">Gastos ({gastosDelDia.length})</div>
           <div className="list-section">
             {gastosDelDia.map((g, i) => (
               <motion.div key={g.id} className="card" {...listItem(i)}>
                 <div className="card-row">
                   <span style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>{g.descripcion || 'Sin descripción'}</span>
-                  <span style={{ fontWeight: 800, color: 'var(--danger)', fontSize: 'var(--text-sm)' }}>−{formatCurrency(g.monto)}</span>
+                  <span style={{ fontWeight: 800, color: 'var(--danger)', fontSize: 'var(--text-sm)', letterSpacing: '-0.01em' }}>−{formatCurrency(g.monto)}</span>
                 </div>
                 {g.categoria && <span className="card-sub">{g.categoria}</span>}
               </motion.div>

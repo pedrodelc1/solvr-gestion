@@ -80,8 +80,10 @@ const TABS = [
   },
 ];
 
-function getDockScale(index, hoveredIndex) {
-  if (hoveredIndex === null) return 1;
+const isTouch = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+
+function getDockScale(index, hoveredIndex, activeIndex) {
+  if (isTouch || hoveredIndex === null || index === activeIndex) return 1;
   const dist = Math.abs(index - hoveredIndex);
   if (dist === 0) return 1.45;
   if (dist === 1) return 1.18;
@@ -132,7 +134,7 @@ export function BottomNav({ activeTab, onTabChange, alertCount = 0, allowedTabs 
           style={{ position: 'relative', zIndex: 1 }}
         >
           <motion.span
-            animate={{ scale: getDockScale(i, hoveredIndex) }}
+            animate={{ scale: getDockScale(i, hoveredIndex, activeIndex) }}
             transition={{ type: 'spring', stiffness: 380, damping: 22 }}
             style={{ position: 'relative', zIndex: 1, display: 'inline-flex', originY: 1 }}
           >

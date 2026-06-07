@@ -205,7 +205,7 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
               >
                 <div className="card-row">
                   <span className="card-name" style={{ fontSize: 'var(--text-base)' }}>
-                    {getNombre(p.clienteId)}
+                    {p.nro ? `#${p.nro} · ` : ''}{getNombre(p.clienteId)}
                   </span>
                   {estadoMonto}
                 </div>

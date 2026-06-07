@@ -187,10 +187,15 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
   const hasProducts = initialProductos.length > 0;
   const defaultMode = hasProducts ? 'catalog' : 'manual';
 
+  const localNegocio = JSON.parse(localStorage.getItem('sg_negocio') || '{}');
+  const metodosConfig = localNegocio.metodos_pago || 'Efectivo, Transferencia, Tarjeta';
+  const metodosArr = metodosConfig.split(',').map(m => m.trim()).filter(Boolean);
+  const defaultMedio = metodosArr[0]?.toLowerCase() || 'efectivo';
+
   const [productos, setProductos] = useState(initialProductos);
   const [clienteId, setClienteId] = useState(existing?.clienteId || preClienteId || clientes[0]?.id || '');
   const [fecha, setFecha] = useState(existing?.fecha || today());
-  const [medioPago, setMedioPago] = useState(existing?.medioPago || 'efectivo');
+  const [medioPago, setMedioPago] = useState(existing?.medioPago || defaultMedio);
   const [cuotas, setCuotas] = useState(existing?.cuotas || 1);
   const [interes, setInteres] = useState('');
   const [tipo, setTipo] = useState(existing?.tipo || 'pedido');
@@ -238,9 +243,9 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
   const getPrecioEfectivo = (prod) =>
     prod ? (tipoPrecio === 'mayorista' && prod.precio_mayorista > 0 ? prod.precio_mayorista : prod.precio) : 0;
 
-  const esTarjeta = medioPago === 'tarjeta';
+  const esTarjeta = medioPago.toLowerCase().includes('tarjeta');
   const efectivoCobrado = esTarjeta ? false : cobrado;
-  const pctInteres = medioPago === 'tarjeta' ? (parseFloat(interes) || 0) : 0;
+  const pctInteres = esTarjeta ? (parseFloat(interes) || 0) : 0;
 
   const fechaVenc = (() => {
     try {
@@ -333,7 +338,7 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
       id: existing?.id || uid(),
       clienteId, fecha, items: pedidoItems,
       totalCalculado, totalFinal, medioPago,
-      cuotas: medioPago === 'tarjeta' ? cuotas : 1,
+      cuotas: esTarjeta ? cuotas : 1,
       cobrado: tipo === 'presupuesto' ? false : efectivoCobrado,
       montoAbonado: tipo === 'presupuesto' ? 0 : (efectivoCobrado ? totalFinal : (existing?.montoAbonado || 0)),
       nota: nota.trim() || null, tipo,
@@ -388,15 +393,15 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
           </div>
           <div className="form-group">
             <label htmlFor="pf-medio">Medio de pago</label>
-            <select id="pf-medio" value={medioPago} onChange={e => { setMedioPago(e.target.value); if (e.target.value !== 'tarjeta') setCuotas(1); }}>
-              <option value="efectivo">Efectivo</option>
-              <option value="transferencia">Transferencia</option>
-              <option value="tarjeta">Tarjeta</option>
+            <select id="pf-medio" value={medioPago} onChange={e => { setMedioPago(e.target.value); if (!e.target.value.toLowerCase().includes('tarjeta')) setCuotas(1); }}>
+              {metodosArr.map(m => (
+                <option key={m} value={m.toLowerCase()}>{m}</option>
+              ))}
             </select>
           </div>
         </div>
 
-        {medioPago === 'tarjeta' && (
+        {esTarjeta && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
             <div className="form-row">
               <div className="form-group">

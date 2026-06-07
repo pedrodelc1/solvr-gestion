@@ -6,6 +6,14 @@ let _sharing = false;
 export async function compartirPresupuestoPDF(pedido, clienteNombre) {
   if (_sharing) return;
   _sharing = true;
+  const localNegocio = JSON.parse(localStorage.getItem('sg_negocio') || '{}');
+  const negocioNombre = localNegocio.nombre || 'Solvnt';
+  const telefono = localNegocio.telefono || '';
+  const direccion = localNegocio.direccion || '';
+  const email = localNegocio.email || '';
+  const cuit = localNegocio.cuit || '';
+  const notaPdf = localNegocio.nota_pdf || '';
+
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const W = 210;
   const margin = 18;
@@ -14,28 +22,36 @@ export async function compartirPresupuestoPDF(pedido, clienteNombre) {
 
   // ── Header band ──────────────────────────────────────────────────────────
   doc.setFillColor(12, 12, 12);
-  doc.rect(0, 0, W, 28, 'F');
+  doc.rect(0, 0, W, 36, 'F');
 
   // Logo icon: white rounded square with "S." inside
   doc.setFillColor(255, 255, 255);
-  doc.roundedRect(margin, 6, 14, 14, 2.5, 2.5, 'F');
+  doc.roundedRect(margin, 10, 14, 14, 2.5, 2.5, 'F');
   doc.setTextColor(12, 12, 12);
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
-  doc.text('S.', margin + 7, 15.5, { align: 'center' });
+  doc.text('S.', margin + 7, 19.5, { align: 'center' });
 
   // Brand name
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.text('Solvnt.', margin + 17, 15.5);
+  doc.text(negocioNombre, margin + 17, 19.5);
 
   doc.setTextColor(160, 160, 160);
-  doc.setFontSize(9);
+  doc.setFontSize(9.5);
   doc.setFont('helvetica', 'normal');
-  doc.text('PRESUPUESTO', W - margin, 17, { align: 'right' });
+  doc.text(`PRESUPUESTO ${pedido.nro ? `N° ${pedido.nro}` : ''}`, W - margin, 12, { align: 'right' });
 
-  y = 40;
+  doc.setFontSize(7.5);
+  doc.setTextColor(180, 180, 180);
+  let headerY = 16.5;
+  if (cuit) { doc.text(`CUIT: ${cuit}`, W - margin, headerY, { align: 'right' }); headerY += 3.5; }
+  if (telefono) { doc.text(`Tel: ${telefono}`, W - margin, headerY, { align: 'right' }); headerY += 3.5; }
+  if (direccion) { doc.text(`Dir: ${direccion}`, W - margin, headerY, { align: 'right' }); headerY += 3.5; }
+  if (email) { doc.text(`Email: ${email}`, W - margin, headerY, { align: 'right' }); }
+
+  y = 46;
 
   // ── Meta ─────────────────────────────────────────────────────────────────
   doc.setTextColor(60, 60, 60);
@@ -133,6 +149,15 @@ export async function compartirPresupuestoPDF(pedido, clienteNombre) {
     doc.setFontSize(8);
     doc.setFont('helvetica', 'italic');
     const lines = doc.splitTextToSize(`Nota: ${pedido.nota}`, col);
+    doc.text(lines, margin, y);
+    y += lines.length * 5 + 4;
+  }
+
+  if (notaPdf) {
+    doc.setTextColor(100, 100, 100);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    const lines = doc.splitTextToSize(notaPdf, col);
     doc.text(lines, margin, y);
     y += lines.length * 5 + 4;
   }

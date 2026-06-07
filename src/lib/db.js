@@ -282,9 +282,14 @@ export async function getPedidos() {
 }
 
 export async function savePedido(data) {
+  const localNegocio = JSON.parse(localStorage.getItem('sg_negocio') || '{}');
+  const numInicial = parseInt(localNegocio.num_inicial) || 1;
+
   if (!useSupabase()) {
     const arr = lsGet('pedidos', []);
-    const pedido = { ...data, id: data.id || uid(), tipo: data.tipo || 'pedido' };
+    const maxNro = arr.reduce((max, p) => Math.max(max, p.nro || 0), 0);
+    const nextNro = maxNro > 0 ? Math.max(maxNro + 1, numInicial) : numInicial;
+    const pedido = { ...data, id: data.id || uid(), nro: data.nro || nextNro, tipo: data.tipo || 'pedido' };
     arr.push(pedido);
     lsSet('pedidos', arr);
     // Descontar stock si es pedido real
@@ -300,6 +305,16 @@ export async function savePedido(data) {
   if (!isUUID(data.clienteId)) {
     throw new Error('Este cliente fue creado sin conexión. Eliminalo y volvé a crearlo para poder guardar pedidos.');
   }
+
+  // Calculate next sequential number for Supabase
+  const { data: maxData } = await supabase
+    .from('pedidos')
+    .select('nro')
+    .order('nro', { ascending: false })
+    .limit(1);
+  const maxNro = maxData && maxData[0] ? (maxData[0].nro || 0) : 0;
+  const nextNro = maxNro > 0 ? Math.max(maxNro + 1, numInicial) : numInicial;
+
   const { data: inserted, error } = await supabase
     .from('pedidos')
     .insert({
@@ -318,6 +333,7 @@ export async function savePedido(data) {
       descuento_valor: data.descuentoValor || 0,
       dias_plazo: data.diasPlazo || 0,
       tasa_mora: data.tasaMora || 0,
+      nro: data.nro || nextNro,
     })
     .select()
     .single();
@@ -813,13 +829,27 @@ export async function procesarCuotasVencidas(pedidos) {
 
 // ── NEGOCIO CONFIG ────────────────────────────────────────
 
+const DEFAULT_NEGOCIO_CONFIG = {
+  nombre: 'Mi Negocio',
+  logo_url: null,
+  moneda: '$',
+  telefono: '',
+  direccion: '',
+  email: '',
+  cuit: '',
+  nota_pdf: '',
+  num_inicial: 1,
+  metodos_pago: 'Efectivo, Transferencia, Tarjeta',
+  onboarding_done: false
+};
+
 export async function getNegocioConfig() {
   if (!useSupabase()) {
-    return JSON.parse(localStorage.getItem('sg_negocio') || 'null') || { nombre: 'Mi Negocio', logo_url: null, moneda: '$', onboarding_done: false };
+    return JSON.parse(localStorage.getItem('sg_negocio') || 'null') || DEFAULT_NEGOCIO_CONFIG;
   }
   const { data } = await supabase.from('negocio_config').select('*').maybeSingle();
   if (data) localStorage.setItem('sg_negocio', JSON.stringify(data));
-  return data || { nombre: 'Mi Negocio', logo_url: null, moneda: '$', onboarding_done: false };
+  return data || DEFAULT_NEGOCIO_CONFIG;
 }
 
 export async function saveNegocioConfig(cfg) {

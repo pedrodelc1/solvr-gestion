@@ -3,6 +3,14 @@ import html2canvas from 'html2canvas';
 import { formatCurrency, formatDate } from './utils.js';
 
 export async function generarRemito({ pedido, cliente, negocio = 'Mi Negocio', logoUrl = null }) {
+  const localNegocio = JSON.parse(localStorage.getItem('sg_negocio') || '{}');
+  const negocioNombre = localNegocio.nombre || negocio || 'Mi Negocio';
+  const telefono = localNegocio.telefono || '';
+  const direccion = localNegocio.direccion || '';
+  const email = localNegocio.email || '';
+  const cuit = localNegocio.cuit || '';
+  const notaPdf = localNegocio.nota_pdf || '';
+
   const total = pedido.totalFinal ?? pedido.totalCalculado;
   const abonado = pedido.montoAbonado || 0;
   const saldo = total - abonado;
@@ -27,7 +35,7 @@ export async function generarRemito({ pedido, cliente, negocio = 'Mi Negocio', l
 
   const logoHtml = logoUrl
     ? `<img src="${logoUrl}" style="height:40px;object-fit:contain;" />`
-    : `<span style="font-size:24px;font-weight:900;letter-spacing:-0.03em">${negocio}</span>`;
+    : `<span style="font-size:24px;font-weight:900;letter-spacing:-0.03em">${negocioNombre}</span>`;
 
   const el = document.createElement('div');
   el.style.cssText = [
@@ -39,8 +47,17 @@ export async function generarRemito({ pedido, cliente, negocio = 'Mi Negocio', l
 
   el.innerHTML = `
     <div style="border-bottom:3px solid #000;padding-bottom:16px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:flex-end">
-      <div>${logoHtml}<div style="font-size:11px;color:#888;letter-spacing:0.08em;text-transform:uppercase;margin-top:4px">Comprobante de venta</div></div>
-      <div style="text-align:right;font-size:13px;color:#555">${formatDate(pedido.fecha)}</div>
+      <div>
+        ${logoHtml}
+        <div style="font-size:11px;color:#888;letter-spacing:0.08em;text-transform:uppercase;margin-top:4px">Comprobante de venta ${pedido.nro ? `N° ${pedido.nro}` : ''}</div>
+        <div style="font-size:11px;color:#555;margin-top:4px;line-height:1.4">
+          ${cuit ? `<div>CUIT: ${cuit}</div>` : ''}
+          ${telefono ? `<div>Tel: ${telefono}</div>` : ''}
+          ${direccion ? `<div>Dir: ${direccion}</div>` : ''}
+          ${email ? `<div>Email: ${email}</div>` : ''}
+        </div>
+      </div>
+      <div style="text-align:right;font-size:13px;color:#555;padding-bottom:4px">${formatDate(pedido.fecha)}</div>
     </div>
 
     <div style="margin-bottom:24px;padding:14px;background:#f7f7f7;border-radius:6px">
@@ -76,6 +93,7 @@ export async function generarRemito({ pedido, cliente, negocio = 'Mi Negocio', l
       ${saldo > 0 ? `<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:700;color:#dc2626;padding-top:6px;border-top:1px solid #eee"><span>Saldo pendiente</span><span>${formatCurrency(saldo)}</span></div>` : ''}
       <div style="margin-top:12px;font-size:12px;color:#888">Medio de pago: ${medioPagoLabel}</div>
       ${pedido.nota ? `<div style="margin-top:6px;font-size:12px;color:#888;font-style:italic">Nota: ${pedido.nota}</div>` : ''}
+      ${notaPdf ? `<div style="margin-top:16px;padding:10px;background:#f9f9f9;border:1px dashed #ddd;border-radius:4px;font-size:11px;color:#444;line-height:1.4">${notaPdf.replace(/\n/g, '<br/>')}</div>` : ''}
     </div>
 
     <div style="margin-top:28px;padding-top:14px;border-top:1px solid #eee;text-align:center;font-size:10px;color:#bbb">

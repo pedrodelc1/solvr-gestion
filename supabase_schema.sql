@@ -49,6 +49,7 @@ create table if not exists pedidos (
   cuotas             integer not null default 1,
   cobrado            boolean not null default false,
   monto_abonado      numeric not null default 0,
+  nro                integer,
   created_at         timestamptz default now()
 );
 
@@ -198,6 +199,13 @@ create table if not exists negocio_config (
   nombre           text not null default 'Mi Negocio',
   logo_url         text,
   moneda           text not null default '$',
+  telefono         text,
+  direccion        text,
+  email            text,
+  cuit             text,
+  nota_pdf         text,
+  num_inicial      integer not null default 1,
+  metodos_pago     text not null default 'Efectivo, Transferencia, Tarjeta',
   onboarding_done  boolean not null default false,
   created_at       timestamptz default now(),
   updated_at       timestamptz default now()
@@ -378,3 +386,13 @@ exception when duplicate_object then null; end $$;
 
 -- ── MIGRACIONES POST-LANZAMIENTO ───────────────────────────
 alter table negocio_config add column if not exists moneda text not null default '$';
+
+alter table negocio_config add column if not exists telefono text;
+alter table negocio_config add column if not exists direccion text;
+alter table negocio_config add column if not exists email text;
+alter table negocio_config add column if not exists cuit text;
+alter table negocio_config add column if not exists nota_pdf text;
+alter table negocio_config add column if not exists num_inicial integer not null default 1;
+alter table negocio_config add column if not exists metodos_pago text not null default 'Efectivo, Transferencia, Tarjeta';
+
+alter table pedidos add column if not exists nro integer;

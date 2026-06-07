@@ -35,34 +35,52 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
 
   const [negocioNombre, setNegocioNombre] = useState('');
   const [moneda, setMoneda] = useState('$');
+  const [telefono, setTelefono] = useState('');
+  const [direccion, setDireccion] = useState('');
+  const [negocioEmail, setNegocioEmail] = useState('');
+  const [cuit, setCuit] = useState('');
+  const [notaPdf, setNotaPdf] = useState('');
+  const [numInicial, setNumInicial] = useState(1);
+  const [metodosPago, setMetodosPago] = useState('');
   const [savingNegocio, setSavingNegocio] = useState(false);
 
   useEffect(() => {
     setNegocioNombre(negocioConfig?.nombre || '');
     setMoneda(negocioConfig?.moneda || '$');
+    setTelefono(negocioConfig?.telefono || '');
+    setDireccion(negocioConfig?.direccion || '');
+    setNegocioEmail(negocioConfig?.email || '');
+    setCuit(negocioConfig?.cuit || '');
+    setNotaPdf(negocioConfig?.nota_pdf || '');
+    setNumInicial(negocioConfig?.num_inicial || 1);
+    setMetodosPago(negocioConfig?.metodos_pago || 'Efectivo, Transferencia, Tarjeta');
   }, [negocioConfig]);
 
-  async function handleSaveNegocio() {
+  async function handleSaveConfig() {
     if (!negocioNombre.trim()) return;
     setSavingNegocio(true);
     try {
-      await onNegocioSave({ ...negocioConfig, nombre: negocioNombre.trim() });
-      toast('Nombre guardado');
+      const isMonedaChanged = moneda !== negocioConfig?.moneda;
+      await onNegocioSave({
+        ...negocioConfig,
+        nombre: negocioNombre.trim(),
+        moneda: moneda,
+        telefono: telefono.trim(),
+        direccion: direccion.trim(),
+        email: negocioEmail.trim(),
+        cuit: cuit.trim(),
+        nota_pdf: notaPdf.trim(),
+        num_inicial: parseInt(numInicial) || 1,
+        metodos_pago: metodosPago.trim(),
+      });
+      toast('Configuración guardada');
+      if (isMonedaChanged) {
+        setTimeout(() => window.location.reload(), 300);
+      }
     } catch (e) {
       toast(e.message, 'error');
     } finally {
       setSavingNegocio(false);
-    }
-  }
-
-  async function handleSaveMoneda(val) {
-    setMoneda(val);
-    try {
-      await onNegocioSave({ ...negocioConfig, moneda: val });
-      toast('Moneda actualizada');
-      setTimeout(() => window.location.reload(), 300);
-    } catch (e) {
-      toast(e.message, 'error');
     }
   }
 
@@ -292,56 +310,147 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
             {/* Nombre del negocio */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
               <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Nombre del negocio</label>
-              <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+              <input
+                type="text"
+                placeholder="Ej: Ferrari Repuestos"
+                value={negocioNombre}
+                onChange={e => setNegocioNombre(e.target.value)}
+                style={{ minHeight: 40, fontSize: 'var(--text-sm)' }}
+                autoComplete="off"
+                autoCorrect="off"
+              />
+            </div>
+
+            {/* Datos de contacto para PDFs */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', borderTop: '1px solid var(--border)', paddingTop: 'var(--space-4)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>CUIT / Tax ID</label>
                 <input
                   type="text"
-                  placeholder="Ej: Ferrari Repuestos"
-                  value={negocioNombre}
-                  onChange={e => setNegocioNombre(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleSaveNegocio()}
-                  style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-sm)' }}
+                  placeholder="Ej: 30-12345678-9"
+                  value={cuit}
+                  onChange={e => setCuit(e.target.value)}
+                  style={{ minHeight: 40, fontSize: 'var(--text-sm)' }}
                   autoComplete="off"
                   autoCorrect="off"
                 />
-                <button 
-                  className="btn btn-primary" 
-                  onClick={handleSaveNegocio} 
-                  disabled={savingNegocio || !negocioNombre.trim()} 
-                  style={{ minHeight: 40, padding: '0 var(--space-4)', flexShrink: 0, fontSize: 'var(--text-sm)' }}
-                >
-                  {savingNegocio ? '...' : 'Guardar'}
-                </button>
               </div>
-              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>Aparece en el encabezado de los remitos y presupuestos.</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Teléfono</label>
+                <input
+                  type="text"
+                  placeholder="Ej: +54 9 11 1234 5678"
+                  value={telefono}
+                  onChange={e => setTelefono(e.target.value)}
+                  style={{ minHeight: 40, fontSize: 'var(--text-sm)' }}
+                  autoComplete="off"
+                  autoCorrect="off"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', gridColumn: 'span 2' }}>
+                <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Dirección</label>
+                <input
+                  type="text"
+                  placeholder="Ej: Av. Siempreviva 742"
+                  value={direccion}
+                  onChange={e => setDireccion(e.target.value)}
+                  style={{ minHeight: 40, fontSize: 'var(--text-sm)' }}
+                  autoComplete="off"
+                  autoCorrect="off"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', gridColumn: 'span 2' }}>
+                <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Email del negocio</label>
+                <input
+                  type="email"
+                  placeholder="Ej: contacto@minegocio.com"
+                  value={negocioEmail}
+                  onChange={e => setNegocioEmail(e.target.value)}
+                  style={{ minHeight: 40, fontSize: 'var(--text-sm)' }}
+                  autoComplete="off"
+                  autoCorrect="off"
+                />
+              </div>
             </div>
 
-            {/* Moneda */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', borderTop: '1px solid var(--border)', paddingTop: 'var(--space-4)' }}>
-              <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Símbolo de Moneda</label>
-              <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-                <select
-                  value={moneda}
-                  onChange={e => handleSaveMoneda(e.target.value)}
-                  style={{ 
-                    flex: 1, 
-                    minHeight: 40, 
-                    fontSize: 'var(--text-sm)',
-                    background: 'var(--bg-3)',
-                    color: 'var(--ink)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-sm)',
-                    padding: '0 var(--space-2)'
-                  }}
-                >
-                  <option value="$">$ (Pesos)</option>
-                  <option value="U$D">USD (U$D)</option>
-                  <option value="€">€ (Euros)</option>
-                  <option value="Gs">Gs (Guaraníes)</option>
-                  <option value="R$">R$ (Reales)</option>
-                  <option value="UF">UF (Unidades de Fomento)</option>
-                </select>
+            {/* Configuración de Documentos */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', borderTop: '1px solid var(--border)', paddingTop: 'var(--space-4)' }}>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                  <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Símbolo de Moneda</label>
+                  <select
+                    value={moneda}
+                    onChange={e => setMoneda(e.target.value)}
+                    style={{ 
+                      minHeight: 40, 
+                      fontSize: 'var(--text-sm)',
+                      background: 'var(--bg-3)',
+                      color: 'var(--ink)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius-sm)',
+                      padding: '0 var(--space-2)'
+                    }}
+                  >
+                    <option value="$">$ (Pesos)</option>
+                    <option value="U$D">USD (U$D)</option>
+                    <option value="€">€ (Euros)</option>
+                    <option value="Gs">Gs (Guaraníes)</option>
+                    <option value="R$">R$ (Reales)</option>
+                    <option value="UF">UF (Unidades de Fomento)</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                  <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Nº Inicial de Pedido</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={numInicial}
+                    onChange={e => setNumInicial(Math.max(1, parseInt(e.target.value) || 1))}
+                    style={{ minHeight: 40, fontSize: 'var(--text-sm)', textAlign: 'center' }}
+                  />
+                </div>
               </div>
-              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>Define el símbolo monetario principal de la aplicación.</span>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Métodos de Pago Aceptados</label>
+                <input
+                  type="text"
+                  placeholder="Ej: Efectivo, Transferencia, Tarjeta"
+                  value={metodosPago}
+                  onChange={e => setMetodosPago(e.target.value)}
+                  style={{ minHeight: 40, fontSize: 'var(--text-sm)' }}
+                  autoComplete="off"
+                  autoCorrect="off"
+                />
+                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>Separados por comas. Define las opciones disponibles para nuevos cobros.</span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Términos / Notas al pie (PDF)</label>
+                <textarea
+                  placeholder="Ej: Validez del presupuesto: 15 días. Cuentas para transferencia: ..."
+                  value={notaPdf}
+                  onChange={e => setNotaPdf(e.target.value)}
+                  style={{ minHeight: 60, fontSize: 'var(--text-sm)', padding: 'var(--space-2)', background: 'var(--bg-2)', color: 'var(--ink)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)' }}
+                  autoComplete="off"
+                  autoCorrect="off"
+                />
+                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>Se imprime al final de los presupuestos y remitos generados.</span>
+              </div>
+            </div>
+
+            {/* Botón Guardar Configuración del Negocio */}
+            <div style={{ display: 'flex', borderTop: '1px solid var(--border)', paddingTop: 'var(--space-4)' }}>
+              <button 
+                className="btn btn-primary btn-full" 
+                onClick={handleSaveConfig} 
+                disabled={savingNegocio || !negocioNombre.trim()} 
+                style={{ minHeight: 44, fontSize: 'var(--text-sm)' }}
+              >
+                {savingNegocio ? 'Guardando...' : 'Guardar Configuración'}
+              </button>
             </div>
 
             {/* Alertas de cobro */}

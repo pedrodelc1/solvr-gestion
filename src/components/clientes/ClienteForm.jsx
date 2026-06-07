@@ -131,10 +131,12 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
           <div style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
             {/* Foto del Cliente */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-2)' }}>
-              <div style={{ position: 'relative', width: 72, height: 72 }}>
+              <div 
+                style={{ position: 'relative', width: 72, height: 72 }}
+                onMouseEnter={() => setHoverFoto(true)}
+                onMouseLeave={() => setHoverFoto(false)}
+              >
                 <div
-                  onMouseEnter={() => setHoverFoto(true)}
-                  onMouseLeave={() => setHoverFoto(false)}
                   onClick={() => document.getElementById('cliente-foto-upload').click()}
                   style={{
                     width: '100%', height: '100%', borderRadius: '50%',
@@ -173,7 +175,7 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
                   </div>
                 </div>
 
-                {fotoUrl && (
+                {fotoUrl && hoverFoto && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();

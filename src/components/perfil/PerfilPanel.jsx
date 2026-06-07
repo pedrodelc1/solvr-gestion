@@ -259,13 +259,15 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
 
       {/* Avatar + info */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 'var(--space-8) var(--space-4) var(--space-6)', gap: 'var(--space-3)' }}>
-        <div style={{ position: 'relative', width: 80, height: 80 }}>
+        <div 
+          onMouseEnter={() => setHoverAvatar(true)}
+          onMouseLeave={() => setHoverAvatar(false)}
+          style={{ position: 'relative', width: 80, height: 80 }}
+        >
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-            onMouseEnter={() => setHoverAvatar(true)}
-            onMouseLeave={() => setHoverAvatar(false)}
             onClick={() => document.getElementById('avatar-upload').click()}
             style={{
               width: '100%', height: '100%', borderRadius: '50%',
@@ -302,7 +304,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
             </div>
           </motion.div>
 
-          {avatarUrl && (
+          {avatarUrl && hoverAvatar && (
             <button
               onClick={async (e) => {
                 e.stopPropagation();

@@ -65,42 +65,42 @@ export function CajaPanel({ pedidos, gastos, clientes }) {
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', padding: '0 var(--space-4) var(--space-4)' }}>
-        <div className="card" style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', fontWeight: 500, marginBottom: 4 }}>Cobrado</div>
-          <div style={{ fontSize: 'var(--text-xl)', fontWeight: 800, color: 'var(--success)' }}>{formatCurrency(totalCobros)}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', padding: '0 var(--space-4) var(--space-3)' }}>
+        <div className="card" style={{ textAlign: 'center', padding: 'var(--space-5) var(--space-4)' }}>
+          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 'var(--space-2)' }}>Cobrado</div>
+          <div style={{ fontSize: 'var(--text-2xl)', fontWeight: 800, color: 'var(--success)', letterSpacing: '-0.02em' }}>{formatCurrency(totalCobros)}</div>
         </div>
-        <div className="card" style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', fontWeight: 500, marginBottom: 4 }}>Gastos</div>
-          <div style={{ fontSize: 'var(--text-xl)', fontWeight: 800, color: 'var(--danger)' }}>{formatCurrency(totalGastos)}</div>
+        <div className="card" style={{ textAlign: 'center', padding: 'var(--space-5) var(--space-4)' }}>
+          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 'var(--space-2)' }}>Gastos</div>
+          <div style={{ fontSize: 'var(--text-2xl)', fontWeight: 800, color: 'var(--danger)', letterSpacing: '-0.02em' }}>{formatCurrency(totalGastos)}</div>
         </div>
       </div>
 
-      <div className="card" style={{ margin: '0 var(--space-4) var(--space-4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--space-4)' }}>
-        <span style={{ fontWeight: 600, color: 'var(--ink-2)' }}>Resultado neto</span>
-        <span style={{ fontSize: 'var(--text-xl)', fontWeight: 800, color: neto >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+      <div className="card" style={{ margin: '0 var(--space-4) var(--space-3)', padding: 'var(--space-5) var(--space-4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontWeight: 600, color: 'var(--ink-2)', fontSize: 'var(--text-sm)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Resultado neto</span>
+        <span style={{ fontSize: 'var(--text-2xl)', fontWeight: 800, letterSpacing: '-0.02em', color: neto >= 0 ? 'var(--success)' : 'var(--danger)' }}>
           {formatCurrency(neto)}
         </span>
       </div>
 
       {totalCobros > 0 && (
-        <div className="card" style={{ margin: '0 var(--space-4) var(--space-4)', display: 'flex', gap: 'var(--space-4)' }}>
+        <div className="card" style={{ margin: '0 var(--space-4) var(--space-4)', padding: 'var(--space-4)', display: 'flex', gap: 'var(--space-4)' }}>
           {totalEfectivo > 0 && (
             <div style={{ flex: 1, textAlign: 'center' }}>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>Efectivo</div>
-              <div style={{ fontWeight: 700, fontSize: 'var(--text-sm)' }}>{formatCurrency(totalEfectivo)}</div>
+              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Efectivo</div>
+              <div style={{ fontWeight: 700, fontSize: 'var(--text-base)' }}>{formatCurrency(totalEfectivo)}</div>
             </div>
           )}
           {totalTransferencia > 0 && (
             <div style={{ flex: 1, textAlign: 'center' }}>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>Transferencia</div>
-              <div style={{ fontWeight: 700, fontSize: 'var(--text-sm)' }}>{formatCurrency(totalTransferencia)}</div>
+              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Transf.</div>
+              <div style={{ fontWeight: 700, fontSize: 'var(--text-base)' }}>{formatCurrency(totalTransferencia)}</div>
             </div>
           )}
           {totalTarjeta > 0 && (
             <div style={{ flex: 1, textAlign: 'center' }}>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>Tarjeta</div>
-              <div style={{ fontWeight: 700, fontSize: 'var(--text-sm)' }}>{formatCurrency(totalTarjeta)}</div>
+              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Tarjeta</div>
+              <div style={{ fontWeight: 700, fontSize: 'var(--text-base)' }}>{formatCurrency(totalTarjeta)}</div>
             </div>
           )}
         </div>
@@ -111,14 +111,17 @@ export function CajaPanel({ pedidos, gastos, clientes }) {
           <div className="section-label">Cobros del día ({cobrosDelDia.length})</div>
           <div className="list-section">
             {cobrosDelDia.map((p, i) => (
-              <motion.div key={p.id} className="card" {...listItem(i)}>
-                <div className="card-row">
-                  <span style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>{clienteNombre(p.clienteId)}{!p.cobrado ? ' (parcial)' : ''}</span>
-                  <span style={{ fontWeight: 800, color: 'var(--success)', fontSize: 'var(--text-sm)' }}>{formatCurrency(montoCobrado(p))}</span>
+              <motion.div key={p.id} className="card" {...listItem(i)} style={{ padding: 'var(--space-4)' }}>
+                <div className="card-row" style={{ marginBottom: 'var(--space-2)' }}>
+                  <span style={{ fontWeight: 700, fontSize: 'var(--text-sm)' }}>
+                    {clienteNombre(p.clienteId)}
+                    {!p.cobrado && <span style={{ fontWeight: 400, color: 'var(--ink-3)', fontSize: 'var(--text-xs)', marginLeft: 6 }}>parcial</span>}
+                  </span>
+                  <span style={{ fontWeight: 800, color: 'var(--success)', fontSize: 'var(--text-base)' }}>{formatCurrency(montoCobrado(p))}</span>
                 </div>
                 <div className="card-row">
                   <span className="card-sub">{p.items.map(i => `${i.nombre} x${i.cantidad}`).join(' · ')}</span>
-                  <span className="badge" style={{ fontSize: 10 }}>
+                  <span className="medio-pill" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11 }}>
                     <MedioIcon medio={p.medioPago} /> {p.medioPago}
                   </span>
                 </div>

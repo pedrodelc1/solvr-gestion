@@ -815,10 +815,11 @@ export async function procesarCuotasVencidas(pedidos) {
 
 export async function getNegocioConfig() {
   if (!useSupabase()) {
-    return JSON.parse(localStorage.getItem('sg_negocio') || 'null') || { nombre: 'Mi Negocio', logo_url: null, onboarding_done: false };
+    return JSON.parse(localStorage.getItem('sg_negocio') || 'null') || { nombre: 'Mi Negocio', logo_url: null, moneda: '$', onboarding_done: false };
   }
   const { data } = await supabase.from('negocio_config').select('*').maybeSingle();
-  return data || { nombre: 'Mi Negocio', logo_url: null, onboarding_done: false };
+  if (data) localStorage.setItem('sg_negocio', JSON.stringify(data));
+  return data || { nombre: 'Mi Negocio', logo_url: null, moneda: '$', onboarding_done: false };
 }
 
 export async function saveNegocioConfig(cfg) {
@@ -834,6 +835,7 @@ export async function saveNegocioConfig(cfg) {
     .select()
     .single();
   if (error) throw new Error(error.message);
+  localStorage.setItem('sg_negocio', JSON.stringify(data || cfg));
   return data || cfg;
 }
 

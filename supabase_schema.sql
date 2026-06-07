@@ -197,6 +197,7 @@ create table if not exists negocio_config (
   user_id          uuid not null references auth.users(id) on delete cascade unique,
   nombre           text not null default 'Mi Negocio',
   logo_url         text,
+  moneda           text not null default '$',
   onboarding_done  boolean not null default false,
   created_at       timestamptz default now(),
   updated_at       timestamptz default now()
@@ -374,3 +375,6 @@ do $$ begin
   create policy "oc_items_delete" on ordenes_compra_items for delete
     using (exists (select 1 from ordenes_compra oc where oc.id = ordenes_compra_items.orden_id and oc.user_id = auth.uid()));
 exception when duplicate_object then null; end $$;
+
+-- ── MIGRACIONES POST-LANZAMIENTO ───────────────────────────
+alter table negocio_config add column if not exists moneda text not null default '$';

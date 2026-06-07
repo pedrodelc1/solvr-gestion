@@ -1,5 +1,11 @@
 export function formatCurrency(n) {
-  return '$ ' + Number(n || 0).toLocaleString('es-AR', {
+  let symbol = '$';
+  try {
+    const negocio = JSON.parse(localStorage.getItem('sg_negocio') || 'null');
+    if (negocio && negocio.moneda) symbol = negocio.moneda;
+  } catch (_) {}
+
+  return symbol + ' ' + Number(n || 0).toLocaleString('es-AR', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });

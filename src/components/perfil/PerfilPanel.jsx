@@ -34,10 +34,12 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
   const totalGastos = gastos.reduce((s, g) => s + g.monto, 0);
 
   const [negocioNombre, setNegocioNombre] = useState('');
+  const [moneda, setMoneda] = useState('$');
   const [savingNegocio, setSavingNegocio] = useState(false);
 
   useEffect(() => {
     setNegocioNombre(negocioConfig?.nombre || '');
+    setMoneda(negocioConfig?.moneda || '$');
   }, [negocioConfig]);
 
   async function handleSaveNegocio() {
@@ -50,6 +52,17 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
       toast(e.message, 'error');
     } finally {
       setSavingNegocio(false);
+    }
+  }
+
+  async function handleSaveMoneda(val) {
+    setMoneda(val);
+    try {
+      await onNegocioSave({ ...negocioConfig, moneda: val });
+      toast('Moneda actualizada');
+      setTimeout(() => window.location.reload(), 300);
+    } catch (e) {
+      toast(e.message, 'error');
     }
   }
 
@@ -197,30 +210,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
         </div>
       )}
 
-      {/* Nombre del negocio — solo owner/admin */}
-      {(isOwner || userRole === 'admin') && (
-        <div style={{ padding: '0 var(--space-4) var(--space-4)' }}>
-          <div className="settings-card" style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-            <div style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Nombre del negocio</div>
-            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-              <input
-                type="text"
-                placeholder="Ej: Ferrari Repuestos"
-                value={negocioNombre}
-                onChange={e => setNegocioNombre(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleSaveNegocio()}
-                style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-sm)' }}
-                autoComplete="off"
-                autoCorrect="off"
-              />
-              <button className="btn btn-primary" onClick={handleSaveNegocio} disabled={savingNegocio || !negocioNombre.trim()} style={{ minHeight: 40, padding: '0 var(--space-4)', flexShrink: 0 }}>
-                {savingNegocio ? '...' : 'Guardar'}
-              </button>
-            </div>
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>Aparece en el encabezado de los remitos.</div>
-          </div>
-        </div>
-      )}
+
 
       {/* Tu acceso — solo para vendedor/visualizador */}
       {!isOwner && userRole !== 'admin' && (() => {
@@ -293,34 +283,95 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
         ))}
       </div>
 
-      {/* Alertas de cobro — solo owner/admin */}
-      {(isOwner || userRole === 'admin') && <div style={{ padding: '0 var(--space-4)', marginBottom: 'var(--space-4)' }}>
-        <div className="section-label">Alertas de cobro</div>
-        <div className="card" style={{ gap: 'var(--space-3)' }}>
-          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>
-            Alertar en Clientes si un saldo lleva más de:
-          </p>
-          <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
-            <input
-              type="number"
-              min="1"
-              max="365"
-              value={diasAlerta}
-              onChange={e => setDiasAlerta(parseInt(e.target.value) || 7)}
-              style={{ width: 80, minHeight: 40, textAlign: 'center', fontSize: 'var(--text-base)' }}
-            />
-            <span style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>días sin cobrar</span>
-            <button
-              className="btn btn-secondary"
-              style={{ minHeight: 40, padding: '0 var(--space-4)', fontSize: 'var(--text-sm)', marginLeft: 'auto' }}
-              onClick={handleSaveAlerta}
-              disabled={savingAlerta}
-            >
-              {savingAlerta ? 'Guardando...' : 'Guardar'}
-            </button>
+      {/* Configuración del Sistema — solo owner/admin */}
+      {(isOwner || userRole === 'admin') && (
+        <div style={{ padding: '0 var(--space-4)', marginBottom: 'var(--space-4)' }}>
+          <div className="section-label">Configuración del Sistema</div>
+          <div className="card" style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+            
+            {/* Nombre del negocio */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+              <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Nombre del negocio</label>
+              <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                <input
+                  type="text"
+                  placeholder="Ej: Ferrari Repuestos"
+                  value={negocioNombre}
+                  onChange={e => setNegocioNombre(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleSaveNegocio()}
+                  style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-sm)' }}
+                  autoComplete="off"
+                  autoCorrect="off"
+                />
+                <button 
+                  className="btn btn-primary" 
+                  onClick={handleSaveNegocio} 
+                  disabled={savingNegocio || !negocioNombre.trim()} 
+                  style={{ minHeight: 40, padding: '0 var(--space-4)', flexShrink: 0, fontSize: 'var(--text-sm)' }}
+                >
+                  {savingNegocio ? '...' : 'Guardar'}
+                </button>
+              </div>
+              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>Aparece en el encabezado de los remitos y presupuestos.</span>
+            </div>
+
+            {/* Moneda */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', borderTop: '1px solid var(--border)', paddingTop: 'var(--space-4)' }}>
+              <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Símbolo de Moneda</label>
+              <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                <select
+                  value={moneda}
+                  onChange={e => handleSaveMoneda(e.target.value)}
+                  style={{ 
+                    flex: 1, 
+                    minHeight: 40, 
+                    fontSize: 'var(--text-sm)',
+                    background: 'var(--bg-3)',
+                    color: 'var(--ink)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-sm)',
+                    padding: '0 var(--space-2)'
+                  }}
+                >
+                  <option value="$">$ (Pesos)</option>
+                  <option value="U$D">USD (U$D)</option>
+                  <option value="€">€ (Euros)</option>
+                  <option value="Gs">Gs (Guaraníes)</option>
+                  <option value="R$">R$ (Reales)</option>
+                  <option value="UF">UF (Unidades de Fomento)</option>
+                </select>
+              </div>
+              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>Define el símbolo monetario principal de la aplicación.</span>
+            </div>
+
+            {/* Alertas de cobro */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', borderTop: '1px solid var(--border)', paddingTop: 'var(--space-4)' }}>
+              <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Alertas de cobro</label>
+              <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+                <input
+                  type="number"
+                  min="1"
+                  max="365"
+                  value={diasAlerta}
+                  onChange={e => setDiasAlerta(parseInt(e.target.value) || 7)}
+                  style={{ width: 80, minHeight: 40, textAlign: 'center', fontSize: 'var(--text-base)' }}
+                />
+                <span style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>días sin cobrar</span>
+                <button
+                  className="btn btn-secondary"
+                  style={{ minHeight: 40, padding: '0 var(--space-4)', fontSize: 'var(--text-sm)', marginLeft: 'auto' }}
+                  onClick={handleSaveAlerta}
+                  disabled={savingAlerta}
+                >
+                  {savingAlerta ? 'Guardando...' : 'Guardar'}
+                </button>
+              </div>
+              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>Alerta en la lista de clientes si tienen saldos sin cobrar por más de este tiempo.</span>
+            </div>
+
           </div>
         </div>
-      </div>}
+      )}
 
       {/* Equipo — solo owner o admin */}
       {(isOwner || userRole === 'admin') && (

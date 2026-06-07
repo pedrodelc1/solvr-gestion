@@ -62,17 +62,17 @@ export function ClientesList({ clientes, pedidos, devoluciones, onSelect, onNew,
         <button
           className="card"
           style={{
-            width: '100%',
+            width: 'fit-content',
+            margin: '0 auto var(--space-4)',
             textAlign: 'left',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: 'var(--space-2) var(--space-3)',
+            gap: 'var(--space-4)',
+            padding: 'var(--space-3) var(--space-5)',
             background: 'var(--danger-bg, rgba(239,68,68,0.08))',
             borderColor: 'rgba(239,68,68,0.3)',
-            marginBottom: 'var(--space-3)',
-            minHeight: 'auto',
+            borderRadius: 'var(--radius-md)',
           }}
           onClick={() => setVerCobros(true)}
         >
@@ -86,7 +86,7 @@ export function ClientesList({ clientes, pedidos, devoluciones, onSelect, onNew,
               Cobros pendientes
             </span>
           </div>
-          <span style={{ background: 'var(--danger)', color: '#fff', borderRadius: 999, fontSize: '10px', fontWeight: 700, padding: '1px 6px' }}>
+          <span style={{ background: 'var(--danger)', color: '#fff', borderRadius: 999, fontSize: '10px', fontWeight: 700, padding: '1px 6px', marginLeft: 'var(--space-2)' }}>
             {cobrosCount}
           </span>
         </button>

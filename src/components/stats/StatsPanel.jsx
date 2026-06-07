@@ -343,7 +343,7 @@ export function StatsPanel({ pedidos, gastos, clientes, productos, devoluciones 
         <div className="empty-state">
           <p>Seleccioná el rango de fechas y tocá Aplicar.</p>
         </div>
-      ) : filteredPedidos.length === 0 && filteredGastos.length === 0 && !noRange ? (
+      ) : filteredPedidos.length === 0 && filteredGastos.length === 0 && !noRange && statCliente === 'all' ? (
         <div className="empty-state">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
             <line x1="18" y1="20" x2="18" y2="10" />

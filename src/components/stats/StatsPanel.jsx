@@ -88,10 +88,10 @@ export function StatsPanel({ pedidos, gastos, clientes, productos, onExportCSV }
 
   const noRange = !from || !to;
 
-  const filteredPedidos = noRange ? [] : pedidos.filter(p => inRange(p.fecha, from, to));
+  const filteredPedidos = noRange ? [] : pedidos.filter(p => inRange(p.fecha, from, to) && p.tipo !== 'presupuesto');
   const filteredGastos = noRange ? [] : gastos.filter(g => inRange(g.fecha, from, to));
 
-  // Ventas totales
+  // Ventas totales (Facturación)
   const ventas = filteredPedidos.reduce((s, p) => s + p.totalFinal, 0);
 
   // Cobrado
@@ -100,7 +100,7 @@ export function StatsPanel({ pedidos, gastos, clientes, productos, onExportCSV }
   // Gastos
   const totalGastos = filteredGastos.reduce((s, g) => s + g.monto, 0);
 
-  // Ganancia neta
+  // Ganancia neta (Ganancia sobre lo cobrado - Gastos totales)
   const gananciaVentas = filteredPedidos
     .filter(p => p.cobrado || (p.montoAbonado || 0) > 0)
     .reduce((s, p) => {
@@ -114,20 +114,68 @@ export function StatsPanel({ pedidos, gastos, clientes, productos, onExportCSV }
 
   const gananciaNeta = gananciaVentas - totalGastos;
 
-  // Top clientes por ventas en el período
+  // BI KPIs
+  const ticketPromedio = filteredPedidos.length > 0 ? (ventas / filteredPedidos.length) : 0;
+
+  const costoTotalVendido = filteredPedidos.reduce((s, p) => {
+    return s + p.items.reduce((si, item) => {
+      const costo = item.costoUnitario ?? (productos.find(pr => pr.id === item.productoId)?.costo || 0);
+      return si + (costo * item.cantidad);
+    }, 0);
+  }, 0);
+  const margenPorcentaje = ventas > 0 ? ((ventas - costoTotalVendido) / ventas) * 100 : 0;
+
+  // Medios de pago (Breakdown de cobros)
+  const mediosBars = useMemo(() => {
+    const map = {};
+    filteredPedidos.forEach(p => {
+      const pagado = p.cobrado ? p.totalFinal : (p.montoAbonado || 0);
+      if (pagado <= 0) return;
+      const medio = p.medioPago || 'efectivo';
+      const label = medio.charAt(0).toUpperCase() + medio.slice(1);
+      if (!map[label]) map[label] = 0;
+      map[label] += pagado;
+    });
+    return Object.entries(map)
+      .map(([label, value]) => ({ label, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [filteredPedidos]);
+
+  // Top clientes por volumen de ventas
   const topClientes = useMemo(() => {
     const map = {};
     filteredPedidos.forEach(p => {
       if (!map[p.clienteId]) map[p.clienteId] = { id: p.clienteId, label: clientes.find(c => c.id === p.clienteId)?.nombre || '—', value: 0 };
       map[p.clienteId].value += p.totalFinal;
     });
-    return Object.values(map).sort((a, b) => b.value - a.value).slice(0, 4);
+    return Object.values(map)
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 4);
   }, [filteredPedidos, clientes]);
 
-  // Rentabilidad por producto
+  // Clientes con mayores saldos pendientes de cobro (BI para cobranza)
+  const deudores = useMemo(() => {
+    const map = {};
+    pedidos.filter(p => !p.cobrado && p.tipo !== 'presupuesto').forEach(p => {
+      const deud = p.totalFinal - (p.montoAbonado || 0);
+      if (deud <= 0) return;
+      if (!map[p.clienteId]) {
+        map[p.clienteId] = {
+          label: clientes.find(c => c.id === p.clienteId)?.nombre || '—',
+          value: 0
+        };
+      }
+      map[p.clienteId].value += deud;
+    });
+    return Object.values(map)
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 4);
+  }, [pedidos, clientes]);
+
+  // Rentabilidad por producto vendida en el periodo
   const rentabilidad = useMemo(() => {
     const map = {};
-    filteredPedidos.filter(p => p.cobrado).forEach(p => {
+    filteredPedidos.forEach(p => {
       p.items.forEach(item => {
         const id = item.productoId || item.nombre;
         if (!map[id]) map[id] = { nombre: item.nombre, ingresos: 0, costo: 0, unidades: 0 };
@@ -138,7 +186,15 @@ export function StatsPanel({ pedidos, gastos, clientes, productos, onExportCSV }
       });
     });
     return Object.values(map)
-      .map(r => ({ label: r.nombre, value: r.ingresos - r.costo, sub: `${r.unidades} uds vendidas` }))
+      .map(r => {
+        const gan = r.ingresos - r.costo;
+        const marg = r.ingresos > 0 ? (gan / r.ingresos) * 100 : 0;
+        return {
+          label: r.nombre,
+          value: gan,
+          sub: `${r.unidades} uds · Margen: ${marg.toFixed(0)}%`
+        };
+      })
       .sort((a, b) => b.value - a.value)
       .slice(0, 4);
   }, [filteredPedidos, productos]);
@@ -167,7 +223,7 @@ export function StatsPanel({ pedidos, gastos, clientes, productos, onExportCSV }
     <>
       {/* Header */}
       <div className="page-header">
-        <h1>Resumen</h1>
+        <h1>Resumen de Negocio</h1>
         <motion.button className="btn-icon" onClick={handleExport} aria-label="Exportar CSV"
           whileTap={{ scale: 0.9 }}
           animate={downloading ? { borderColor: 'var(--primary)' } : { borderColor: 'var(--border)' }}
@@ -201,46 +257,87 @@ export function StatsPanel({ pedidos, gastos, clientes, productos, onExportCSV }
         <div style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           
           {/* BIG HERO: Ganancia Neta */}
-          <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-6) var(--space-4)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ fontSize: 12, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 'var(--space-2)' }}>Ganancia Neta</div>
-            <Num value={gananciaNeta} color={gananciaNeta >= 0 ? 'var(--success)' : 'var(--danger)'} size="clamp(36px, 10vw, 48px)" weight={900} />
+          <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-5) var(--space-4)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 'var(--space-1)' }}>Ganancia Neta</div>
+            <Num value={gananciaNeta} color={gananciaNeta >= 0 ? 'var(--success)' : 'var(--danger)'} size="clamp(32px, 8vw, 42px)" weight={900} />
+            <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 8 }}>
+              Cobrado menos Gastos del período
+            </div>
           </div>
 
           {/* Ingresos / Gastos / Pendiente grid */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
             <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-4)' }}>
-              <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 600, textTransform: 'uppercase', marginBottom: 6 }}>Cobrado</div>
-              <Num value={cobrado} color="var(--ink)" size="var(--text-xl)" />
+              <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 600, textTransform: 'uppercase', marginBottom: 6 }}>Facturado Total</div>
+              <Num value={ventas} color="var(--ink)" size="var(--text-xl)" />
             </div>
             <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-4)' }}>
-              <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 600, textTransform: 'uppercase', marginBottom: 6 }}>Gastos</div>
+              <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 600, textTransform: 'uppercase', marginBottom: 6 }}>Gastos Totales</div>
               <Num value={totalGastos} color="var(--danger)" size="var(--text-xl)" />
             </div>
-            
-            <div style={{ gridColumn: '1 / -1', background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-4) var(--space-5)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pendiente de cobro</span>
-              <Num value={Math.max(0, ventas - cobrado)} color="var(--warning)" size="var(--text-lg)" />
+
+            <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-4)' }}>
+              <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 600, textTransform: 'uppercase', marginBottom: 6 }}>Cobrado Real</div>
+              <Num value={cobrado} color="var(--success)" size="var(--text-xl)" />
+            </div>
+            <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-4)' }}>
+              <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 600, textTransform: 'uppercase', marginBottom: 6 }}>Pendiente Cobro</div>
+              <Num value={Math.max(0, ventas - cobrado)} color="var(--warning)" size="var(--text-xl)" />
             </div>
           </div>
 
-          {/* Barcharts */}
+          {/* BI KPIs GRID: Ticket Promedio, Margen Promedio, Pedidos Totales */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-2)' }}>
+            <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-3) var(--space-2)', textAlign: 'center' }}>
+              <div style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', fontWeight: 600, marginBottom: 4 }}>Ventas</div>
+              <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--ink)' }}>{filteredPedidos.length}</div>
+            </div>
+            <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-3) var(--space-2)', textAlign: 'center' }}>
+              <div style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', fontWeight: 600, marginBottom: 4 }}>Ticket Prom.</div>
+              <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--ink)' }}>{formatCurrency(ticketPromedio)}</div>
+            </div>
+            <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-3) var(--space-2)', textAlign: 'center' }}>
+              <div style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', fontWeight: 600, marginBottom: 4 }}>Margen Prom.</div>
+              <div style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: 'var(--success)' }}>{margenPorcentaje.toFixed(0)}%</div>
+            </div>
+          </div>
+
+          {/* Medios de Pago Breakdown */}
+          {mediosBars.length > 0 && (
+            <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-5)' }}>
+              <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 'var(--space-4)' }}>Flujo por Medio de Pago</div>
+              <BarChart items={mediosBars} colorVar="--primary" />
+            </div>
+          )}
+
+          {/* Top clientes */}
           {topClientes.length > 0 && (
             <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-5)' }}>
-              <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 'var(--space-4)' }}>Top Clientes</div>
+              <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 'var(--space-4)' }}>Clientes (Mayor Facturación)</div>
               <BarChart items={topClientes} colorVar="--primary" />
             </div>
           )}
 
+          {/* Clientes Deudores (Collections/Debts list) */}
+          {deudores.length > 0 && (
+            <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-5)' }}>
+              <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 'var(--space-4)' }}>Principales Saldos Pendientes</div>
+              <BarChart items={deudores} colorVar="--warning" />
+            </div>
+          )}
+
+          {/* Rentabilidad por Producto */}
           {rentabilidad.length > 0 && (
             <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-5)' }}>
-              <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 'var(--space-4)' }}>Productos más rentables</div>
+              <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 'var(--space-4)' }}>Productos con Mayor Ganancia</div>
               <BarChart items={rentabilidad} colorVar="--success" />
             </div>
           )}
 
+          {/* Gastos por categoría */}
           {catData.length > 0 && (
             <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-5)' }}>
-              <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 'var(--space-4)' }}>Gastos por Categoría</div>
+              <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 'var(--space-4)' }}>Distribución de Gastos</div>
               <BarChart items={catData} colorVar="--danger" />
             </div>
           )}

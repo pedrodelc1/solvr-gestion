@@ -580,7 +580,7 @@ export default function App() {
             animate="animate"
             exit="exit"
             transition={{ duration: 0.18, ease: [0, 0, 0.2, 1] }}
-            style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}
+            style={{ display: 'flex', flexDirection: 'column' }}
           >
             {renderTab()}
           </motion.div>

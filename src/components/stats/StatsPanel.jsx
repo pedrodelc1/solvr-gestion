@@ -108,17 +108,23 @@ export function StatsPanel({ pedidos, gastos, clientes, productos, devoluciones 
 
   const cobrado = byProd
     ? filteredPedidos.reduce((s, p) => s + itemsAmt(p, true), 0)
-    : filteredPedidos.filter(p => p.cobrado).reduce((s, p) => s + p.totalFinal, 0);
+    : filteredPedidos.reduce((s, p) => {
+        if (p.cobrado) return s + p.totalFinal;
+        return s + (p.montoAbonado || 0);
+      }, 0);
 
   const totalGastos = filteredGastos.reduce((s, g) => s + g.monto, 0);
 
   const gananciaVentas = filteredPedidos
-    .filter(p => p.cobrado)
+    .filter(p => p.cobrado || (p.montoAbonado || 0) > 0)
     .reduce((s, p) => {
       const its = byProd ? p.items.filter(i => i.productoId === statProducto) : p.items;
+      const totalItems = its.reduce((si, item) => si + item.precioUnitario * item.cantidad, 0);
+      const pagado = p.cobrado ? p.totalFinal : (p.montoAbonado || 0);
+      const ratio = totalItems > 0 ? pagado / p.totalFinal : 0;
       return s + its.reduce((si, item) => {
         const costo = item.costoUnitario ?? (productos.find(pr => pr.id === item.productoId)?.costo || 0);
-        return si + (item.precioUnitario - costo) * item.cantidad;
+        return si + (item.precioUnitario - costo) * item.cantidad * ratio;
       }, 0);
     }, 0);
 
@@ -126,10 +132,16 @@ export function StatsPanel({ pedidos, gastos, clientes, productos, devoluciones 
 
   const efectivo = byProd
     ? filteredPedidos.reduce((s, p) => s + itemsAmt(p, true, 'efectivo'), 0)
-    : filteredPedidos.filter(p => p.cobrado && p.medioPago === 'efectivo').reduce((s, p) => s + p.totalFinal, 0);
+    : filteredPedidos.filter(p => p.medioPago === 'efectivo').reduce((s, p) => {
+        if (p.cobrado) return s + p.totalFinal;
+        return s + (p.montoAbonado || 0);
+      }, 0);
   const transf = byProd
     ? filteredPedidos.reduce((s, p) => s + itemsAmt(p, true, 'transferencia'), 0)
-    : filteredPedidos.filter(p => p.cobrado && p.medioPago === 'transferencia').reduce((s, p) => s + p.totalFinal, 0);
+    : filteredPedidos.filter(p => p.medioPago === 'transferencia').reduce((s, p) => {
+        if (p.cobrado) return s + p.totalFinal;
+        return s + (p.montoAbonado || 0);
+      }, 0);
 
   // tarjeta: cobrado + fiado (legacy data)
   const tarjeta = byProd

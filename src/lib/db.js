@@ -223,11 +223,23 @@ export async function ajustarStock(productoId, delta) {
 
 export async function getPedidos() {
   if (!useSupabase()) return lsGet('pedidos', []);
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('pedidos')
     .select('*, pedido_items(*)')
     .order('created_at', { ascending: false });
-  if (error) return lsGet('pedidos', []);
+  if (error) {
+    console.error('[getPedidos] join failed, retrying without items:', error.message);
+    // Fallback: fetch pedidos without items (avoids pedido_items RLS issues)
+    const { data: d2, error: e2 } = await supabase
+      .from('pedidos')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (e2) {
+      console.error('[getPedidos] fallback also failed:', e2.message);
+      return lsGet('pedidos', []);
+    }
+    data = d2.map(r => ({ ...r, pedido_items: [] }));
+  }
   const mapped = data.map((r, idx) => ({
     id: r.id,
     fetchOrder: idx,
@@ -448,7 +460,10 @@ export async function getGastos() {
     .from('gastos')
     .select('*')
     .order('fecha', { ascending: false });
-  if (error) return lsGet('gastos', []);
+  if (error) {
+    console.error('[getGastos] failed:', error.message);
+    return lsGet('gastos', []);
+  }
   const mapped = data.map(r => ({
     id: r.id,
     fecha: r.fecha,

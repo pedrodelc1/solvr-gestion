@@ -21,8 +21,8 @@ export function ChartCategorias({ data }) {
     ctx.scale(dpr, dpr);
 
     // Background
-    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    ctx.fillStyle = isDark ? '#161616' : '#f5f5f5';
+    const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+    ctx.fillStyle = isDark ? '#161616' : '#ffffff';
     ctx.fillRect(0, 0, W, H);
 
     const maxVal = Math.max(...data.map(d => d.total), 1);

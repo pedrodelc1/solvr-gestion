@@ -48,6 +48,12 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [showSplash, setShowSplash] = useState(() => !sessionStorage.getItem('sg_splash_done'));
+  const [theme, setTheme] = useState(() => localStorage.getItem('sg_theme') || 'dark');
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('sg_theme', theme);
+  }, [theme]);
 
   const [clientes, setClientes] = useState([]);
   const [productos, setProductos] = useState([]);
@@ -553,6 +559,8 @@ export default function App() {
             negocioConfig={negocioConfig}
             onNegocioSave={async (cfg) => { const saved = await saveNegocioConfig(cfg); setNegocioConfig(saved); }}
             toast={toast}
+            theme={theme}
+            onThemeChange={setTheme}
           />
         );
 

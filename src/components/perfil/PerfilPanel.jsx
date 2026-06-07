@@ -24,7 +24,7 @@ function RolBadge({ rol }) {
   );
 }
 
-export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gastos, suscripcion, negocioConfig, onNegocioSave, toast }) {
+export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gastos, suscripcion, negocioConfig, onNegocioSave, toast, theme, onThemeChange }) {
   const email = session?.user?.email || null;
   const inicial = email ? email[0].toUpperCase() : '?';
 
@@ -591,6 +591,55 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
           )}
         </div>
       )}
+
+      {/* Tema — accesible para todos */}
+      <div style={{ padding: '0 var(--space-4)', marginBottom: 'var(--space-4)' }}>
+        <div className="section-label">Preferencias</div>
+        <div className="card" style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Tema de la App</div>
+              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', marginTop: 2 }}>Cambiá entre modo oscuro y claro.</div>
+            </div>
+            <div style={{ display: 'flex', background: 'var(--bg-3)', padding: 4, borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+              <button
+                type="button"
+                onClick={() => onThemeChange('dark')}
+                style={{
+                  background: theme === 'dark' ? 'var(--bg-2)' : 'none',
+                  border: 'none',
+                  color: theme === 'dark' ? 'var(--ink)' : 'var(--ink-3)',
+                  padding: '6px 12px',
+                  borderRadius: 'calc(var(--radius-sm) - 2px)',
+                  cursor: 'pointer',
+                  fontSize: 'var(--text-xs)',
+                  fontWeight: 600,
+                  transition: 'all 120ms',
+                }}
+              >
+                Oscuro
+              </button>
+              <button
+                type="button"
+                onClick={() => onThemeChange('light')}
+                style={{
+                  background: theme === 'light' ? 'var(--bg-2)' : 'none',
+                  border: 'none',
+                  color: theme === 'light' ? 'var(--ink)' : 'var(--ink-3)',
+                  padding: '6px 12px',
+                  borderRadius: 'calc(var(--radius-sm) - 2px)',
+                  cursor: 'pointer',
+                  fontSize: 'var(--text-xs)',
+                  fontWeight: 600,
+                  transition: 'all 120ms',
+                }}
+              >
+                Claro
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Logout */}
       <div style={{ padding: '0 var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', paddingBottom: 'var(--space-6)' }}>

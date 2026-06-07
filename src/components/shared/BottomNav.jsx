@@ -98,29 +98,13 @@ export function BottomNav({ activeTab, onTabChange, alertCount = 0, allowedTabs 
   const activeIndex = visibleTabs.findIndex(t => t.id === activeTab);
   const [hoveredIndex, setHoveredIndex] = useState(null);
 
-  function handleDragEnd(_, info) {
-    const nav = navRef.current;
-    if (!nav) return;
-    const tabWidth = nav.getBoundingClientRect().width / visibleTabs.length;
-    const newIndex = Math.max(0, Math.min(visibleTabs.length - 1,
-      Math.round((activeIndex * tabWidth + info.offset.x) / tabWidth)
-    ));
-    onTabChange(visibleTabs[newIndex].id);
-  }
-
   return (
     <nav ref={navRef} className="bottom-nav" aria-label="Navegación">
       <motion.div
         className="nav-indicator"
-        drag="x"
-        dragConstraints={navRef}
-        dragElastic={0.05}
-        dragMomentum={false}
-        onDragEnd={handleDragEnd}
-        animate={{ left: `calc(${activeIndex * tabPct}% + 6px)`, x: 0 }}
+        animate={{ left: `calc(${activeIndex * tabPct}% + 6px)` }}
         transition={{ type: 'spring', stiffness: 420, damping: 36 }}
-        style={{ position: 'absolute', top: 5, bottom: 5, width: `calc(${tabPct}% - 12px)`, cursor: 'grab', zIndex: 0 }}
-        whileDrag={{ cursor: 'grabbing', scale: 1.04 }}
+        style={{ position: 'absolute', top: 5, bottom: 5, width: `calc(${tabPct}% - 12px)`, zIndex: 0 }}
       />
 
       {visibleTabs.map((tab, i) => (

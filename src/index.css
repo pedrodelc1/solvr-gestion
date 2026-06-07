@@ -743,6 +743,17 @@ input[type="search"]::-webkit-search-cancel-button {
   box-shadow: 0 0 12px rgba(255, 255, 255, 0.2), inset 0 1px 0 rgba(255,255,255,0.1);
 }
 
+@media (max-width: 500px) {
+  .opt-chip {
+    flex: 1;
+    justify-content: center;
+    padding: 8px 4px;
+    font-size: 11px;
+    gap: 4px;
+    min-width: 80px;
+  }
+}
+
 /* ── Items list (pedido form) ───────────── */
 .items-list {
   display: flex;

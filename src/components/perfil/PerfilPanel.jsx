@@ -419,197 +419,228 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
 
       {/* Configuración del Sistema — solo owner/admin */}
       {(isOwner || userRole === 'admin') && (
-        <div style={{ padding: '0 var(--space-4)', marginBottom: 'var(--space-4)' }}>
+        <div style={{ padding: '0 var(--space-4)', marginBottom: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           <div className="section-label">Configuración del Sistema</div>
-          <div className="card" style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          
+          {/* Tarjeta 1: Datos de la Empresa */}
+          <div className="card" style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border)', paddingBottom: '10px', marginBottom: '4px' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="2" ry="2"/><path d="M7 2v20"/><path d="M17 2v20"/><path d="M2 12h20"/><path d="M2 7h20"/><path d="M2 17h20"/></svg>
+              <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 700, margin: 0, color: 'var(--ink)' }}>Datos de la Empresa</h3>
+            </div>
             
-            {/* Nombre del negocio */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-              <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Nombre del negocio</label>
+              <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>Nombre del negocio *</label>
               <input
                 type="text"
                 placeholder="Ej: Ferrari Repuestos"
                 value={negocioNombre}
                 onChange={e => setNegocioNombre(e.target.value)}
-                style={{ minHeight: 40, fontSize: 'var(--text-sm)' }}
+                style={{ minHeight: 40, fontSize: 'var(--text-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0 var(--space-3)', color: 'var(--ink)' }}
                 autoComplete="off"
                 autoCorrect="off"
               />
             </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+              <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>CUIT / Tax ID</label>
+              <input
+                type="text"
+                placeholder="Ej: 30-12345678-9"
+                value={cuit}
+                onChange={e => setCuit(e.target.value)}
+                style={{ minHeight: 40, fontSize: 'var(--text-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0 var(--space-3)', color: 'var(--ink)' }}
+                autoComplete="off"
+                autoCorrect="off"
+              />
+            </div>
+          </div>
 
-            {/* Datos de contacto para PDFs */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', borderTop: '1px solid var(--border)', paddingTop: 'var(--space-4)' }}>
+          {/* Tarjeta 2: Contacto para PDFs */}
+          <div className="card" style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border)', paddingBottom: '10px', marginBottom: '4px' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.22h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.78a16 16 0 0 0 6.29 6.29l.96-.96a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+              <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 700, margin: 0, color: 'var(--ink)' }}>Información de Contacto (para PDFs)</h3>
+            </div>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--space-3)' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>CUIT / Tax ID</label>
-                <input
-                  type="text"
-                  placeholder="Ej: 30-12345678-9"
-                  value={cuit}
-                  onChange={e => setCuit(e.target.value)}
-                  style={{ minHeight: 40, fontSize: 'var(--text-sm)' }}
-                  autoComplete="off"
-                  autoCorrect="off"
-                />
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Teléfono</label>
+                <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>Teléfono</label>
                 <input
                   type="text"
                   placeholder="Ej: +54 9 11 1234 5678"
                   value={telefono}
                   onChange={e => setTelefono(e.target.value)}
-                  style={{ minHeight: 40, fontSize: 'var(--text-sm)' }}
+                  style={{ minHeight: 40, fontSize: 'var(--text-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0 var(--space-3)', color: 'var(--ink)' }}
                   autoComplete="off"
                   autoCorrect="off"
                 />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', gridColumn: 'span 2' }}>
-                <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Dirección</label>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>Dirección</label>
                 <input
                   type="text"
                   placeholder="Ej: Av. Siempreviva 742"
                   value={direccion}
                   onChange={e => setDireccion(e.target.value)}
-                  style={{ minHeight: 40, fontSize: 'var(--text-sm)' }}
+                  style={{ minHeight: 40, fontSize: 'var(--text-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0 var(--space-3)', color: 'var(--ink)' }}
                   autoComplete="off"
                   autoCorrect="off"
                 />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', gridColumn: 'span 2' }}>
-                <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Email del negocio</label>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>Email del negocio</label>
                 <input
                   type="email"
                   placeholder="Ej: contacto@minegocio.com"
                   value={negocioEmail}
                   onChange={e => setNegocioEmail(e.target.value)}
-                  style={{ minHeight: 40, fontSize: 'var(--text-sm)' }}
+                  style={{ minHeight: 40, fontSize: 'var(--text-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0 var(--space-3)', color: 'var(--ink)' }}
                   autoComplete="off"
                   autoCorrect="off"
                 />
               </div>
             </div>
+          </div>
 
-            {/* Configuración de Documentos */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', borderTop: '1px solid var(--border)', paddingTop: 'var(--space-4)' }}>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                  <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Símbolo de Moneda</label>
-                  <select
-                    value={moneda}
-                    onChange={e => setMoneda(e.target.value)}
-                    style={{ 
-                      minHeight: 40, 
-                      fontSize: 'var(--text-sm)',
-                      background: 'var(--bg-3)',
-                      color: 'var(--ink)',
-                      border: '1px solid var(--border)',
-                      borderRadius: 'var(--radius-sm)',
-                      padding: '0 var(--space-2)'
-                    }}
-                  >
-                    <option value="$">$ (Pesos)</option>
-                    <option value="U$D">USD (U$D)</option>
-                    <option value="€">€ (Euros)</option>
-                    <option value="Gs">Gs (Guaraníes)</option>
-                    <option value="R$">R$ (Reales)</option>
-                    <option value="UF">UF (Unidades de Fomento)</option>
-                  </select>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                  <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Nº Inicial de Pedido</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={numInicial}
-                    onChange={e => setNumInicial(Math.max(1, parseInt(e.target.value) || 1))}
-                    style={{ minHeight: 40, fontSize: 'var(--text-sm)', textAlign: 'center' }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Métodos de Pago Aceptados</label>
-                <input
-                  type="text"
-                  placeholder="Ej: Efectivo, Transferencia, Tarjeta"
-                  value={metodosPago}
-                  onChange={e => setMetodosPago(e.target.value)}
-                  style={{ minHeight: 40, fontSize: 'var(--text-sm)' }}
-                  autoComplete="off"
-                  autoCorrect="off"
-                />
-                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>Separados por comas. Define las opciones disponibles para nuevos cobros.</span>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Plantilla de Recordatorio de Pago (WhatsApp)</label>
-                <textarea
-                  placeholder="Hola {cliente}, tenés un pago pendiente de {saldo} correspondiente al pedido del {fecha}."
-                  value={recordatorioPlantilla}
-                  onChange={e => setRecordatorioPlantilla(e.target.value)}
-                  style={{ minHeight: 80, fontSize: 'var(--text-sm)', padding: 'var(--space-2)', background: 'var(--bg-2)', color: 'var(--ink)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)' }}
-                  autoComplete="off"
-                  autoCorrect="off"
-                />
-                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>
-                  Puedes usar las variables: <code>{"{cliente}"}</code>, <code>{"{saldo}"}</code>, y <code>{"{fecha}"}</code>. Si se deja vacío, se usará el mensaje por defecto.
-                </span>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Términos / Notas al pie (PDF)</label>
-                <textarea
-                  placeholder="Ej: Validez del presupuesto: 15 días. Cuentas para transferencia: ..."
-                  value={notaPdf}
-                  onChange={e => setNotaPdf(e.target.value)}
-                  style={{ minHeight: 60, fontSize: 'var(--text-sm)', padding: 'var(--space-2)', background: 'var(--bg-2)', color: 'var(--ink)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)' }}
-                  autoComplete="off"
-                  autoCorrect="off"
-                />
-                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>Se imprime al final de los presupuestos y remitos generados.</span>
-              </div>
+          {/* Tarjeta 3: Moneda y Documentos */}
+          <div className="card" style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border)', paddingBottom: '10px', marginBottom: '4px' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 700, margin: 0, color: 'var(--ink)' }}>Documentos y Preferencias</h3>
             </div>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>Símbolo de Moneda</label>
+                <select
+                  value={moneda}
+                  onChange={e => setMoneda(e.target.value)}
+                  style={{ 
+                    minHeight: 40, 
+                    fontSize: 'var(--text-sm)',
+                    background: 'var(--bg-3)',
+                    color: 'var(--ink)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-sm)',
+                    padding: '0 var(--space-2)'
+                  }}
+                >
+                  <option value="$">$ (Pesos)</option>
+                  <option value="U$D">USD (U$D)</option>
+                  <option value="€">€ (Euros)</option>
+                  <option value="Gs">Gs (Guaraníes)</option>
+                  <option value="R$">R$ (Reales)</option>
+                  <option value="UF">UF (Unidades de Fomento)</option>
+                </select>
+              </div>
 
-            {/* Botón Guardar Configuración del Negocio */}
-            <div style={{ display: 'flex', borderTop: '1px solid var(--border)', paddingTop: 'var(--space-4)' }}>
-              <button 
-                className="btn btn-primary btn-full" 
-                onClick={handleSaveConfig} 
-                disabled={savingNegocio || !negocioNombre.trim()} 
-                style={{ minHeight: 44, fontSize: 'var(--text-sm)' }}
-              >
-                {savingNegocio ? 'Guardando...' : 'Guardar Configuración'}
-              </button>
-            </div>
-
-            {/* Alertas de cobro */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', borderTop: '1px solid var(--border)', paddingTop: 'var(--space-4)' }}>
-              <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Alertas de cobro</label>
-              <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>Nº Inicial Pedido</label>
                 <input
                   type="number"
                   min="1"
-                  max="365"
-                  value={diasAlerta}
-                  onChange={e => setDiasAlerta(parseInt(e.target.value) || 7)}
-                  style={{ width: 80, minHeight: 40, textAlign: 'center', fontSize: 'var(--text-base)' }}
+                  value={numInicial}
+                  onChange={e => setNumInicial(Math.max(1, parseInt(e.target.value) || 1))}
+                  style={{ minHeight: 40, fontSize: 'var(--text-sm)', textAlign: 'center', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--ink)' }}
                 />
-                <span style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>días sin cobrar</span>
-                <button
-                  className="btn btn-secondary"
-                  style={{ minHeight: 40, padding: '0 var(--space-4)', fontSize: 'var(--text-sm)', marginLeft: 'auto' }}
-                  onClick={handleSaveAlerta}
-                  disabled={savingAlerta}
-                >
-                  {savingAlerta ? 'Guardando...' : 'Guardar'}
-                </button>
               </div>
-              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>Alerta en la lista de clientes si tienen saldos sin cobrar por más de este tiempo.</span>
             </div>
 
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+              <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>Métodos de Pago Aceptados</label>
+              <input
+                type="text"
+                placeholder="Ej: Efectivo, Transferencia, Tarjeta"
+                value={metodosPago}
+                onChange={e => setMetodosPago(e.target.value)}
+                style={{ minHeight: 40, fontSize: 'var(--text-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0 var(--space-3)', color: 'var(--ink)' }}
+                autoComplete="off"
+                autoCorrect="off"
+              />
+              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', lineHeight: 1.3 }}>Separados por comas. Opciones disponibles para nuevos cobros.</span>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+              <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>Términos / Notas al pie (PDF)</label>
+              <textarea
+                placeholder="Ej: Validez del presupuesto: 15 días. Cuentas para transferencia: ..."
+                value={notaPdf}
+                onChange={e => setNotaPdf(e.target.value)}
+                style={{ minHeight: 70, fontSize: 'var(--text-sm)', padding: 'var(--space-2)', background: 'var(--bg-3)', color: 'var(--ink)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)' }}
+                autoComplete="off"
+                autoCorrect="off"
+              />
+              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', lineHeight: 1.3 }}>Se imprime al final de los presupuestos y remitos generados.</span>
+            </div>
           </div>
+
+          {/* Tarjeta 4: Comunicaciones y Recordatorios */}
+          <div className="card" style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border)', paddingBottom: '10px', marginBottom: '4px' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 700, margin: 0, color: 'var(--ink)' }}>Recordatorio de Pago (WhatsApp)</h3>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+              <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>Plantilla de mensaje</label>
+              <textarea
+                placeholder="Hola {cliente}, tenés un pago pendiente de {saldo} correspondiente al pedido del {fecha}."
+                value={recordatorioPlantilla}
+                onChange={e => setRecordatorioPlantilla(e.target.value)}
+                style={{ minHeight: 90, fontSize: 'var(--text-sm)', padding: 'var(--space-2)', background: 'var(--bg-3)', color: 'var(--ink)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', lineHeight: 1.4 }}
+                autoComplete="off"
+                autoCorrect="off"
+              />
+              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', lineHeight: 1.4 }}>
+                Variables disponibles: <code>{"{cliente}"}</code>, <code>{"{saldo}"}</code>, y <code>{"{fecha}"}</code>. Dejar vacío para usar plantilla por defecto.
+              </span>
+            </div>
+          </div>
+
+          {/* Botón Guardar Configuración del Negocio (Principal) */}
+          <div style={{ display: 'flex', padding: '0 var(--space-1)' }}>
+            <button 
+              className="btn btn-primary btn-full" 
+              onClick={handleSaveConfig} 
+              disabled={savingNegocio || !negocioNombre.trim()} 
+              style={{ minHeight: 48, fontSize: 'var(--text-base)', fontWeight: 700, borderRadius: 'var(--radius-lg)', boxShadow: '0 4px 12px rgba(204,255,0,0.2)' }}
+            >
+              {savingNegocio ? 'Guardando...' : '✓ Guardar Cambios del Sistema'}
+            </button>
+          </div>
+
+          {/* Tarjeta 5: Alertas de cobro */}
+          <div className="card" style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border)', paddingBottom: '10px', marginBottom: '4px' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 700, margin: 0, color: 'var(--ink)' }}>Alertas de Cobro Tardío</h3>
+            </div>
+            
+            <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+              <input
+                type="number"
+                min="1"
+                max="365"
+                value={diasAlerta}
+                onChange={e => setDiasAlerta(parseInt(e.target.value) || 7)}
+                style={{ width: 80, minHeight: 40, textAlign: 'center', fontSize: 'var(--text-base)', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--ink)' }}
+              />
+              <span style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>días sin cobrar</span>
+              <button
+                className="btn btn-secondary"
+                style={{ minHeight: 40, padding: '0 var(--space-4)', fontSize: 'var(--text-sm)', marginLeft: 'auto' }}
+                onClick={handleSaveAlerta}
+                disabled={savingAlerta}
+              >
+                {savingAlerta ? 'Guardando...' : 'Guardar Alerta'}
+              </button>
+            </div>
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', lineHeight: 1.3 }}>Muestra un aviso de mora en la lista de clientes si tienen saldos pendientes por más de este tiempo.</span>
+          </div>
+
         </div>
       )}
 

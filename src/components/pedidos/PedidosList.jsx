@@ -210,10 +210,14 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
                   </span>
                   {estadoMonto}
                 </div>
-                <div className="card-row">
-                  <span className="card-sub">{formatDate(p.fecha)}</span>
-                  <MedioPill medio={p.medioPago} cuotas={p.cuotas} />
-                  {estadoBadge}
+                <div className="card-row-three">
+                  <span className="card-sub" style={{ textAlign: 'left' }}>{formatDate(p.fecha)}</span>
+                  <div style={{ display: 'flex', justifyContent: 'center' }}>
+                    <MedioPill medio={p.medioPago} cuotas={p.cuotas} />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    {estadoBadge}
+                  </div>
                 </div>
                 {venc && (
                   <div className="card-row" style={{ marginTop: -4 }}>

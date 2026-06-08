@@ -122,45 +122,45 @@ export function ClientesList({ clientes, pedidos, devoluciones, negocioConfig, o
             whileTap={{ scale: 0.98 }}
             onClick={() => setVerCobros(true)}
             style={{
-              width: '100%', padding: '14px 16px',
-              borderRadius: 16,
-              background: 'rgba(248,113,113,0.07)',
-              border: '1.5px solid rgba(248,113,113,0.3)',
+              width: '100%', padding: '10px 14px',
+              borderRadius: 12,
+              background: 'var(--bg-2)',
+              border: '1px solid var(--border)',
               cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: 14,
+              display: 'flex', alignItems: 'center', gap: 10,
               textAlign: 'left',
             }}
           >
             <div style={{
-              width: 42, height: 42, borderRadius: 13,
-              background: 'rgba(248,113,113,0.15)',
+              width: 32, height: 32, borderRadius: 8,
+              background: 'rgba(248,113,113,0.1)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
             }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2.5">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2.5">
                 <circle cx="12" cy="12" r="10"/>
                 <line x1="12" y1="8" x2="12" y2="12"/>
                 <line x1="12" y1="16" x2="12.01" y2="16"/>
               </svg>
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#f87171', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-2)' }}>
                 {deudores.length === 1 ? '1 cliente te debe' : `${deudores.length} clientes te deben`}
                 {enMora > 0 && (
                   <span style={{
-                    fontSize: 10, fontWeight: 700,
-                    background: 'rgba(248,113,113,0.2)', color: '#f87171',
-                    padding: '1px 7px', borderRadius: 999,
+                    marginLeft: 6,
+                    fontSize: 9, fontWeight: 700,
+                    background: 'rgba(248,113,113,0.15)', color: '#f87171',
+                    padding: '1px 6px', borderRadius: 999,
                   }}>
                     {enMora} en mora
                   </span>
                 )}
               </div>
-              <div style={{ fontSize: 19, fontWeight: 800, color: 'var(--ink)', marginTop: 1 }}>
-                {formatCurrency(totalDeuda)}{' '}
-                <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--ink-3)' }}>en total</span>
+              <div style={{ fontSize: 15, fontWeight: 800, color: '#f87171' }}>
+                {formatCurrency(totalDeuda)}
               </div>
             </div>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(248,113,113,0.6)" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2.5" style={{ flexShrink: 0 }}>
               <polyline points="9 18 15 12 9 6"/>
             </svg>
           </motion.button>
@@ -223,8 +223,8 @@ export function ClientesList({ clientes, pedidos, devoluciones, negocioConfig, o
                 onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') onSelect(c.id); }}
                 style={{
                   borderRadius: 18,
-                  border: `1.5px solid ${estado.border}`,
-                  background: `linear-gradient(135deg, var(--bg-2) 55%, ${estado.bg})`,
+                  border: '1px solid var(--border)',
+                  background: 'var(--bg-2)',
                   padding: '14px 14px 14px 18px',
                   cursor: 'pointer',
                   display: 'flex', alignItems: 'center', gap: 14,
@@ -232,21 +232,13 @@ export function ClientesList({ clientes, pedidos, devoluciones, negocioConfig, o
                   transition: 'transform 100ms',
                 }}
               >
-                {/* Barra de color a la izquierda */}
-                <div style={{
-                  position: 'absolute', left: 0, top: 0, bottom: 0, width: 4,
-                  background: estado.color,
-                  borderRadius: '18px 0 0 18px',
-                  opacity: 0.85,
-                }} />
-
                 {/* Avatar */}
                 <div style={{
                   width: 48, height: 48, borderRadius: 14, flexShrink: 0,
-                  background: `${estado.color}1a`,
-                  border: `1.5px solid ${estado.color}40`,
+                  background: 'var(--bg-3)',
+                  border: '1px solid var(--border)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 20, fontWeight: 800, color: estado.color,
+                  fontSize: 20, fontWeight: 800, color: 'var(--ink-2)',
                   overflow: 'hidden',
                 }}>
                   {c.foto_url

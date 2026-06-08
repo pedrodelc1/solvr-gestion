@@ -134,10 +134,12 @@ export function PedidosTab({
                     {formatCurrency(p.totalFinal)}
                   </span>
                 </div>
-                <div className="card-row">
-                  <span className="card-sub">{formatDate(p.fecha)}</span>
-                  <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+                <div className="card-row-three">
+                  <span className="card-sub" style={{ textAlign: 'left' }}>{formatDate(p.fecha)}</span>
+                  <div style={{ display: 'flex', justifyContent: 'center' }}>
                     <MedioPill medio={p.medioPago} cuotas={p.cuotas} />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                     <span className={`badge ${p.cobrado ? 'badge-ok' : 'badge-warn'}`}>
                       {p.cobrado ? 'Cobrado' : 'Pendiente'}
                     </span>

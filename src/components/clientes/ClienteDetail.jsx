@@ -122,9 +122,6 @@ export function ClienteDetail({ cliente, pedidos, devoluciones = [], comunicacio
               <span className="badge" style={{ marginLeft: 8, fontSize: 10, background: 'var(--accent-2)', color: 'var(--accent)' }}>Mayorista</span>
             )}
           </div>
-          {cliente.contacto && (
-            <div className="card-sub" style={{ marginTop: 4, display: 'inline-flex', alignItems: 'center', gap: 4 }}><SvgPhone />{cliente.contacto}</div>
-          )}
         </div>
         <div className={`saldo-amount ${saldo > 0 ? 'amount-debt' : 'amount-paid'}`}>
           {formatCurrency(saldo)}
@@ -154,6 +151,57 @@ export function ClienteDetail({ cliente, pedidos, devoluciones = [], comunicacio
           </svg>
           Cuenta
         </button>
+      </div>
+
+      {/* ── Datos del cliente ── */}
+      <div className="section-label">Datos de contacto</div>
+      <div style={{ padding: '0 var(--space-4) var(--space-2)' }}>
+        <div className="card" style={{ padding: 'var(--space-3)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+          {/* Teléfono */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--bg-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ink-2)', flexShrink: 0 }}>
+              <SvgPhone />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 10, color: 'var(--ink-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Teléfono</div>
+              <div style={{ fontSize: 13, color: 'var(--ink)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {cliente.contacto || <span style={{ color: 'var(--ink-3)', fontStyle: 'italic' }}>Sin teléfono</span>}
+              </div>
+            </div>
+          </div>
+
+          {/* Email */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--bg-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ink-2)', flexShrink: 0 }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+              </svg>
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 10, color: 'var(--ink-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Email</div>
+              <div style={{ fontSize: 13, color: 'var(--ink)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {cliente.email || <span style={{ color: 'var(--ink-3)', fontStyle: 'italic' }}>Sin email</span>}
+              </div>
+            </div>
+          </div>
+
+          {/* Dirección */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--bg-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ink-2)', flexShrink: 0 }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                <circle cx="12" cy="10" r="3"/>
+              </svg>
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 10, color: 'var(--ink-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Dirección</div>
+              <div style={{ fontSize: 13, color: 'var(--ink)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {cliente.direccion || <span style={{ color: 'var(--ink-3)', fontStyle: 'italic' }}>Sin dirección</span>}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {clienteDevoluciones.length > 0 && (
@@ -215,17 +263,21 @@ export function ClienteDetail({ cliente, pedidos, devoluciones = [], comunicacio
         ) : (
           clientePedidos.map(p => (
             <div key={p.id} className="card">
-              <div className="card-row">
-                <span className="card-sub">{formatDate(p.fecha)}</span>
-                {p.tipo === 'presupuesto'
-                  ? <span className="badge badge-info">Presupuesto</span>
-                  : <MedioPill medio={p.medioPago} cuotas={p.cuotas} />
-                }
-                {p.tipo !== 'presupuesto' && (
-                  <span className={`badge ${p.cobrado ? 'badge-ok' : 'badge-warn'}`}>
-                    {p.cobrado ? 'Cobrado' : 'Pendiente'}
-                  </span>
-                )}
+              <div className="card-row-three">
+                <span className="card-sub" style={{ textAlign: 'left' }}>{formatDate(p.fecha)}</span>
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                  {p.tipo === 'presupuesto'
+                    ? <span className="badge badge-info">Presupuesto</span>
+                    : <MedioPill medio={p.medioPago} cuotas={p.cuotas} />
+                  }
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  {p.tipo !== 'presupuesto' && (
+                    <span className={`badge ${p.cobrado ? 'badge-ok' : 'badge-warn'}`}>
+                      {p.cobrado ? 'Cobrado' : 'Pendiente'}
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="card-row">
                 <span className="card-sub" style={{ flex: 1 }}>

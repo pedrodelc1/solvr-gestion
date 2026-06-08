@@ -148,18 +148,6 @@ export default function App() {
         }).catch(err => console.error('Error loading fresh user details:', err));
       }
     });
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      setSession(s);
-      setAuthChecked(true);
-
-      if (s) {
-        supabase.auth.getUser().then(({ data: { user } }) => {
-          if (user) {
-            setSession(prev => prev && prev.user.id === user.id ? { ...prev, user } : prev);
-          }
-        }).catch(err => console.error('Error loading fresh user details:', err));
-      }
-    });
     return () => subscription.unsubscribe();
   }, []);
 

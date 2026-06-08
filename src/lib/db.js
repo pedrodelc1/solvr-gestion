@@ -448,6 +448,23 @@ export async function marcarPedidoEntregado(pedidoId) {
   return getPedidos();
 }
 
+export async function revertirPedidoEntregado(pedidoId) {
+  if (!useSupabase()) {
+    const arr = lsGet('pedidos', []);
+    const i = arr.findIndex(p => p.id === pedidoId);
+    if (i >= 0) arr[i].items = arr[i].items.map(it => ({ ...it, entregado: false, fechaEntrega: null }));
+    lsSet('pedidos', arr);
+    return arr;
+  }
+  const { error } = await supabase
+    .from('pedido_items')
+    .update({ entregado: false, fecha_entrega: null })
+    .eq('pedido_id', pedidoId);
+  if (error) throw error;
+  return getPedidos();
+}
+
+
 // Convierte un presupuesto en pedido real — irreversible, descuenta stock
 export async function convertirPresupuesto(pedidoId) {
   if (!useSupabase()) {

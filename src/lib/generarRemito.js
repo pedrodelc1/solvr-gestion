@@ -2,7 +2,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { formatCurrency, formatDate } from './utils.js';
 
-export async function generarRemito({ pedido, cliente, negocio = 'Mi Negocio', logoUrl = null }) {
+export async function generarRemito({ pedido, cliente, negocio = 'Mi Negocio', logoUrl = null, isEntregado = false }) {
   const localNegocio = JSON.parse(localStorage.getItem('sg_negocio') || '{}');
   const negocioNombre = localNegocio.nombre || negocio || 'Mi Negocio';
   const telefono = localNegocio.telefono || '';
@@ -57,7 +57,10 @@ export async function generarRemito({ pedido, cliente, negocio = 'Mi Negocio', l
           ${email ? `<div>Email: ${email}</div>` : ''}
         </div>
       </div>
-      <div style="text-align:right;font-size:13px;color:#555;padding-bottom:4px">${formatDate(pedido.fecha)}</div>
+      <div style="text-align:right">
+        <div style="font-size:13px;color:#555;padding-bottom:6px">${formatDate(pedido.fecha)}</div>
+        ${isEntregado ? `<div style="display:inline-block;background:#16a34a;color:#fff;font-size:11px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;padding:5px 12px;border-radius:6px">✓ Entregado y pagado</div>` : ''}
+      </div>
     </div>
 
     <div style="margin-bottom:24px;padding:14px;background:#f7f7f7;border-radius:6px">

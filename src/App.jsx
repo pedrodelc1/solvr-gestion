@@ -18,6 +18,7 @@ import {
   getNegocioConfig, saveNegocioConfig,
   getComunicaciones,
   marcarPedidoEntregado,
+  revertirPedidoEntregado,
 } from './lib/db.js';
 import { inRange, saldoCliente } from './lib/utils.js';
 
@@ -350,6 +351,14 @@ export default function App() {
     } catch (e) { toast(e.message, 'error'); }
   }
 
+  async function handleRevertirEntregado(id) {
+    try {
+      const arr = await revertirPedidoEntregado(id);
+      setPedidos(arr);
+      toast('Entrega revertida');
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
   async function handleProductoCreado(newProd) {
     try {
       const arr = await saveProducto({ nombre: newProd.nombre, precio: newProd.precio, costo: newProd.costo || 0 });
@@ -593,6 +602,7 @@ export default function App() {
             onDelete={handleDeletePedido}
             onEdit={p => { setEditingPedido(p); setShowPedidoForm(true); }}
             onMarcarEntregado={handleMarcarEntregado}
+            onRevertirEntregado={handleRevertirEntregado}
             onRefresh={loadAll}
             toast={toast}
             userRole={userRole}

@@ -45,10 +45,23 @@ import { TeamWelcomeScreen } from './components/onboarding/TeamWelcomeScreen.jsx
 let _toastId = 0;
 
 export default function App() {
+  // ── Auth & Verification States ────────────────────────────
   const [session, setSession] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [showSplash, setShowSplash] = useState(() => !sessionStorage.getItem('sg_splash_done'));
   const [theme, setTheme] = useState(() => localStorage.getItem('sg_theme') || 'dark');
+
+  // Token verification intercepts (to prevent email client prefetch consuming links)
+  const [verifyTokenHash, setVerifyTokenHash] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('token_hash') || null;
+  });
+  const [verifyType, setVerifyType] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('type') || 'magiclink';
+  });
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+  const [verifyOtpError, setVerifyOtpError] = useState('');
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -423,6 +436,58 @@ export default function App() {
   }
 
   // ── Render ────────────────────────────────────────────────
+
+  if (verifyTokenHash) {
+    return (
+      <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-6)', background: '#080808', color: '#fff' }}>
+        <div style={{ width: '100%', maxWidth: 380, textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', alignItems: 'center' }}>
+          <div style={{ fontSize: '3rem', fontWeight: 900, letterSpacing: '-0.04em', color: '#fff', textAlign: 'center' }}>Solvnt.</div>
+          <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, textAlign: 'center', color: '#fff', margin: 0 }}>Confirmar inicio de sesión</h2>
+          <p style={{ color: 'var(--ink-2)', fontSize: 'var(--text-sm)', lineHeight: 1.5, textAlign: 'center', margin: 0 }}>
+            Para ingresar de forma segura a tu cuenta, haz clic en el botón de abajo:
+          </p>
+          {verifyOtpError && (
+            <p style={{ color: 'var(--danger)', fontSize: 'var(--text-sm)', margin: 0, textAlign: 'center' }}>{verifyOtpError}</p>
+          )}
+          <button
+            className="btn btn-primary btn-full"
+            disabled={verifyingOtp}
+            onClick={async () => {
+              setVerifyingOtp(true);
+              setVerifyOtpError('');
+              try {
+                const { error } = await supabase.auth.verifyOtp({
+                  token_hash: verifyTokenHash,
+                  type: verifyType,
+                });
+                if (error) throw error;
+                // Success! Clear URL params
+                window.history.replaceState({}, document.title, window.location.pathname);
+                setVerifyTokenHash(null);
+              } catch (err) {
+                setVerifyOtpError(err.message === 'Token has expired' ? 'El enlace de inicio de sesión ha expirado o es inválido' : err.message);
+              } finally {
+                setVerifyingOtp(false);
+              }
+            }}
+            style={{ minHeight: 48, fontSize: 'var(--text-base)', fontWeight: 700, width: '100%', background: '#ffffff', color: '#000000', borderRadius: '6px', border: 'none', cursor: 'pointer' }}
+          >
+            {verifyingOtp ? 'Ingresando...' : 'Confirmar e Ingresar'}
+          </button>
+          <button
+            className="login-back-btn"
+            onClick={() => {
+              window.history.replaceState({}, document.title, window.location.pathname);
+              setVerifyTokenHash(null);
+            }}
+            style={{ background: 'none', border: 'none', color: 'var(--ink-3)', fontSize: 'var(--text-sm)', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
+          >
+            Cancelar y volver al login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (showSplash) {
     return <SplashScreen onDone={handleSplashDone} />;

@@ -14,6 +14,9 @@ export function LoginScreen() {
   const [verifying, setVerifying] = useState(false);
   const [verifyError, setVerifyError] = useState('');
 
+  const [method, setMethod] = useState('otp'); // 'otp' or 'password'
+  const [password, setPassword] = useState('');
+
   async function handleSubmit(e) {
     e.preventDefault();
     if (!email.trim()) return;
@@ -26,15 +29,27 @@ export function LoginScreen() {
       setError('Este email no tiene acceso. Contactá al administrador.');
       return;
     }
-    const { error: err } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: { emailRedirectTo: window.location.origin },
-    });
-    setLoading(false);
-    if (err) {
-      setError(err.message);
+
+    if (method === 'password') {
+      const { error: err } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: password,
+      });
+      setLoading(false);
+      if (err) {
+        setError(err.message === 'Invalid login credentials' ? 'Credenciales incorrectas' : err.message);
+      }
     } else {
-      setSent(true);
+      const { error: err } = await supabase.auth.signInWithOtp({
+        email: email.trim(),
+        options: { emailRedirectTo: window.location.origin },
+      });
+      setLoading(false);
+      if (err) {
+        setError(err.message);
+      } else {
+        setSent(true);
+      }
     }
   }
 
@@ -106,20 +121,58 @@ export function LoginScreen() {
                      required
                   />
                 </div>
+                {method === 'password' && (
+                  <div style={{ marginTop: 'var(--space-3)' }}>
+                    <label className="login-label" htmlFor="login-password">Contraseña</label>
+                    <input
+                       id="login-password"
+                       type="password"
+                       placeholder="••••••••"
+                       value={password}
+                       onChange={e => setPassword(e.target.value)}
+                       autoComplete="current-password"
+                       required
+                       style={{ background: '#111111', borderColor: '#333333', color: '#ffffff', width: '100%', padding: '10px', borderRadius: '6px', minHeight: 44 }}
+                    />
+                  </div>
+                )}
                 {error && (
-                  <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-danger)' }}>{error}</p>
+                  <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-danger)', marginTop: 'var(--space-2)' }}>{error}</p>
                 )}
                 <button
                   type="submit"
                   className="btn btn-primary btn-full"
-                  disabled={loading || !email.trim()}
+                  disabled={loading || !email.trim() || (method === 'password' && !password)}
+                  style={{ marginTop: 'var(--space-4)' }}
                 >
-                  {loading ? 'Enviando...' : 'Enviar acceso'}
+                  {loading ? 'Ingresando...' : method === 'password' ? 'Iniciar sesión' : 'Enviar acceso'}
                 </button>
               </form>
+              <div style={{ marginTop: 'var(--space-4)', textAlign: 'center' }}>
+                {method === 'otp' ? (
+                  <button 
+                    type="button" 
+                    className="login-back-btn" 
+                    onClick={() => { setMethod('password'); setError(''); }}
+                  >
+                    Ingresar con contraseña
+                  </button>
+                ) : (
+                  <button 
+                    type="button" 
+                    className="login-back-btn" 
+                    onClick={() => { setMethod('otp'); setError(''); }}
+                  >
+                    Ingresar sin contraseña (link/código)
+                  </button>
+                )}
+              </div>
               <div style={{ marginTop: 'var(--space-4)' }}>
                 <p className="login-hint">
-                  Te enviaremos un link de acceso a tu email.<br />Sin contraseña.
+                  {method === 'otp' 
+                    ? 'Te enviaremos un link de acceso a tu email. Sin contraseña.'
+                    : 'Ingresá con tu email y la contraseña establecida desde tu perfil.'
+                  }
                 </p>
               </div>
             </motion.div>

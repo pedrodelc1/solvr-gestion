@@ -10,10 +10,6 @@ export function LoginScreen() {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
 
-  const [otpToken, setOtpToken] = useState('');
-  const [verifying, setVerifying] = useState(false);
-  const [verifyError, setVerifyError] = useState('');
-
   const [method, setMethod] = useState('otp'); // 'otp' or 'password'
   const [password, setPassword] = useState('');
 
@@ -50,34 +46,6 @@ export function LoginScreen() {
       } else {
         setSent(true);
       }
-    }
-  }
-
-  async function handleVerifyOtp(e) {
-    e.preventDefault();
-    if (otpToken.trim().length !== 6) return;
-    setVerifying(true);
-    setVerifyError('');
-    try {
-      // Try 'magiclink' type first (standard for signInWithOtp)
-      const { error: err } = await supabase.auth.verifyOtp({
-        email: email.trim(),
-        token: otpToken.trim(),
-        type: 'magiclink',
-      });
-      if (err) {
-        // Try fallback to 'email' type if configuration differs
-        const { error: errFallback } = await supabase.auth.verifyOtp({
-          email: email.trim(),
-          token: otpToken.trim(),
-          type: 'email',
-        });
-        if (errFallback) throw errFallback;
-      }
-    } catch (err) {
-      setVerifyError(err.message === 'Token has expired' ? 'El código expiró o es incorrecto' : err.message);
-    } finally {
-      setVerifying(false);
     }
   }
 
@@ -193,36 +161,11 @@ export function LoginScreen() {
               <h2>Revisá tu email</h2>
               <p style={{ marginBottom: 'var(--space-4)' }}>
                 Enviamos un acceso a<br />
-                <strong>{email}</strong>.
+                <strong>{email}</strong>.<br />
+                Tocá el link para entrar.
               </p>
-              
-              <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', width: '100%', marginBottom: 'var(--space-4)' }}>
-                <label className="login-label" style={{ textAlign: 'left' }}>O ingresá el código de 6 dígitos:</label>
-                <input
-                  type="text"
-                  pattern="[0-9]*"
-                  inputMode="numeric"
-                  maxLength={6}
-                  placeholder="123456"
-                  value={otpToken}
-                  onChange={e => setOtpToken(e.target.value.replace(/\D/g, ''))}
-                  style={{ textAlign: 'center', fontSize: '20px', letterSpacing: '4px', fontWeight: 'bold', minHeight: 44 }}
-                  required
-                />
-                {verifyError && (
-                  <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-danger)', margin: '4px 0 0', textAlign: 'center' }}>{verifyError}</p>
-                )}
-                <button
-                  type="submit"
-                  className="btn btn-primary btn-full"
-                  disabled={verifying || otpToken.length !== 6}
-                  style={{ minHeight: 40 }}
-                >
-                  {verifying ? 'Verificando...' : 'Ingresar con código'}
-                </button>
-              </form>
 
-              <button className="login-back-btn" onClick={() => { setSent(false); setEmail(''); setOtpToken(''); setVerifyError(''); }}>
+              <button className="login-back-btn" onClick={() => { setSent(false); setEmail(''); setPassword(''); }}>
                 Usar otro email
               </button>
             </motion.div>

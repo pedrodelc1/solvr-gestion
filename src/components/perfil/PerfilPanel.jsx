@@ -159,6 +159,9 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
     reader.readAsDataURL(file);
   }
 
+  const isSuperAdmin = email && import.meta.env.VITE_SUPERADMIN_EMAIL &&
+    email.toLowerCase().trim() === import.meta.env.VITE_SUPERADMIN_EMAIL.toLowerCase().trim();
+
   const totalClientes = clientes.length;
   const pendientes = pedidos.filter(p => !p.cobrado && p.tipo !== 'presupuesto').length;
   const totalDeuda = clientes.reduce((s, c) => s + Math.max(0, saldoCliente(c, pedidos)), 0);
@@ -1037,7 +1040,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
       )}
 
       {/* ── SUSCRIPCIONES (solo owner) ── */}
-      {isOwner && (
+      {isSuperAdmin && (
         <div style={{ padding: '24px 16px 0' }}>
           <button
             onClick={() => setShowAdminPanel(v => !v)}
@@ -1080,138 +1083,125 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
                 transition={{ duration: 0.22 }}
                 style={{ overflow: 'hidden' }}
               >
-                <div style={{ marginTop: 8, borderRadius: 14, background: 'var(--bg-2)', border: '1px solid var(--border)', padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ marginTop: 8, borderRadius: 14, background: 'var(--bg-2)', border: '1px solid var(--border)', overflow: 'hidden' }}>
                   {loadingSus ? (
-                    <p style={{ fontSize: 13, color: 'var(--ink-3)', textAlign: 'center', padding: '16px 0' }}>Cargando...</p>
+                    <p style={{ fontSize: 13, color: 'var(--ink-3)', textAlign: 'center', padding: 24 }}>Cargando...</p>
                   ) : suscripciones.length === 0 ? (
-                    <p style={{ fontSize: 13, color: 'var(--ink-3)' }}>Sin suscripciones registradas.</p>
+                    <p style={{ fontSize: 13, color: 'var(--ink-3)', padding: 20 }}>Sin clientes registrados aún.</p>
                   ) : (() => {
                     const PRECIO_PLAN = 4990;
                     const activas = suscripciones.filter(s => s.estado === 'activa').length;
                     const pruebas = suscripciones.filter(s => s.estado === 'prueba').length;
+                    const bajas  = suscripciones.filter(s => s.estado === 'bloqueada').length;
                     const mrr = activas * PRECIO_PLAN;
 
                     const estadoConfig = {
-                      activa:    { label: 'Activa',    color: '#4ade80', bg: 'rgba(74,222,128,0.12)' },
-                      prueba:    { label: 'En prueba', color: '#60a5fa', bg: 'rgba(96,165,250,0.12)' },
-                      vencida:   { label: 'Vencida',   color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
-                      bloqueada: { label: 'Bloqueada', color: '#f87171', bg: 'rgba(248,113,113,0.12)' },
+                      activa:    { label: 'Activo',     color: '#4ade80', bg: 'rgba(74,222,128,0.1)'  },
+                      prueba:    { label: 'En prueba',  color: '#f59e0b', bg: 'rgba(245,158,11,0.1)'  },
+                      vencida:   { label: 'Vencido',    color: '#f87171', bg: 'rgba(248,113,113,0.1)' },
+                      bloqueada: { label: 'Dado de baja', color: '#94a3b8', bg: 'rgba(148,163,184,0.1)' },
                     };
 
                     return (
                       <>
-                        {/* Resumen MRR */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8 }}>
+                        {/* KPIs */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderBottom: '1px solid var(--border)' }}>
                           {[
-                            { label: 'MRR', value: formatCurrency(mrr), color: BRAND },
-                            { label: 'Activas', value: activas, color: '#4ade80' },
-                            { label: 'Prueba', value: pruebas, color: '#60a5fa' },
-                            { label: 'Total', value: suscripciones.length, color: 'var(--ink-2)' },
-                          ].map(s => (
-                            <div key={s.label} style={{ textAlign: 'center', padding: '10px 4px', background: 'var(--bg-3)', borderRadius: 10, border: '1px solid var(--border)' }}>
-                              <div style={{ fontSize: 9, color: 'var(--ink-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{s.label}</div>
-                              <div style={{ fontWeight: 800, fontSize: 16, color: s.color, marginTop: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.value}</div>
+                            { label: 'MRR estimado', value: formatCurrency(mrr), color: BRAND },
+                            { label: 'Activos',       value: activas,             color: '#4ade80' },
+                            { label: 'En prueba',     value: pruebas,             color: '#f59e0b' },
+                          ].map((k, i) => (
+                            <div key={k.label} style={{
+                              padding: '14px 12px', textAlign: 'center',
+                              borderRight: i < 2 ? '1px solid var(--border)' : 'none',
+                            }}>
+                              <div style={{ fontSize: 9, color: 'var(--ink-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{k.label}</div>
+                              <div style={{ fontWeight: 800, fontSize: 17, color: k.color }}>{k.value}</div>
                             </div>
                           ))}
                         </div>
 
-                        {/* Lista de usuarios */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                          {suscripciones.map(s => {
-                            const esOwn = s.user_email === email;
+                        {/* Lista */}
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          {suscripciones.filter(s => s.user_email !== email).map((s, i, arr) => {
                             const dias = Math.round((new Date(s.fecha_vencimiento) - new Date()) / (1000 * 60 * 60 * 24));
                             const est = estadoConfig[s.estado] || estadoConfig.vencida;
-                            const diasTotales = Math.round((new Date(s.fecha_vencimiento) - new Date(s.fecha_inicio)) / (1000 * 60 * 60 * 24));
-                            const progreso = Math.max(0, Math.min(100, (dias / diasTotales) * 100));
+                            const isBaja = s.estado === 'bloqueada';
 
                             return (
-                              <motion.div
-                                key={s.id}
-                                layout
-                                style={{
-                                  borderRadius: 12, padding: '14px',
-                                  background: 'var(--bg-3)',
-                                  border: `1px solid ${esOwn ? BRAND + '33' : 'var(--border)'}`,
-                                  display: 'flex', flexDirection: 'column', gap: 10,
-                                }}
-                              >
-                                {/* Header usuario */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                  <div style={{
-                                    width: 32, height: 32, borderRadius: '50%',
-                                    background: esOwn ? BRAND_DIM : est.bg,
-                                    border: `1.5px solid ${esOwn ? BRAND + '55' : est.color + '55'}`,
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    fontSize: 13, fontWeight: 800,
-                                    color: esOwn ? BRAND : est.color, flexShrink: 0,
-                                  }}>
-                                    {(s.user_email || '?')[0].toUpperCase()}
-                                  </div>
-                                  <div style={{ flex: 1, overflow: 'hidden' }}>
-                                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                      {s.user_email || s.user_id?.slice(0, 12) + '...'}
-                                    </div>
-                                    {s.planes?.nombre && (
-                                      <div style={{ fontSize: 10, color: 'var(--ink-3)', marginTop: 1 }}>{s.planes.nombre}</div>
-                                    )}
-                                  </div>
-                                  {esOwn ? (
-                                    <span style={{ fontSize: 10, color: BRAND, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: BRAND_DIM, border: `1px solid ${BRAND}33`, whiteSpace: 'nowrap' }}>OWNER</span>
-                                  ) : (
-                                    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: est.bg, border: `1px solid ${est.color}44`, color: est.color, whiteSpace: 'nowrap' }}>
-                                      {est.label}
-                                    </span>
-                                  )}
+                              <div key={s.id} style={{
+                                padding: '14px 16px',
+                                borderBottom: i < arr.length - 1 ? '1px solid var(--border)' : 'none',
+                                display: 'flex', alignItems: 'center', gap: 12,
+                                opacity: isBaja ? 0.55 : 1,
+                                transition: 'opacity 200ms',
+                              }}>
+                                {/* Avatar */}
+                                <div style={{
+                                  width: 38, height: 38, borderRadius: '50%', flexShrink: 0,
+                                  background: est.bg, border: `1.5px solid ${est.color}44`,
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  fontSize: 14, fontWeight: 800, color: est.color,
+                                }}>
+                                  {(s.user_email || '?')[0].toUpperCase()}
                                 </div>
 
-                                {!esOwn && (
-                                  <>
-                                    {/* Barra de progreso */}
-                                    <div>
-                                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                                        <span style={{ fontSize: 10, color: 'var(--ink-3)' }}>Vence {formatDate(s.fecha_vencimiento)}</span>
-                                        <span style={{ fontSize: 10, fontWeight: 700, color: dias < 0 ? '#f87171' : dias <= 5 ? '#f59e0b' : '#4ade80' }}>
-                                          {dias < 0 ? `Vencida hace ${Math.abs(dias)}d` : `${dias} días restantes`}
-                                        </span>
-                                      </div>
-                                      <div style={{ height: 4, borderRadius: 99, background: 'var(--bg-4)', overflow: 'hidden' }}>
-                                        <div style={{
-                                          height: '100%', borderRadius: 99,
-                                          width: `${progreso}%`,
-                                          background: dias < 0 ? '#f87171' : dias <= 5 ? '#f59e0b' : '#4ade80',
-                                          transition: 'width 600ms ease',
-                                        }} />
-                                      </div>
-                                    </div>
+                                {/* Info */}
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {s.user_email || s.user_id?.slice(0, 12) + '...'}
+                                  </div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
+                                    <span style={{ fontSize: 10, fontWeight: 700, color: est.color }}>{est.label}</span>
+                                    <span style={{ fontSize: 10, color: 'var(--ink-3)' }}>·</span>
+                                    <span style={{ fontSize: 10, color: dias < 0 ? '#f87171' : 'var(--ink-3)' }}>
+                                      {dias < 0 ? `Venció hace ${Math.abs(dias)}d` : `${dias}d restantes`}
+                                    </span>
+                                  </div>
+                                </div>
 
-                                    {/* Acciones */}
-                                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                                      <button
-                                        className="btn btn-secondary"
-                                        onClick={() => handleRenovar(s.id)}
-                                        style={{ flex: 1, minHeight: 34, fontSize: 11, fontWeight: 700, borderRadius: 8, color: BRAND, borderColor: BRAND + '55' }}
-                                      >
-                                        +30 días
-                                      </button>
-                                      {s.estado !== 'activa' && (
-                                        <button className="btn btn-secondary" style={{ flex: 1, minHeight: 34, fontSize: 11, borderRadius: 8, color: '#4ade80', borderColor: 'rgba(74,222,128,0.4)' }} onClick={() => handleUpdateSuscripcion(s.id, 'activa')}>
-                                          Activar
-                                        </button>
-                                      )}
-                                      {s.estado !== 'bloqueada' && (
-                                        <button className="btn btn-danger" style={{ flex: 1, minHeight: 34, fontSize: 11, borderRadius: 8 }} onClick={() => handleUpdateSuscripcion(s.id, 'bloqueada')}>
-                                          Bloquear
-                                        </button>
-                                      )}
-                                      {s.estado === 'bloqueada' || s.estado === 'activa' ? (
-                                        <button className="btn btn-secondary" style={{ flex: 1, minHeight: 34, fontSize: 11, borderRadius: 8, color: '#f59e0b', borderColor: 'rgba(245,158,11,0.4)' }} onClick={() => handleUpdateSuscripcion(s.id, 'vencida')}>
-                                          Vencer
-                                        </button>
-                                      ) : null}
-                                    </div>
-                                  </>
-                                )}
-                              </motion.div>
+                                {/* Acciones */}
+                                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                                  {!isBaja && (
+                                    <button
+                                      onClick={() => handleRenovar(s.id)}
+                                      style={{
+                                        height: 32, padding: '0 10px', borderRadius: 8,
+                                        background: BRAND_DIM, border: `1px solid ${BRAND}44`,
+                                        color: BRAND, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                                        whiteSpace: 'nowrap',
+                                      }}
+                                    >
+                                      +30d
+                                    </button>
+                                  )}
+                                  {isBaja ? (
+                                    <button
+                                      onClick={() => handleUpdateSuscripcion(s.id, 'activa')}
+                                      style={{
+                                        height: 32, padding: '0 10px', borderRadius: 8,
+                                        background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.35)',
+                                        color: '#4ade80', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                                        whiteSpace: 'nowrap',
+                                      }}
+                                    >
+                                      Reactivar
+                                    </button>
+                                  ) : (
+                                    <button
+                                      onClick={() => handleUpdateSuscripcion(s.id, 'bloqueada')}
+                                      style={{
+                                        height: 32, padding: '0 10px', borderRadius: 8,
+                                        background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.3)',
+                                        color: '#f87171', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                                        whiteSpace: 'nowrap',
+                                      }}
+                                    >
+                                      Dar de baja
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
                             );
                           })}
                         </div>

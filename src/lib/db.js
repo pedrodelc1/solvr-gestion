@@ -565,14 +565,26 @@ export async function isEmailAllowed(email) {
   if (!useSupabase()) return true;
   const superadmin = import.meta.env.VITE_SUPERADMIN_EMAIL;
   if (superadmin && email.toLowerCase().trim() === superadmin.toLowerCase().trim()) return true;
-  const { data, error } = await supabase
+
+  // Chequear allowed_emails
+  const { data: ae, error: aeError } = await supabase
     .from('allowed_emails')
     .select('id')
     .eq('email', email.toLowerCase().trim())
     .maybeSingle();
-  // If we can't read the table (e.g. unauthenticated + strict RLS), don't block
-  if (error) return null;
-  return !!data;
+  if (ae) return true;
+
+  // Chequear suscripciones activas/prueba
+  const { data: sus, error: susError } = await supabase
+    .from('suscripciones')
+    .select('id')
+    .eq('user_email', email.toLowerCase().trim())
+    .in('estado', ['activa', 'prueba'])
+    .maybeSingle();
+  if (sus) return true;
+
+  if (aeError && susError) return null;
+  return false;
 }
 
 export async function getAllowedEmails() {
@@ -625,24 +637,45 @@ export async function isOwnerEmail(email) {
   const superadmin = import.meta.env.VITE_SUPERADMIN_EMAIL;
   if (superadmin && email.toLowerCase().trim() === superadmin.toLowerCase().trim()) return true;
   if (!useSupabase()) return false;
-  const { data } = await supabase
+
+  const { data: ae } = await supabase
     .from('allowed_emails')
     .select('is_owner')
     .eq('email', email.toLowerCase().trim())
     .maybeSingle();
-  return !!data?.is_owner;
+  if (ae?.is_owner) return true;
+
+  // Si tiene suscripción activa/prueba → es dueño
+  const { data: sus } = await supabase
+    .from('suscripciones')
+    .select('id')
+    .eq('user_email', email.toLowerCase().trim())
+    .in('estado', ['activa', 'prueba'])
+    .maybeSingle();
+  return !!sus;
 }
 
 export async function getUserRole(email) {
   if (!useSupabase() || !email) return 'owner';
   const superadmin = import.meta.env.VITE_SUPERADMIN_EMAIL;
   if (superadmin && email.toLowerCase().trim() === superadmin.toLowerCase().trim()) return 'owner';
+
   const { data } = await supabase
     .from('allowed_emails')
     .select('is_owner, rol')
     .eq('email', email.toLowerCase().trim())
     .maybeSingle();
-  if (!data) return null;
+  
+  if (!data) {
+    // Chequear si es dueño por suscripción
+    const { data: sus } = await supabase
+      .from('suscripciones')
+      .select('id')
+      .eq('user_email', email.toLowerCase().trim())
+      .in('estado', ['activa', 'prueba'])
+      .maybeSingle();
+    return sus ? 'owner' : null;
+  }
   if (data.is_owner) return 'owner';
   return data.rol || 'vendedor';
 }

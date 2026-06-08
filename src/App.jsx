@@ -453,7 +453,12 @@ export default function App() {
   }
 
   if (!session) {
-    return <LoginScreen />;
+    return (
+      <>
+        <LoginScreen />
+        <ToastContainer toasts={toasts} />
+      </>
+    );
   }
 
   if (loading) {

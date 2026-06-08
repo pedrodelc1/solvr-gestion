@@ -169,6 +169,31 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
   const [loadingSus, setLoadingSus] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
 
+  // Password update states
+  const [newPassword, setNewPassword] = useState('');
+  const [updatingPassword, setUpdatingPassword] = useState(false);
+
+  async function handleUpdatePassword() {
+    if (!newPassword.trim()) return;
+    if (newPassword.trim().length < 6) {
+      toast('La contraseña debe tener al menos 6 caracteres', 'error');
+      return;
+    }
+    setUpdatingPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword.trim()
+      });
+      if (error) throw error;
+      toast('Contraseña establecida con éxito');
+      setNewPassword('');
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setUpdatingPassword(false);
+    }
+  }
+
   useEffect(() => {
     getAllowedEmails().then(setAllowedEmails);
     getAlertasConfig().then(cfg => setDiasAlerta(cfg.dias_sin_cobro));
@@ -909,6 +934,37 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
           )}
         </div>
       )}
+
+      {/* Seguridad (Establecer contraseña) — accesible para todos */}
+      <div style={{ padding: '0 var(--space-4)', marginBottom: 'var(--space-4)' }}>
+        <div className="section-label">Seguridad</div>
+        <div className="card" style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Establecer Contraseña</div>
+            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', marginTop: 2, lineHeight: 1.3 }}>
+              Crea una contraseña para ingresar a tu cuenta de forma directa en otros dispositivos (como tu celular) sin depender de los enlaces de correo.
+            </div>
+          </div>
+          
+          <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-1)' }}>
+            <input
+              type="password"
+              placeholder="Nueva contraseña"
+              value={newPassword}
+              onChange={e => setNewPassword(e.target.value)}
+              style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0 var(--space-3)', color: 'var(--ink)' }}
+            />
+            <button
+              className="btn btn-secondary"
+              onClick={handleUpdatePassword}
+              disabled={updatingPassword || !newPassword.trim()}
+              style={{ minHeight: 40, padding: '0 var(--space-4)', fontSize: 'var(--text-sm)' }}
+            >
+              {updatingPassword ? 'Guardando...' : 'Guardar'}
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* Tema — accesible para todos */}
       <div style={{ padding: '0 var(--space-4)', marginBottom: 'var(--space-4)' }}>

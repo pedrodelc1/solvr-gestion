@@ -2,16 +2,28 @@ import { useRef, useState } from 'react';
 import html2canvas from 'html2canvas';
 import { formatCurrency, formatDate } from '../../lib/utils.js';
 
-// Construye un historial cronológico de débitos y créditos a partir de los pedidos
-function buildMovimientos(pedidos) {
+// Construye un historial cronológico de débitos y créditos a partir de saldo inicial, pedidos y devoluciones
+function buildMovimientos(pedidos, devoluciones = [], cliente) {
   const movs = [];
 
-  const sorted = [...pedidos].sort((a, b) => a.fecha.localeCompare(b.fecha));
+  // 1. Saldo inicial (débito)
+  const saldoInicial = cliente?.saldo_inicial || 0;
+  if (saldoInicial > 0) {
+    const fechaInit = cliente?.created_at ? cliente.created_at.slice(0, 10) : '2026-06-01';
+    movs.push({
+      id: 'saldo-inicial',
+      fecha: fechaInit,
+      descripcion: 'Saldo inicial',
+      monto: saldoInicial,
+      tipo: 'debito',
+    });
+  }
 
-  for (const p of sorted) {
+  // 2. Pedidos (débitos y pagos asociados)
+  for (const p of pedidos) {
     if (p.tipo === 'presupuesto') continue;
     const total = p.totalFinal ?? p.totalCalculado;
-    const items = p.items.map(i => `${i.nombre} x${i.cantidad}`).join(', ');
+    const items = p.items ? p.items.map(i => `${i.nombre} x${i.cantidad}`).join(', ') : '';
 
     // Débito: el pedido
     movs.push({
@@ -29,7 +41,7 @@ function buildMovimientos(pedidos) {
       movs.push({
         id: `${p.id}-credit`,
         fecha: p.fecha,
-        descripcion: p.cobrado ? 'Pago total' : `Pago parcial`,
+        descripcion: p.cobrado ? 'Pago total' : 'Pago parcial',
         monto: abonado,
         tipo: 'credito',
         pedidoId: p.id,
@@ -37,20 +49,35 @@ function buildMovimientos(pedidos) {
     }
   }
 
+  // 3. Devoluciones / Notas de crédito (créditos)
+  for (const d of devoluciones) {
+    movs.push({
+      id: `${d.id}-dev`,
+      fecha: d.fecha,
+      descripcion: d.motivo ? `Devolución: ${d.motivo}` : 'Devolución / Nota de crédito',
+      monto: d.montoTotal,
+      tipo: 'credito',
+    });
+  }
+
+  // Ordenar movimientos por fecha de manera ascendente
+  const sorted = movs.sort((a, b) => a.fecha.localeCompare(b.fecha));
+
   // Calcular saldo acumulado
   let saldoAcumulado = 0;
-  return movs.map(m => {
+  return sorted.map(m => {
     saldoAcumulado += m.tipo === 'debito' ? m.monto : -m.monto;
     return { ...m, saldoAcumulado };
   });
 }
 
-export function CuentaCorriente({ cliente, pedidos, onBack }) {
+export function CuentaCorriente({ cliente, pedidos, devoluciones = [], onBack }) {
   const contentRef = useRef(null);
   const [exportando, setExportando] = useState(false);
 
   const clientePedidos = pedidos.filter(p => p.clienteId === cliente.id);
-  const movimientos = buildMovimientos(clientePedidos);
+  const clienteDevoluciones = devoluciones.filter(d => d.clienteId === cliente.id);
+  const movimientos = buildMovimientos(clientePedidos, clienteDevoluciones, cliente);
   const saldoFinal = movimientos.length > 0 ? movimientos[movimientos.length - 1].saldoAcumulado : 0;
 
   async function handleExportar() {

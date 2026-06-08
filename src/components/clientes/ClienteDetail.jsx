@@ -35,6 +35,7 @@ export function ClienteDetail({ cliente, pedidos, devoluciones = [], comunicacio
       <CuentaCorriente
         cliente={cliente}
         pedidos={pedidos}
+        devoluciones={devoluciones}
         onBack={() => setVerCuenta(false)}
       />
     );

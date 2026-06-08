@@ -68,6 +68,7 @@ export async function getClientes() {
     tipo_precio: r.tipo_precio || 'minorista',
     saldo_inicial: r.saldo_inicial || 0,
     foto_url: r.foto_url || null,
+    created_at: r.created_at || null,
   }));
   lsSet('clientes', mapped);
   return mapped;

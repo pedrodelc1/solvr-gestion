@@ -76,43 +76,42 @@ function DonutChart({ items }) {
   const total = items.reduce((s, i) => s + i.value, 0);
   if (total === 0) return null;
 
-  let accumulatedPercent = 0;
   const radius = 25;
   const strokeWidth = 50;
   const circ = 2 * Math.PI * radius;
 
-  // Curated highly visible colors for dark/light modes
   const colors = [
-    '#ccff00', // var(--primary) - lime
-    '#00e5ff', // cyan
+    '#ccff00', // lime (brand)
     '#ff9100', // orange
     '#ff2d55', // pink-red
     '#b388ff', // purple
-    '#39ff14'  // neon green
+    '#39ff14', // neon green
+    '#ffd600', // yellow
   ];
+
+  // Precalcular offsets correctamente
+  const slices = items.map((item) => item.value / total);
+  const offsets = slices.reduce((acc, pct, i) => {
+    acc.push(i === 0 ? 0 : acc[i - 1] + slices[i - 1]);
+    return acc;
+  }, []);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-5)', padding: 'var(--space-2) 0' }}>
-      {/* Container for the Pie Chart SVG */}
       <div style={{ position: 'relative', width: 160, height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)', overflow: 'visible' }}>
           {items.map((item, idx) => {
-            const pct = item.value / total;
-            const strokeLength = circ * pct;
-            const strokeOffset = circ - (circ * accumulatedPercent);
-            accumulatedPercent += pct;
-            
+            const strokeLength = circ * slices[idx];
+            const strokeDashoffset = circ * (1 - offsets[idx]);
             return (
               <circle
                 key={idx}
-                cx="50"
-                cy="50"
-                r={radius}
+                cx="50" cy="50" r={radius}
                 fill="transparent"
                 stroke={colors[idx % colors.length]}
                 strokeWidth={strokeWidth}
-                strokeDasharray={`${strokeLength} ${circ}`}
-                strokeDashoffset={strokeOffset}
+                strokeDasharray={`${strokeLength} ${circ - strokeLength}`}
+                strokeDashoffset={strokeDashoffset}
                 style={{ transition: 'stroke-dashoffset 0.5s ease' }}
               />
             );

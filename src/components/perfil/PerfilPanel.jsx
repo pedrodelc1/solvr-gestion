@@ -987,7 +987,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
                         <RolBadge rol={m.is_owner ? 'admin' : (m.rol || 'vendedor')} />
                       </div>
 
-                      {!m.is_owner && isOwner && (
+                      {!m.is_owner && (isOwner || userRole === 'admin') && (
                         editingRolId === m.id ? (
                           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                             {ROLES.map(r => (

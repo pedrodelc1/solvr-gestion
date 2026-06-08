@@ -15,12 +15,10 @@ const supabase = createClient(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_ANON_KEY)
 
 async function check() {
   const { data, error } = await supabase
-    .from('allowed_emails')
-    .select('*');
-  
-  console.log("Allowed Emails List:");
-  console.log(JSON.stringify(data, null, 2));
-  if (error) console.error("Error:", error);
+    .rpc('get_policies_temp_test'); // We might not have this rpc, so let's try direct select from pg_policies if public, or run sql.
+  // Wait, let's try select from a custom query if possible, or just print what we can.
+  // Since we don't have direct SQL runner unless we create one or run a node script with pg library if pg is installed.
+  // Let's check if there's pg in package.json.
 }
 
 check();

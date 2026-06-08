@@ -202,6 +202,24 @@ export function ClienteDetail({ cliente, pedidos, devoluciones = [], comunicacio
               </div>
             </div>
           </div>
+
+          {/* Saldo Inicial */}
+          {cliente.saldo_inicial > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+              <div style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--bg-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ink-2)', flexShrink: 0 }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="1" x2="12" y2="23"/>
+                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                </svg>
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 10, color: 'var(--ink-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Saldo inicial de cuenta</div>
+                <div style={{ fontSize: 13, color: 'var(--ink)', fontWeight: 500 }}>
+                  {formatCurrency(cliente.saldo_inicial)}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

@@ -244,7 +244,7 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
     prod ? (tipoPrecio === 'mayorista' && prod.precio_mayorista > 0 ? prod.precio_mayorista : prod.precio) : 0;
 
   const esTarjeta = medioPago.toLowerCase().includes('tarjeta');
-  const efectivoCobrado = esTarjeta ? false : cobrado;
+  const efectivoCobrado = esTarjeta ? true : cobrado;
   const pctInteres = esTarjeta ? (parseFloat(interes) || 0) : 0;
 
   const fechaVenc = (() => {

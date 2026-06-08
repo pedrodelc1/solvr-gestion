@@ -29,8 +29,8 @@ const ROLES = [
     id: 'vendedor',
     label: 'Vendedor',
     desc: 'Crea y edita pedidos',
-    color: '#60a5fa',
-    bg: 'rgba(96,165,250,0.12)',
+    color: BRAND,
+    bg: BRAND_DIM,
     icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/>
@@ -41,8 +41,8 @@ const ROLES = [
     id: 'visualizador',
     label: 'Solo lectura',
     desc: 'Solo puede ver',
-    color: '#94a3b8',
-    bg: 'rgba(148,163,184,0.12)',
+    color: BRAND,
+    bg: BRAND_DIM,
     icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>

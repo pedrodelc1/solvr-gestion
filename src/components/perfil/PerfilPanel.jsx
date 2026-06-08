@@ -1,28 +1,118 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../lib/supabase.js';
-import { formatCurrency, formatDate, saldoCliente, inRange } from '../../lib/utils.js';
+import { formatCurrency, formatDate, saldoCliente } from '../../lib/utils.js';
 import {
   getAllowedEmails, addAllowedEmail, removeAllowedEmail, updateMemberRol,
   getAlertasConfig, saveAlertasConfig,
   getSuscripciones, updateSuscripcion,
 } from '../../lib/db.js';
 
+const BRAND = '#ccff00';
+const BRAND_DIM = 'rgba(204,255,0,0.12)';
+const BRAND_GLOW = '0 0 20px rgba(204,255,0,0.25)';
+
 const ROLES = [
-  { id: 'admin',        label: 'Admin',        desc: 'Acceso completo al sistema',             color: '#ccff00', bg: 'rgba(204,255,0,0.1)' },
-  { id: 'vendedor',     label: 'Vendedor',      desc: 'Gestiona pedidos y clientes',            color: '#ccff00', bg: 'rgba(204,255,0,0.1)' },
-  { id: 'visualizador', label: 'Solo lectura',  desc: 'Puede ver todo pero no modificar nada', color: '#ccff00', bg: 'rgba(204,255,0,0.1)' },
+  {
+    id: 'admin',
+    label: 'Admin',
+    desc: 'Acceso completo',
+    color: BRAND,
+    bg: BRAND_DIM,
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+    ),
+  },
+  {
+    id: 'vendedor',
+    label: 'Vendedor',
+    desc: 'Crea y edita pedidos',
+    color: '#60a5fa',
+    bg: 'rgba(96,165,250,0.12)',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/>
+      </svg>
+    ),
+  },
+  {
+    id: 'visualizador',
+    label: 'Solo lectura',
+    desc: 'Solo puede ver',
+    color: '#94a3b8',
+    bg: 'rgba(148,163,184,0.12)',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+      </svg>
+    ),
+  },
 ];
 
+function getRoleData(rol) {
+  return ROLES.find(r => r.id === rol) || ROLES[2];
+}
+
 function RolBadge({ rol }) {
-  const r = ROLES.find(x => x.id === rol);
-  if (!r) return null;
+  const r = getRoleData(rol);
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 999, background: r.bg, border: `1px solid ${r.color}44`, color: r.color, fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }}>
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 4,
+      padding: '3px 10px', borderRadius: 999,
+      background: r.bg, border: `1px solid ${r.color}55`,
+      color: r.color, fontSize: 11, fontWeight: 700,
+      whiteSpace: 'nowrap', flexShrink: 0,
+    }}>
+      {r.icon}
       {r.label}
     </span>
   );
 }
+
+function SectionHeader({ icon, title, subtitle }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+      <div style={{
+        width: 36, height: 36, borderRadius: 10,
+        background: BRAND_DIM, border: `1px solid ${BRAND}33`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: BRAND, flexShrink: 0,
+      }}>
+        {icon}
+      </div>
+      <div>
+        <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)', lineHeight: 1.2 }}>{title}</div>
+        {subtitle && <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2, lineHeight: 1.3 }}>{subtitle}</div>}
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, hint, children }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <label style={{ fontWeight: 600, fontSize: 13, color: 'var(--ink-2)' }}>{label}</label>
+      {children}
+      {hint && <span style={{ fontSize: 11, color: 'var(--ink-3)', lineHeight: 1.35 }}>{hint}</span>}
+    </div>
+  );
+}
+
+const inputStyle = {
+  minHeight: 48,
+  fontSize: 15,
+  background: 'var(--bg-3)',
+  border: '1px solid var(--border)',
+  borderRadius: 10,
+  padding: '0 14px',
+  color: 'var(--ink)',
+  width: '100%',
+  boxSizing: 'border-box',
+  transition: 'border-color 150ms',
+  outline: 'none',
+};
 
 export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gastos, suscripcion, negocioConfig, onNegocioSave, toast, theme, onThemeChange }) {
   const email = session?.user?.email || null;
@@ -44,51 +134,25 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
   async function handlePhotoChange(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = function (event) {
       const img = new Image();
       img.onload = async function () {
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 150;
-        const MAX_HEIGHT = 150;
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > MAX_WIDTH) {
-            height *= MAX_WIDTH / width;
-            width = MAX_WIDTH;
-          }
-        } else {
-          if (height > MAX_HEIGHT) {
-            width *= MAX_HEIGHT / height;
-            height = MAX_HEIGHT;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-
+        const MAX = 150;
+        let w = img.width, h = img.height;
+        if (w > h) { if (w > MAX) { h *= MAX / w; w = MAX; } }
+        else { if (h > MAX) { w *= MAX / h; h = MAX; } }
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
         const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
         setAvatarUrl(dataUrl);
-
-        if (email) {
-          localStorage.setItem('sg_avatar_' + email, dataUrl);
-        }
-
+        if (email) localStorage.setItem('sg_avatar_' + email, dataUrl);
         try {
-          const { error } = await supabase.auth.updateUser({
-            data: { avatar_url: dataUrl }
-          });
+          const { error } = await supabase.auth.updateUser({ data: { avatar_url: dataUrl } });
           if (error) throw error;
           toast('Foto de perfil actualizada');
-        } catch (err) {
-          console.error(err);
-          toast('Guardado localmente', 'info');
-        }
+        } catch { toast('Guardado localmente', 'info'); }
       };
       img.src = event.target.result;
     };
@@ -132,21 +196,15 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
       const isMonedaChanged = moneda !== negocioConfig?.moneda;
       await onNegocioSave({
         ...negocioConfig,
-        nombre: negocioNombre.trim(),
-        moneda: moneda,
-        telefono: telefono.trim(),
-        direccion: direccion.trim(),
-        email: negocioEmail.trim(),
-        cuit: cuit.trim(),
-        nota_pdf: notaPdf.trim(),
-        num_inicial: parseInt(numInicial) || 1,
+        nombre: negocioNombre.trim(), moneda,
+        telefono: telefono.trim(), direccion: direccion.trim(),
+        email: negocioEmail.trim(), cuit: cuit.trim(),
+        nota_pdf: notaPdf.trim(), num_inicial: parseInt(numInicial) || 1,
         metodos_pago: metodosPago.trim(),
         recordatorio_plantilla: recordatorioPlantilla.trim(),
       });
       toast('Configuración guardada');
-      if (isMonedaChanged) {
-        setTimeout(() => window.location.reload(), 300);
-      }
+      if (isMonedaChanged) setTimeout(() => window.location.reload(), 300);
     } catch (e) {
       toast(e.message, 'error');
     } finally {
@@ -159,39 +217,27 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
   const [newRol, setNewRol] = useState('vendedor');
   const [adding, setAdding] = useState(false);
   const [editingRolId, setEditingRolId] = useState(null);
-
-  // Alertas config
   const [diasAlerta, setDiasAlerta] = useState(7);
   const [savingAlerta, setSavingAlerta] = useState(false);
-
-  // Panel admin suscripciones
   const [suscripciones, setSuscripciones] = useState([]);
   const [loadingSus, setLoadingSus] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
-
-  // Password update states
   const [newPassword, setNewPassword] = useState('');
   const [updatingPassword, setUpdatingPassword] = useState(false);
 
   async function handleUpdatePassword() {
-    if (!newPassword.trim()) return;
-    if (newPassword.trim().length < 6) {
+    if (!newPassword.trim() || newPassword.trim().length < 6) {
       toast('La contraseña debe tener al menos 6 caracteres', 'error');
       return;
     }
     setUpdatingPassword(true);
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword.trim()
-      });
+      const { error } = await supabase.auth.updateUser({ password: newPassword.trim() });
       if (error) throw error;
       toast('Contraseña establecida con éxito');
       setNewPassword('');
-    } catch (e) {
-      toast(e.message, 'error');
-    } finally {
-      setUpdatingPassword(false);
-    }
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setUpdatingPassword(false); }
   }
 
   useEffect(() => {
@@ -202,10 +248,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
   useEffect(() => {
     if (isOwner && showAdminPanel) {
       setLoadingSus(true);
-      getSuscripciones().then(data => {
-        setSuscripciones(data);
-        setLoadingSus(false);
-      });
+      getSuscripciones().then(data => { setSuscripciones(data); setLoadingSus(false); });
     }
   }, [isOwner, showAdminPanel]);
 
@@ -214,35 +257,26 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
     setAdding(true);
     try {
       const arr = await addAllowedEmail(newEmail.trim(), newRol);
-      setAllowedEmails(arr);
-      setNewEmail('');
+      setAllowedEmails(arr); setNewEmail('');
       toast('Miembro agregado al equipo');
     } catch (e) {
       toast(e.message.includes('unique') ? 'Ese email ya está en el equipo' : e.message, 'error');
-    } finally {
-      setAdding(false);
-    }
+    } finally { setAdding(false); }
   }
 
   async function handleChangeRol(id, rol) {
     try {
       const arr = await updateMemberRol(id, rol);
-      setAllowedEmails(arr);
-      setEditingRolId(null);
+      setAllowedEmails(arr); setEditingRolId(null);
       toast('Rol actualizado');
-    } catch (e) {
-      toast(e.message, 'error');
-    }
+    } catch (e) { toast(e.message, 'error'); }
   }
 
   async function handleRemove(id) {
     try {
       const arr = await removeAllowedEmail(id);
-      setAllowedEmails(arr);
-      toast('Email eliminado');
-    } catch (e) {
-      toast(e.message, 'error');
-    }
+      setAllowedEmails(arr); toast('Email eliminado');
+    } catch (e) { toast(e.message, 'error'); }
   }
 
   async function handleSaveAlerta() {
@@ -250,21 +284,15 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
     try {
       await saveAlertasConfig(diasAlerta);
       toast('Configuración guardada');
-    } catch (e) {
-      toast(e.message, 'error');
-    } finally {
-      setSavingAlerta(false);
-    }
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setSavingAlerta(false); }
   }
 
   async function handleUpdateSuscripcion(id, estado) {
     try {
       const arr = await updateSuscripcion(id, { estado });
-      setSuscripciones(arr);
-      toast(`Suscripción ${estado}`);
-    } catch (e) {
-      toast(e.message, 'error');
-    }
+      setSuscripciones(arr); toast(`Suscripción ${estado}`);
+    } catch (e) { toast(e.message, 'error'); }
   }
 
   async function handleLogout() {
@@ -273,215 +301,320 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
     setTimeout(() => window.location.reload(), 500);
   }
 
-  // Info del trial / suscripción actual
-  const diasRestantes = suscripcion ? Math.round((new Date(suscripcion.fecha_vencimiento) - new Date()) / (1000 * 60 * 60 * 24)) : null;
+  const diasRestantes = suscripcion
+    ? Math.round((new Date(suscripcion.fecha_vencimiento) - new Date()) / (1000 * 60 * 60 * 24))
+    : null;
+
+  const roleData = isOwner
+    ? { label: 'Dueño', color: BRAND, bg: BRAND_DIM }
+    : getRoleData(userRole);
+
+  const statItems = [
+    {
+      label: 'Clientes',
+      value: totalClientes,
+      color: BRAND,
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
+        </svg>
+      ),
+    },
+    {
+      label: 'Pendientes',
+      value: pendientes,
+      color: pendientes > 0 ? '#f59e0b' : BRAND,
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        </svg>
+      ),
+    },
+    {
+      label: 'Por cobrar',
+      value: formatCurrency(totalDeuda),
+      color: totalDeuda > 0 ? '#f87171' : BRAND,
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+        </svg>
+      ),
+    },
+    {
+      label: 'Gastos',
+      value: formatCurrency(totalGastos),
+      color: 'var(--ink-2)',
+      icon: (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/>
+        </svg>
+      ),
+    },
+  ];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflowY: 'auto' }}>
-      <div className="page-header">
-        <h1>Perfil</h1>
-      </div>
 
-      {/* Avatar + info */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 'var(--space-8) var(--space-4) var(--space-6)', gap: 'var(--space-3)' }}>
-        <div 
-          onMouseEnter={() => setHoverAvatar(true)}
-          onMouseLeave={() => setHoverAvatar(false)}
-          style={{ position: 'relative', width: 80, height: 80 }}
-        >
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-            onClick={() => document.getElementById('avatar-upload').click()}
-            style={{
-              width: '100%', height: '100%', borderRadius: '50%',
-              background: avatarUrl ? 'none' : 'linear-gradient(135deg, #ccff00, #88dd00)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 32, fontWeight: 800, color: '#080808',
-              boxShadow: '0 0 24px #ccff0044',
-              cursor: 'pointer',
-              position: 'relative',
-              overflow: 'hidden',
-            }}
+      {/* ── HERO HEADER ── */}
+      <div style={{
+        position: 'relative',
+        padding: '32px 20px 28px',
+        background: 'linear-gradient(160deg, rgba(204,255,0,0.06) 0%, transparent 60%)',
+        borderBottom: '1px solid var(--border)',
+        overflow: 'hidden',
+      }}>
+        {/* decorative glow */}
+        <div style={{
+          position: 'absolute', top: -40, right: -40,
+          width: 160, height: 160, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(204,255,0,0.08) 0%, transparent 70%)',
+          pointerEvents: 'none',
+        }} />
+
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, position: 'relative' }}>
+          {/* Avatar */}
+          <div
+            onMouseEnter={() => setHoverAvatar(true)}
+            onMouseLeave={() => setHoverAvatar(false)}
+            style={{ position: 'relative', width: 92, height: 92 }}
           >
-            {avatarUrl ? (
-              <img src={avatarUrl} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} alt="Avatar" />
-            ) : (
-              inicial
-            )}
-            
-            <div style={{
-              position: 'absolute',
-              inset: 0,
-              background: 'rgba(0,0,0,0.5)',
-              opacity: hoverAvatar ? 1 : 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'opacity 0.2s',
-              borderRadius: '50%',
-            }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                <circle cx="12" cy="13" r="4"/>
-              </svg>
-            </div>
-          </motion.div>
-
-          {avatarUrl && hoverAvatar && (
-            <button
-              onClick={async (e) => {
-                e.stopPropagation();
-                setAvatarUrl(null);
-                if (email) {
-                  localStorage.removeItem('sg_avatar_' + email);
-                }
-                try {
-                  const { error } = await supabase.auth.updateUser({
-                    data: { avatar_url: null }
-                  });
-                  if (error) throw error;
-                  toast('Foto de perfil eliminada');
-                } catch (err) {
-                  console.error(err);
-                  toast('Error al actualizar en la nube', 'error');
-                }
-              }}
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+              onClick={() => document.getElementById('avatar-upload').click()}
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.97 }}
               style={{
-                position: 'absolute',
-                top: -4,
-                right: -4,
-                width: 22,
-                height: 22,
-                borderRadius: '50%',
-                background: 'var(--danger)',
-                color: '#fff',
-                border: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                width: '100%', height: '100%', borderRadius: '50%',
+                background: avatarUrl ? 'none' : `linear-gradient(135deg, ${BRAND}, #88dd00)`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 36, fontWeight: 800, color: '#080808',
+                boxShadow: BRAND_GLOW,
                 cursor: 'pointer',
-                fontSize: 12,
-                fontWeight: 700,
-                boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
-                zIndex: 10,
+                border: `2px solid ${BRAND}55`,
+                position: 'relative', overflow: 'hidden',
               }}
             >
-              ✕
-            </button>
-          )}
-        </div>
-        <input
-          type="file"
-          id="avatar-upload"
-          accept="image/*"
-          style={{ display: 'none' }}
-          onChange={handlePhotoChange}
-        />
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontWeight: 700, fontSize: 'var(--text-lg)' }}>{email}</div>
-          <div style={{ marginTop: 6 }}>
-            {isOwner
-              ? <span style={{ fontSize: 'var(--text-xs)', color: '#ccff00', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Dueño</span>
-              : <RolBadge rol={userRole} />
-            }
+              {avatarUrl
+                ? <img src={avatarUrl} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} alt="Avatar" />
+                : inicial
+              }
+              <AnimatePresence>
+                {hoverAvatar && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    style={{
+                      position: 'absolute', inset: 0,
+                      background: 'rgba(0,0,0,0.55)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      borderRadius: '50%',
+                    }}
+                  >
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+                      <circle cx="12" cy="13" r="4"/>
+                    </svg>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+
+            {/* remove photo btn */}
+            <AnimatePresence>
+              {avatarUrl && hoverAvatar && (
+                <motion.button
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0, opacity: 0 }}
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    setAvatarUrl(null);
+                    if (email) localStorage.removeItem('sg_avatar_' + email);
+                    try {
+                      const { error } = await supabase.auth.updateUser({ data: { avatar_url: null } });
+                      if (error) throw error;
+                      toast('Foto eliminada');
+                    } catch { toast('Error al actualizar', 'error'); }
+                  }}
+                  style={{
+                    position: 'absolute', top: -2, right: -2,
+                    width: 24, height: 24, borderRadius: '50%',
+                    background: 'var(--danger)', color: '#fff',
+                    border: '2px solid var(--bg)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', fontSize: 11, fontWeight: 700,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+                    zIndex: 10,
+                  }}
+                >
+                  ✕
+                </motion.button>
+              )}
+            </AnimatePresence>
           </div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: 'var(--text-sm)', color: '#ccff00' }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#ccff00', display: 'inline-block', boxShadow: '0 0 6px #ccff00' }} />
-            Conectado
+
+          <input type="file" id="avatar-upload" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoChange} />
+
+          {/* Name + role */}
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--ink)', marginBottom: 6 }}>{email}</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                padding: '4px 12px', borderRadius: 999,
+                background: roleData.bg, border: `1px solid ${roleData.color}55`,
+                color: roleData.color, fontSize: 12, fontWeight: 700,
+              }}>
+                {isOwner ? (
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                ) : roleData.icon}
+                {isOwner ? 'Dueño' : roleData.label}
+              </span>
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                fontSize: 12, color: '#4ade80', fontWeight: 600,
+              }}>
+                <span style={{
+                  width: 7, height: 7, borderRadius: '50%', background: '#4ade80',
+                  display: 'inline-block',
+                  boxShadow: '0 0 0 0 rgba(74,222,128,0.4)',
+                  animation: 'pulse-dot 2s infinite',
+                }} />
+                Conectado
+              </span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Suscripción trial banner */}
+      <style>{`
+        @keyframes pulse-dot {
+          0% { box-shadow: 0 0 0 0 rgba(74,222,128,0.5); }
+          70% { box-shadow: 0 0 0 6px rgba(74,222,128,0); }
+          100% { box-shadow: 0 0 0 0 rgba(74,222,128,0); }
+        }
+      `}</style>
+
+      {/* ── TRIAL BANNER ── */}
       {suscripcion && diasRestantes !== null && diasRestantes <= 10 && diasRestantes >= 0 && (
-        <div style={{ margin: '0 var(--space-4) var(--space-4)', background: 'var(--tarjeta-bg)', border: '1px solid var(--tarjeta)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3) var(--space-4)', fontSize: 'var(--text-sm)', color: 'var(--tarjeta)' }}>
-          {diasRestantes === 0
-            ? 'Tu prueba gratuita vence hoy.'
-            : `Tu prueba gratuita vence en ${diasRestantes} día${diasRestantes !== 1 ? 's' : ''}.`
-          }
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={{
+            margin: '16px 16px 0',
+            padding: '12px 16px',
+            borderRadius: 12,
+            background: diasRestantes <= 2 ? 'rgba(239,68,68,0.12)' : 'rgba(251,191,36,0.1)',
+            border: `1px solid ${diasRestantes <= 2 ? 'rgba(239,68,68,0.4)' : 'rgba(251,191,36,0.3)'}`,
+            display: 'flex', alignItems: 'center', gap: 10,
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={diasRestantes <= 2 ? '#ef4444' : '#fbbf24'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <span style={{ fontSize: 13, fontWeight: 600, color: diasRestantes <= 2 ? '#ef4444' : '#fbbf24' }}>
+            {diasRestantes === 0 ? 'Tu prueba gratuita vence hoy.' : `Tu prueba gratuita vence en ${diasRestantes} día${diasRestantes !== 1 ? 's' : ''}.`}
+          </span>
+        </motion.div>
       )}
 
-
-
-      {/* Tu acceso — solo para vendedor/visualizador */}
+      {/* ── ACCESO (vendedor/visualizador) ── */}
       {!isOwner && userRole !== 'admin' && (() => {
         const ownerEntry = allowedEmails.find(e => e.is_owner);
         const ownerEmail = ownerEntry?.email || null;
         const negocioNombreDisplay = negocioConfig?.nombre || null;
+        const r = getRoleData(userRole);
+        const permisos = userRole === 'vendedor'
+          ? {
+              si: ['Crear y editar clientes y pedidos', 'Registrar cobros y pagos', 'Ver catálogo y estadísticas'],
+              no: ['Gastos, Caja y configuración', 'Eliminar registros'],
+            }
+          : {
+              si: ['Ver clientes, pedidos y catálogo', 'Ver cuenta corriente y descargarla'],
+              no: ['Crear, editar o eliminar cualquier dato', 'Registrar cobros ni enviar mensajes'],
+            };
+
         return (
-          <div style={{ padding: '0 var(--space-4)', marginBottom: 'var(--space-4)' }}>
-            <div className="section-label">Tu acceso</div>
-            <div className="card" style={{ gap: 'var(--space-3)' }}>
-              {/* Contexto de la cuenta */}
-              {(negocioNombreDisplay || ownerEmail) && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', paddingBottom: 'var(--space-3)', borderBottom: '1px solid var(--border)' }}>
-                  {negocioNombreDisplay && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', fontWeight: 500 }}>EMPRESA</span>
-                      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#ccff00' }}>{negocioNombreDisplay}</span>
+          <div style={{ padding: '16px 16px 0' }}>
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              style={{
+                borderRadius: 14, background: 'var(--bg-2)',
+                border: `1px solid ${r.color}33`,
+                overflow: 'hidden',
+              }}
+            >
+              <div style={{
+                padding: '12px 16px',
+                background: r.bg,
+                borderBottom: `1px solid ${r.color}22`,
+                display: 'flex', alignItems: 'center', gap: 8,
+              }}>
+                <span style={{ color: r.color }}>{r.icon}</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: r.color }}>Tu nivel de acceso: {r.label}</span>
+              </div>
+              <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {(negocioNombreDisplay || ownerEmail) && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
+                    {negocioNombreDisplay && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 600 }}>EMPRESA</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: BRAND }}>{negocioNombreDisplay}</span>
+                      </div>
+                    )}
+                    {ownerEmail && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 600 }}>TITULAR</span>
+                        <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>{ownerEmail}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {permisos.si.map(p => (
+                    <div key={p} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--ink-2)' }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      {p}
                     </div>
-                  )}
-                  {ownerEmail && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', fontWeight: 500 }}>TITULAR</span>
-                      <span style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>{ownerEmail}</span>
+                  ))}
+                  {permisos.no.map(p => (
+                    <div key={p} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--ink-3)' }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      {p}
                     </div>
-                  )}
+                  ))}
                 </div>
-              )}
-              {userRole === 'vendedor' ? (
-                <ul style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-2)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', paddingLeft: 'var(--space-4)', margin: 0 }}>
-                  <li>✓ Crear y editar clientes y pedidos</li>
-                  <li>✓ Registrar cobros y pagos parciales</li>
-                  <li>✓ Ver catálogo y estadísticas</li>
-                  <li style={{ color: 'var(--ink-3)' }}>✗ Gastos, Caja, configuración del negocio</li>
-                  <li style={{ color: 'var(--ink-3)' }}>✗ Eliminar registros</li>
-                </ul>
-              ) : (
-                <ul style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-2)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', paddingLeft: 'var(--space-4)', margin: 0 }}>
-                  <li>✓ Ver clientes, pedidos, catálogo y estadísticas</li>
-                  <li>✓ Ver cuenta corriente y descargarla</li>
-                  <li style={{ color: 'var(--ink-3)' }}>✗ Crear, editar o eliminar cualquier registro</li>
-                  <li style={{ color: 'var(--ink-3)' }}>✗ Registrar cobros ni enviar mensajes</li>
-                </ul>
-              )}
-            </div>
+              </div>
+            </motion.div>
           </div>
         );
       })()}
 
-      {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', padding: '0 var(--space-4) var(--space-4)' }}>
-        {[
-          { label: 'Clientes', value: totalClientes },
-          { label: 'Pedidos pendientes', value: pendientes },
-          { label: 'Saldo por cobrar', value: formatCurrency(totalDeuda), accent: totalDeuda > 0 },
-          { label: 'Total gastos', value: formatCurrency(totalGastos) },
-        ].map((item, i) => (
+      {/* ── STATS ── */}
+      <div style={{ padding: '20px 16px 0', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        {statItems.map((item, i) => (
           <motion.div
             key={item.label}
-            className="card"
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.07, type: 'spring', stiffness: 300, damping: 24 }}
-            style={{ gap: 'var(--space-1)' }}
+            transition={{ delay: i * 0.06, type: 'spring', stiffness: 300, damping: 24 }}
+            style={{
+              borderRadius: 14, background: 'var(--bg-2)',
+              border: '1px solid var(--border)',
+              padding: '14px 14px 12px',
+              display: 'flex', flexDirection: 'column', gap: 6,
+            }}
           >
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', fontWeight: 500 }}>{item.label}</div>
+            <div style={{ color: item.color, opacity: 0.85 }}>{item.icon}</div>
+            <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{item.label}</div>
             <div style={{
-              fontSize: typeof item.value === 'string' && item.value.length > 12
-                ? '14px'
-                : typeof item.value === 'string' && item.value.length > 9
-                  ? '17px'
-                  : 'var(--text-xl)',
-              fontWeight: 800,
-              color: item.accent ? 'var(--danger)' : 'var(--ink)',
-              whiteSpace: 'nowrap',
-              textOverflow: 'ellipsis',
-              overflow: 'hidden',
-              width: '100%'
+              fontSize: typeof item.value === 'string' && item.value.length > 10 ? 15 : 22,
+              fontWeight: 800, color: item.color,
+              lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
             }}>
               {item.value}
             </div>
@@ -489,545 +622,630 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
         ))}
       </div>
 
-      {/* Configuración del Sistema — solo owner/admin */}
+      {/* ── CONFIGURACIÓN DEL SISTEMA (owner/admin) ── */}
       {(isOwner || userRole === 'admin') && (
-        <div style={{ padding: '0 var(--space-4)', marginBottom: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-          <div className="section-label">Configuración del Sistema</div>
-          
-          {/* Tarjeta 1: Datos de la Empresa */}
-          <div className="card" style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border)', paddingBottom: '10px', marginBottom: '4px' }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="2" ry="2"/><path d="M7 2v20"/><path d="M17 2v20"/><path d="M2 12h20"/><path d="M2 7h20"/><path d="M2 17h20"/></svg>
-              <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 700, margin: 0, color: 'var(--primary)' }}>Datos de la Empresa</h3>
-            </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-              <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>Nombre del negocio *</label>
-              <input
-                type="text"
-                placeholder="Ej: Ferrari Repuestos"
-                value={negocioNombre}
-                onChange={e => setNegocioNombre(e.target.value)}
-                style={{ minHeight: 40, fontSize: 'var(--text-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0 var(--space-3)', color: 'var(--ink)' }}
-                autoComplete="off"
-                autoCorrect="off"
-              />
-            </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-              <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>CUIT / Tax ID</label>
-              <input
-                type="text"
-                placeholder="Ej: 30-12345678-9"
-                value={cuit}
-                onChange={e => setCuit(e.target.value)}
-                style={{ minHeight: 40, fontSize: 'var(--text-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0 var(--space-3)', color: 'var(--ink)' }}
-                autoComplete="off"
-                autoCorrect="off"
-              />
-            </div>
+        <div style={{ padding: '24px 16px 0', display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+          {/* label */}
+          <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', paddingLeft: 2 }}>
+            Configuración del Sistema
           </div>
 
-          {/* Tarjeta 2: Contacto para PDFs */}
-          <div className="card" style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border)', paddingBottom: '10px', marginBottom: '4px' }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.22h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.78a16 16 0 0 0 6.29 6.29l.96-.96a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-              <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 700, margin: 0, color: 'var(--primary)' }}>Información de Contacto (para PDFs)</h3>
-            </div>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--space-3)' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>Teléfono</label>
+          {/* Card: Datos de la Empresa */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={{ borderRadius: 14, background: 'var(--bg-2)', border: '1px solid var(--border)', padding: 20 }}
+          >
+            <SectionHeader
+              title="Datos de tu Negocio"
+              subtitle="Nombre e información fiscal"
+              icon={
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+                </svg>
+              }
+            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <Field label="Nombre del negocio *" hint="Este nombre aparece en tus PDFs y presupuestos">
                 <input
-                  type="text"
-                  placeholder="Ej: +54 9 11 1234 5678"
-                  value={telefono}
-                  onChange={e => setTelefono(e.target.value)}
-                  style={{ minHeight: 40, fontSize: 'var(--text-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0 var(--space-3)', color: 'var(--ink)' }}
-                  autoComplete="off"
-                  autoCorrect="off"
+                  type="text" placeholder="Ej: Repuestos Ferrari"
+                  value={negocioNombre} onChange={e => setNegocioNombre(e.target.value)}
+                  style={inputStyle} autoComplete="off" autoCorrect="off"
                 />
-              </div>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>Dirección</label>
+              </Field>
+              <Field label="CUIT / Tax ID" hint="Tu número de identificación fiscal">
                 <input
-                  type="text"
-                  placeholder="Ej: Av. Siempreviva 742"
-                  value={direccion}
-                  onChange={e => setDireccion(e.target.value)}
-                  style={{ minHeight: 40, fontSize: 'var(--text-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0 var(--space-3)', color: 'var(--ink)' }}
-                  autoComplete="off"
-                  autoCorrect="off"
+                  type="text" placeholder="Ej: 30-12345678-9"
+                  value={cuit} onChange={e => setCuit(e.target.value)}
+                  style={inputStyle} autoComplete="off" autoCorrect="off"
                 />
-              </div>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>Email del negocio</label>
+              </Field>
+            </div>
+          </motion.div>
+
+          {/* Card: Contacto para PDFs */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            style={{ borderRadius: 14, background: 'var(--bg-2)', border: '1px solid var(--border)', padding: 20 }}
+          >
+            <SectionHeader
+              title="Información de Contacto"
+              subtitle="Aparece en los PDFs que generás"
+              icon={
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 014.69 12 19.79 19.79 0 011.61 3.4 2 2 0 013.6 1.22h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L7.91 8.78a16 16 0 006.29 6.29l.96-.96a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
+                </svg>
+              }
+            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <Field label="Teléfono / WhatsApp">
                 <input
-                  type="email"
-                  placeholder="Ej: contacto@minegocio.com"
-                  value={negocioEmail}
-                  onChange={e => setNegocioEmail(e.target.value)}
-                  style={{ minHeight: 40, fontSize: 'var(--text-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0 var(--space-3)', color: 'var(--ink)' }}
-                  autoComplete="off"
-                  autoCorrect="off"
+                  type="text" placeholder="Ej: +54 9 11 1234 5678"
+                  value={telefono} onChange={e => setTelefono(e.target.value)}
+                  style={inputStyle} autoComplete="off" autoCorrect="off"
                 />
-              </div>
-            </div>
-          </div>
-
-          {/* Tarjeta 3: Moneda y Documentos */}
-          <div className="card" style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border)', paddingBottom: '10px', marginBottom: '4px' }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-              <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 700, margin: 0, color: 'var(--primary)' }}>Documentos y Preferencias</h3>
-            </div>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>Símbolo de Moneda</label>
-                <select
-                  value={moneda}
-                  onChange={e => setMoneda(e.target.value)}
-                  style={{ 
-                    minHeight: 40, 
-                    fontSize: 'var(--text-sm)',
-                    background: 'var(--bg-3)',
-                    color: 'var(--ink)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-sm)',
-                    padding: '0 var(--space-2)'
-                  }}
-                >
-                  <option value="$">$ (Pesos)</option>
-                  <option value="U$D">USD (U$D)</option>
-                  <option value="€">€ (Euros)</option>
-                  <option value="Gs">Gs (Guaraníes)</option>
-                  <option value="R$">R$ (Reales)</option>
-                  <option value="UF">UF (Unidades de Fomento)</option>
-                </select>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>Nº Inicial Pedido</label>
+              </Field>
+              <Field label="Dirección">
                 <input
-                  type="number"
-                  min="1"
-                  value={numInicial}
-                  onChange={e => setNumInicial(Math.max(1, parseInt(e.target.value) || 1))}
-                  style={{ minHeight: 40, fontSize: 'var(--text-sm)', textAlign: 'center', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--ink)' }}
+                  type="text" placeholder="Ej: Av. Siempreviva 742"
+                  value={direccion} onChange={e => setDireccion(e.target.value)}
+                  style={inputStyle} autoComplete="off" autoCorrect="off"
                 />
+              </Field>
+              <Field label="Email del negocio">
+                <input
+                  type="email" placeholder="Ej: contacto@minegocio.com"
+                  value={negocioEmail} onChange={e => setNegocioEmail(e.target.value)}
+                  style={inputStyle} autoComplete="off" autoCorrect="off"
+                />
+              </Field>
+            </div>
+          </motion.div>
+
+          {/* Card: Documentos y Preferencias */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.08 }}
+            style={{ borderRadius: 14, background: 'var(--bg-2)', border: '1px solid var(--border)', padding: 20 }}
+          >
+            <SectionHeader
+              title="Documentos y Preferencias"
+              subtitle="Moneda, numeración y métodos de pago"
+              icon={
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                </svg>
+              }
+            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <Field label="Moneda">
+                  <select
+                    value={moneda} onChange={e => setMoneda(e.target.value)}
+                    style={{ ...inputStyle, padding: '0 10px' }}
+                  >
+                    <option value="$">$ Pesos</option>
+                    <option value="U$D">U$D Dólares</option>
+                    <option value="€">€ Euros</option>
+                    <option value="Gs">Gs Guaraníes</option>
+                    <option value="R$">R$ Reales</option>
+                    <option value="UF">UF Fomento</option>
+                  </select>
+                </Field>
+                <Field label="N° inicial pedido">
+                  <input
+                    type="number" min="1"
+                    value={numInicial}
+                    onChange={e => setNumInicial(Math.max(1, parseInt(e.target.value) || 1))}
+                    style={{ ...inputStyle, textAlign: 'center' }}
+                  />
+                </Field>
               </div>
+              <Field label="Métodos de pago" hint="Separados por comas. Ej: Efectivo, Transferencia, Tarjeta">
+                <input
+                  type="text" placeholder="Efectivo, Transferencia, Tarjeta"
+                  value={metodosPago} onChange={e => setMetodosPago(e.target.value)}
+                  style={inputStyle} autoComplete="off" autoCorrect="off"
+                />
+              </Field>
+              <Field label="Términos / Notas al pie (PDF)" hint="Se imprime al final de tus presupuestos y remitos">
+                <textarea
+                  placeholder="Ej: Validez del presupuesto: 15 días. Cuenta para transferencia: ..."
+                  value={notaPdf} onChange={e => setNotaPdf(e.target.value)}
+                  style={{ ...inputStyle, minHeight: 80, padding: '10px 14px', lineHeight: 1.4, resize: 'vertical' }}
+                  autoComplete="off" autoCorrect="off"
+                />
+              </Field>
             </div>
+          </motion.div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-              <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>Métodos de Pago Aceptados</label>
-              <input
-                type="text"
-                placeholder="Ej: Efectivo, Transferencia, Tarjeta"
-                value={metodosPago}
-                onChange={e => setMetodosPago(e.target.value)}
-                style={{ minHeight: 40, fontSize: 'var(--text-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0 var(--space-3)', color: 'var(--ink)' }}
-                autoComplete="off"
-                autoCorrect="off"
-              />
-              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', lineHeight: 1.3 }}>Separados por comas. Opciones disponibles para nuevos cobros.</span>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-              <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>Términos / Notas al pie (PDF)</label>
+          {/* Card: WhatsApp */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            style={{ borderRadius: 14, background: 'var(--bg-2)', border: '1px solid var(--border)', padding: 20 }}
+          >
+            <SectionHeader
+              title="Mensaje de Cobro (WhatsApp)"
+              subtitle="Plantilla para recordar pagos pendientes"
+              icon={
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+                </svg>
+              }
+            />
+            <Field label="Plantilla del mensaje" hint={`Variables: {cliente}, {saldo}, {fecha}. Dejar vacío para usar el mensaje por defecto.`}>
               <textarea
-                placeholder="Ej: Validez del presupuesto: 15 días. Cuentas para transferencia: ..."
-                value={notaPdf}
-                onChange={e => setNotaPdf(e.target.value)}
-                style={{ minHeight: 70, fontSize: 'var(--text-sm)', padding: 'var(--space-2)', background: 'var(--bg-3)', color: 'var(--ink)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)' }}
-                autoComplete="off"
-                autoCorrect="off"
+                placeholder="Hola {cliente}, tenés un pago pendiente de {saldo} del pedido del {fecha}."
+                value={recordatorioPlantilla} onChange={e => setRecordatorioPlantilla(e.target.value)}
+                style={{ ...inputStyle, minHeight: 90, padding: '10px 14px', lineHeight: 1.45, resize: 'vertical' }}
+                autoComplete="off" autoCorrect="off"
               />
-              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', lineHeight: 1.3 }}>Se imprime al final de los presupuestos y remitos generados.</span>
-            </div>
-          </div>
+            </Field>
+          </motion.div>
 
-          {/* Tarjeta 4: Comunicaciones y Recordatorios */}
-          <div className="card" style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border)', paddingBottom: '10px', marginBottom: '4px' }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-              <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 700, margin: 0, color: 'var(--primary)' }}>Recordatorio de Pago (WhatsApp)</h3>
-            </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-              <label style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>Plantilla de mensaje</label>
-              <textarea
-                placeholder="Hola {cliente}, tenés un pago pendiente de {saldo} correspondiente al pedido del {fecha}."
-                value={recordatorioPlantilla}
-                onChange={e => setRecordatorioPlantilla(e.target.value)}
-                style={{ minHeight: 90, fontSize: 'var(--text-sm)', padding: 'var(--space-2)', background: 'var(--bg-3)', color: 'var(--ink)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', lineHeight: 1.4 }}
-                autoComplete="off"
-                autoCorrect="off"
-              />
-              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', lineHeight: 1.4 }}>
-                Variables disponibles: <code>{"{cliente}"}</code>, <code>{"{saldo}"}</code>, y <code>{"{fecha}"}</code>. Dejar vacío para usar plantilla por defecto.
-              </span>
-            </div>
-          </div>
+          {/* GUARDAR */}
+          <motion.button
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.98 }}
+            className="btn btn-primary btn-full"
+            onClick={handleSaveConfig}
+            disabled={savingNegocio || !negocioNombre.trim()}
+            style={{
+              minHeight: 52, fontSize: 16, fontWeight: 700,
+              borderRadius: 14,
+              boxShadow: savingNegocio ? 'none' : `0 4px 20px rgba(204,255,0,0.25)`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            }}
+          >
+            {savingNegocio ? (
+              <>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 1s linear infinite' }}>
+                  <line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/>
+                </svg>
+                Guardando...
+              </>
+            ) : (
+              <>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Guardar Cambios
+              </>
+            )}
+          </motion.button>
 
-          {/* Botón Guardar Configuración del Negocio (Principal) */}
-          <div style={{ display: 'flex', padding: '0 var(--space-1)' }}>
-            <button 
-              className="btn btn-primary btn-full" 
-              onClick={handleSaveConfig} 
-              disabled={savingNegocio || !negocioNombre.trim()} 
-              style={{ minHeight: 48, fontSize: 'var(--text-base)', fontWeight: 700, borderRadius: 'var(--radius-lg)', boxShadow: '0 4px 12px rgba(204,255,0,0.2)' }}
-            >
-              {savingNegocio ? 'Guardando...' : '✓ Guardar Cambios del Sistema'}
-            </button>
-          </div>
-
-          {/* Tarjeta 5: Alertas de cobro */}
-          <div className="card" style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border)', paddingBottom: '10px', marginBottom: '4px' }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-              <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 700, margin: 0, color: 'var(--primary)' }}>Alertas de Cobro Tardío</h3>
-            </div>
-            
-            <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
-              <input
-                type="number"
-                min="1"
-                max="365"
-                value={diasAlerta}
-                onChange={e => setDiasAlerta(parseInt(e.target.value) || 7)}
-                style={{ width: 80, minHeight: 40, textAlign: 'center', fontSize: 'var(--text-base)', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--ink)' }}
-              />
-              <span style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>días sin cobrar</span>
-              <button
+          {/* Card: Alertas */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.12 }}
+            style={{ borderRadius: 14, background: 'var(--bg-2)', border: '1px solid var(--border)', padding: 20 }}
+          >
+            <SectionHeader
+              title="Alerta de Cobro Tardío"
+              subtitle="Te avisamos cuando un cliente no paga hace mucho"
+              icon={
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/>
+                </svg>
+              }
+            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                <input
+                  type="number" min="1" max="365"
+                  value={diasAlerta}
+                  onChange={e => setDiasAlerta(parseInt(e.target.value) || 7)}
+                  style={{ ...inputStyle, width: 80, textAlign: 'center', flex: 'none' }}
+                />
+                <span style={{ fontSize: 14, color: 'var(--ink-2)' }}>días sin cobrar</span>
+              </div>
+              <motion.button
+                whileTap={{ scale: 0.97 }}
                 className="btn btn-secondary"
-                style={{ minHeight: 40, padding: '0 var(--space-4)', fontSize: 'var(--text-sm)', marginLeft: 'auto' }}
                 onClick={handleSaveAlerta}
                 disabled={savingAlerta}
+                style={{ minHeight: 48, padding: '0 18px', fontSize: 14, whiteSpace: 'nowrap', borderRadius: 10 }}
               >
-                {savingAlerta ? 'Guardando...' : 'Guardar Alerta'}
-              </button>
+                {savingAlerta ? 'Guardando...' : 'Guardar'}
+              </motion.button>
             </div>
-            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', lineHeight: 1.3 }}>Muestra un aviso de mora en la lista de clientes si tienen saldos pendientes por más de este tiempo.</span>
-          </div>
-
+            <p style={{ fontSize: 12, color: 'var(--ink-3)', margin: '10px 0 0', lineHeight: 1.4 }}>
+              Si un cliente tiene deuda de hace más de este tiempo, verás un aviso de mora en la lista de clientes.
+            </p>
+          </motion.div>
         </div>
       )}
 
-      {/* Equipo — solo owner o admin */}
+      {/* ── EQUIPO (owner/admin) ── */}
       {(isOwner || userRole === 'admin') && (
-        <div style={{ padding: '0 var(--space-4)', marginBottom: 'var(--space-4)' }}>
-          <div className="section-label">Equipo</div>
-          <div className="card" style={{ gap: 'var(--space-4)' }}>
+        <div style={{ padding: '24px 16px 0' }}>
+          <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', paddingLeft: 2, marginBottom: 12 }}>
+            Tu Equipo
+          </div>
 
-            {/* Invitar nuevo miembro */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-              <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>Invitar miembro</div>
-              <input
-                type="email"
-                placeholder="email@empresa.com"
-                value={newEmail}
-                onChange={e => setNewEmail(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleAdd()}
-                style={{ minHeight: 40, fontSize: 'var(--text-sm)' }}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={{ borderRadius: 14, background: 'var(--bg-2)', border: '1px solid var(--border)', padding: 20, display: 'flex', flexDirection: 'column', gap: 20 }}
+          >
+            {/* Invitar */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <SectionHeader
+                title="Agregar a tu equipo"
+                subtitle="Invitá a alguien a usar la app con tu cuenta"
+                icon={
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/>
+                  </svg>
+                }
               />
-              {/* Role picker */}
-              <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-                {ROLES.map(r => (
-                  <button
-                    key={r.id}
-                    type="button"
-                    onClick={() => setNewRol(r.id)}
-                    style={{
-                      flex: 1, minWidth: 90, minHeight: 52, padding: '6px 10px',
-                      borderRadius: 'var(--radius-md)',
-                      border: `1px solid ${newRol === r.id ? r.color : 'var(--border)'}`,
-                      background: newRol === r.id ? r.bg : 'var(--bg-3)',
-                      color: newRol === r.id ? r.color : 'var(--ink-3)',
-                      cursor: 'pointer', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 2,
-                      transition: 'all 140ms',
-                    }}
-                  >
-                    <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700 }}>{r.label}</span>
-                    <span style={{ fontSize: 10, opacity: 0.7, lineHeight: 1.3 }}>{r.desc}</span>
-                  </button>
-                ))}
+
+              <input
+                type="email" placeholder="email@persona.com"
+                value={newEmail} onChange={e => setNewEmail(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleAdd()}
+                style={inputStyle}
+              />
+
+              {/* Rol picker */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' }}>¿Qué puede hacer esta persona?</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {ROLES.map(r => (
+                    <motion.button
+                      key={r.id}
+                      type="button"
+                      onClick={() => setNewRol(r.id)}
+                      whileTap={{ scale: 0.98 }}
+                      style={{
+                        padding: '12px 14px',
+                        borderRadius: 12,
+                        border: `1.5px solid ${newRol === r.id ? r.color : 'var(--border)'}`,
+                        background: newRol === r.id ? r.bg : 'var(--bg-3)',
+                        cursor: 'pointer', textAlign: 'left',
+                        display: 'flex', alignItems: 'center', gap: 12,
+                        transition: 'all 150ms',
+                      }}
+                    >
+                      <span style={{ color: newRol === r.id ? r.color : 'var(--ink-3)' }}>{r.icon}</span>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: newRol === r.id ? r.color : 'var(--ink)', lineHeight: 1.2 }}>{r.label}</div>
+                        <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>{r.desc}</div>
+                      </div>
+                      {newRol === r.id && (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={r.color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 'auto', flexShrink: 0 }}>
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                      )}
+                    </motion.button>
+                  ))}
+                </div>
               </div>
-              <button
+
+              <motion.button
+                whileTap={{ scale: 0.97 }}
                 className="btn btn-primary btn-full"
-                style={{ minHeight: 40, fontSize: 'var(--text-sm)' }}
                 onClick={handleAdd}
                 disabled={adding || !newEmail.trim()}
+                style={{ minHeight: 48, fontSize: 15, fontWeight: 700, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
               >
-                {adding ? 'Agregando...' : '+ Agregar al equipo'}
-              </button>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                {adding ? 'Agregando...' : 'Agregar al equipo'}
+              </motion.button>
             </div>
 
             {/* Lista de miembros */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', borderTop: '1px solid var(--border)', paddingTop: 'var(--space-3)' }}>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                Miembros actuales
-              </div>
-              {allowedEmails.length === 0 ? (
-                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-3)' }}>Sin miembros en el equipo.</p>
-              ) : (
-                allowedEmails.map(m => (
-                  <div key={m.id} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', padding: 'var(--space-3)', background: 'var(--bg-3)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--bg-4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
-                        {m.email[0].toUpperCase()}
-                      </div>
-                      <span style={{ fontSize: 'var(--text-sm)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--ink)' }}>
-                        {m.email}
-                      </span>
-                      {m.is_owner
-                        ? <span style={{ padding: '2px 8px', borderRadius: 999, background: 'rgba(204,255,0,0.1)', border: '1px solid rgba(204,255,0,0.4)', color: '#ccff00', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>Dueño</span>
-                        : <RolBadge rol={m.rol || 'vendedor'} />
-                      }
-                    </div>
-
-                    {/* Cambiar rol inline — solo si no es owner */}
-                    {!m.is_owner && isOwner && (
-                      editingRolId === m.id ? (
-                        <div style={{ display: 'flex', gap: 'var(--space-1)', flexWrap: 'wrap' }}>
-                          {ROLES.map(r => (
-                            <button
-                              key={r.id}
-                              type="button"
-                              onClick={() => handleChangeRol(m.id, r.id)}
-                              style={{
-                                padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                                border: `1px solid ${(m.rol || 'vendedor') === r.id ? r.color : 'var(--border)'}`,
-                                background: (m.rol || 'vendedor') === r.id ? r.bg : 'none',
-                                color: (m.rol || 'vendedor') === r.id ? r.color : 'var(--ink-3)',
-                                transition: 'all 120ms',
-                              }}
-                            >
-                              {r.label}
-                            </button>
-                          ))}
-                          <button onClick={() => setEditingRolId(null)} style={{ padding: '4px 8px', borderRadius: 999, fontSize: 11, background: 'none', border: '1px solid var(--border)', color: 'var(--ink-3)', cursor: 'pointer' }}>✕</button>
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-                          <button
-                            onClick={() => setEditingRolId(m.id)}
-                            style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
-                          >
-                            Cambiar rol
-                          </button>
-                          <span style={{ color: 'var(--ink-3)', fontSize: 'var(--text-xs)' }}>·</span>
-                          <button
-                            onClick={() => handleRemove(m.id)}
-                            style={{ fontSize: 'var(--text-xs)', color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-                          >
-                            Quitar acceso
-                          </button>
-                        </div>
-                      )
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* Panel admin suscripciones — solo owner */}
-      {isOwner && (
-        <div style={{ padding: '0 var(--space-4)', marginBottom: 'var(--space-4)' }}>
-          <div className="section-label">
-            <button
-              onClick={() => setShowAdminPanel(v => !v)}
-              style={{ background: 'none', border: 'none', color: 'var(--ink-3)', font: 'inherit', cursor: 'pointer', padding: 0, fontSize: 'var(--text-xs)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}
-            >
-              Suscripciones {showAdminPanel ? '▲' : '▼'}
-            </button>
-          </div>
-          {showAdminPanel && (
-            <div className="card" style={{ gap: 'var(--space-3)' }}>
-              {loadingSus ? (
-                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-3)' }}>Cargando...</p>
-              ) : suscripciones.length === 0 ? (
-                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-3)' }}>Sin suscripciones activas.</p>
-              ) : (() => {
-                const PRECIO_PLAN = 4990;
-                const activas = suscripciones.filter(s => s.estado === 'activa').length;
-                const mrr = activas * PRECIO_PLAN;
-                return (
-                  <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 'var(--space-3)', paddingBottom: 'var(--space-3)', borderBottom: '1px solid var(--border)' }}>
-                    <div style={{ flex: 1, textAlign: 'center' }}>
-                      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>MRR</div>
-                      <div style={{ fontWeight: 800, fontSize: 'var(--text-lg)', color: '#ccff00' }}>{formatCurrency(mrr)}</div>
-                    </div>
-                    <div style={{ flex: 1, textAlign: 'center' }}>
-                      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>Activas</div>
-                      <div style={{ fontWeight: 800, fontSize: 'var(--text-lg)' }}>{activas}</div>
-                    </div>
-                    <div style={{ flex: 1, textAlign: 'center' }}>
-                      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>Total</div>
-                      <div style={{ fontWeight: 800, fontSize: 'var(--text-lg)' }}>{suscripciones.length}</div>
-                    </div>
-                  </div>
-                );
-              })()}
-              {!loadingSus && suscripciones.length > 0 && (
-                suscripciones.map(s => {
-                  const esOwn = s.user_email === email;
-                  const dias = Math.round((new Date(s.fecha_vencimiento) - new Date()) / (1000 * 60 * 60 * 24));
+            {allowedEmails.length > 0 && (
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
+                  Miembros actuales · {allowedEmails.length}
+                </div>
+                {allowedEmails.map(m => {
+                  const mr = m.is_owner ? { label: 'Dueño', color: BRAND, bg: BRAND_DIM } : getRoleData(m.rol || 'vendedor');
                   return (
-                    <div key={s.id} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', paddingBottom: 'var(--space-3)', borderBottom: '1px solid var(--border)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-                          {s.user_email || s.user_id.slice(0, 8) + '...'}
+                    <motion.div
+                      key={m.id}
+                      layout
+                      style={{
+                        borderRadius: 12, padding: '12px 14px',
+                        background: 'var(--bg-3)',
+                        border: '1px solid var(--border)',
+                        display: 'flex', flexDirection: 'column', gap: 10,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{
+                          width: 36, height: 36, borderRadius: '50%',
+                          background: mr.bg, border: `1.5px solid ${mr.color}44`,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 14, fontWeight: 800, color: mr.color, flexShrink: 0,
+                        }}>
+                          {m.email[0].toUpperCase()}
+                        </div>
+                        <span style={{ fontSize: 13, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--ink)' }}>
+                          {m.email}
                         </span>
-                        {esOwn
-                          ? <span style={{ fontSize: 'var(--text-xs)', color: '#ccff00', fontWeight: 700 }}>owner</span>
-                          : <span className={`badge ${s.estado === 'activa' ? 'badge-ok' : s.estado === 'prueba' ? 'badge-info' : s.estado === 'vencida' ? 'badge-warn' : 'badge-neutral'}`}>{s.estado}</span>
-                        }
+                        <RolBadge rol={m.is_owner ? 'admin' : (m.rol || 'vendedor')} />
                       </div>
-                      {!esOwn && (
-                        <>
-                          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>
-                            Vence: {formatDate(s.fecha_vencimiento)} · {dias >= 0 ? `${dias} días restantes` : `Vencida hace ${Math.abs(dias)} días`}
+
+                      {!m.is_owner && isOwner && (
+                        editingRolId === m.id ? (
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                            {ROLES.map(r => (
+                              <button
+                                key={r.id}
+                                type="button"
+                                onClick={() => handleChangeRol(m.id, r.id)}
+                                style={{
+                                  padding: '5px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                                  border: `1px solid ${(m.rol || 'vendedor') === r.id ? r.color : 'var(--border)'}`,
+                                  background: (m.rol || 'vendedor') === r.id ? r.bg : 'none',
+                                  color: (m.rol || 'vendedor') === r.id ? r.color : 'var(--ink-3)',
+                                  transition: 'all 120ms',
+                                }}
+                              >
+                                {r.label}
+                              </button>
+                            ))}
+                            <button
+                              onClick={() => setEditingRolId(null)}
+                              style={{ padding: '5px 10px', borderRadius: 999, fontSize: 12, background: 'none', border: '1px solid var(--border)', color: 'var(--ink-3)', cursor: 'pointer' }}
+                            >
+                              Cancelar
+                            </button>
                           </div>
-                          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-                            {s.estado !== 'activa' && (
-                              <button
-                                className="btn btn-secondary"
-                                style={{ flex: 1, minHeight: 36, fontSize: 'var(--text-xs)' }}
-                                onClick={() => handleUpdateSuscripcion(s.id, 'activa')}
-                              >
-                                Activar
-                              </button>
-                            )}
-                            {s.estado !== 'bloqueada' && (
-                              <button
-                                className="btn btn-danger"
-                                style={{ flex: 1, minHeight: 36, fontSize: 'var(--text-xs)' }}
-                                onClick={() => handleUpdateSuscripcion(s.id, 'bloqueada')}
-                              >
-                                Bloquear
-                              </button>
-                            )}
-                            {s.estado !== 'vencida' && s.estado !== 'bloqueada' && (
-                              <button
-                                className="btn btn-secondary"
-                                style={{ flex: 1, minHeight: 36, fontSize: 'var(--text-xs)' }}
-                                onClick={() => handleUpdateSuscripcion(s.id, 'vencida')}
-                              >
-                                Vencer
-                              </button>
-                            )}
+                        ) : (
+                          <div style={{ display: 'flex', gap: 12 }}>
+                            <button
+                              onClick={() => setEditingRolId(m.id)}
+                              style={{ fontSize: 12, color: BRAND, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 600 }}
+                            >
+                              Cambiar rol
+                            </button>
+                            <button
+                              onClick={() => handleRemove(m.id)}
+                              style={{ fontSize: 12, color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 600 }}
+                            >
+                              Quitar acceso
+                            </button>
                           </div>
-                        </>
+                        )
                       )}
-                    </div>
+                    </motion.div>
                   );
-                })
-              )}
-            </div>
-          )}
+                })}
+              </div>
+            )}
+          </motion.div>
         </div>
       )}
 
-      {/* Seguridad (Establecer contraseña) — accesible para todos */}
-      <div style={{ padding: '0 var(--space-4)', marginBottom: 'var(--space-4)' }}>
-        <div className="section-label">Seguridad</div>
-        <div className="card" style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-          <div>
-            <div style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Establecer Contraseña</div>
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', marginTop: 2, lineHeight: 1.3 }}>
-              Crea una contraseña para ingresar a tu cuenta de forma directa en otros dispositivos (como tu celular) sin depender de los enlaces de correo.
+      {/* ── SUSCRIPCIONES (solo owner) ── */}
+      {isOwner && (
+        <div style={{ padding: '24px 16px 0' }}>
+          <button
+            onClick={() => setShowAdminPanel(v => !v)}
+            style={{
+              width: '100%', padding: '14px 16px',
+              borderRadius: 14, background: 'var(--bg-2)',
+              border: '1px solid var(--border)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              cursor: 'pointer', color: 'var(--ink-3)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
+              </svg>
+              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>Panel de Suscripciones</span>
             </div>
-          </div>
-          
-          <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-1)' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+              style={{ transform: showAdminPanel ? 'rotate(180deg)' : 'none', transition: 'transform 200ms' }}>
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+
+          <AnimatePresence>
+            {showAdminPanel && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                style={{ overflow: 'hidden' }}
+              >
+                <div style={{ marginTop: 8, borderRadius: 14, background: 'var(--bg-2)', border: '1px solid var(--border)', padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {loadingSus ? (
+                    <p style={{ fontSize: 13, color: 'var(--ink-3)', textAlign: 'center', padding: '12px 0' }}>Cargando...</p>
+                  ) : suscripciones.length === 0 ? (
+                    <p style={{ fontSize: 13, color: 'var(--ink-3)' }}>Sin suscripciones activas.</p>
+                  ) : (() => {
+                    const PRECIO_PLAN = 4990;
+                    const activas = suscripciones.filter(s => s.estado === 'activa').length;
+                    const mrr = activas * PRECIO_PLAN;
+                    return (
+                      <>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 4 }}>
+                          {[
+                            { label: 'MRR', value: formatCurrency(mrr), color: BRAND },
+                            { label: 'Activas', value: activas, color: '#4ade80' },
+                            { label: 'Total', value: suscripciones.length, color: 'var(--ink)' },
+                          ].map(s => (
+                            <div key={s.label} style={{ textAlign: 'center', padding: '10px 8px', background: 'var(--bg-3)', borderRadius: 10, border: '1px solid var(--border)' }}>
+                              <div style={{ fontSize: 10, color: 'var(--ink-3)', fontWeight: 600, textTransform: 'uppercase' }}>{s.label}</div>
+                              <div style={{ fontWeight: 800, fontSize: 18, color: s.color, marginTop: 3 }}>{s.value}</div>
+                            </div>
+                          ))}
+                        </div>
+                        {suscripciones.map(s => {
+                          const esOwn = s.user_email === email;
+                          const dias = Math.round((new Date(s.fecha_vencimiento) - new Date()) / (1000 * 60 * 60 * 24));
+                          return (
+                            <div key={s.id} style={{ paddingBottom: 12, borderBottom: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, color: 'var(--ink)' }}>
+                                  {s.user_email || s.user_id.slice(0, 8) + '...'}
+                                </span>
+                                {esOwn
+                                  ? <span style={{ fontSize: 11, color: BRAND, fontWeight: 700 }}>owner</span>
+                                  : <span className={`badge ${s.estado === 'activa' ? 'badge-ok' : s.estado === 'prueba' ? 'badge-info' : s.estado === 'vencida' ? 'badge-warn' : 'badge-neutral'}`}>{s.estado}</span>
+                                }
+                              </div>
+                              {!esOwn && (
+                                <>
+                                  <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>
+                                    Vence: {formatDate(s.fecha_vencimiento)} · {dias >= 0 ? `${dias} días restantes` : `Vencida hace ${Math.abs(dias)} días`}
+                                  </div>
+                                  <div style={{ display: 'flex', gap: 8 }}>
+                                    {s.estado !== 'activa' && (
+                                      <button className="btn btn-secondary" style={{ flex: 1, minHeight: 36, fontSize: 12 }} onClick={() => handleUpdateSuscripcion(s.id, 'activa')}>Activar</button>
+                                    )}
+                                    {s.estado !== 'bloqueada' && (
+                                      <button className="btn btn-danger" style={{ flex: 1, minHeight: 36, fontSize: 12 }} onClick={() => handleUpdateSuscripcion(s.id, 'bloqueada')}>Bloquear</button>
+                                    )}
+                                    {s.estado !== 'vencida' && s.estado !== 'bloqueada' && (
+                                      <button className="btn btn-secondary" style={{ flex: 1, minHeight: 36, fontSize: 12 }} onClick={() => handleUpdateSuscripcion(s.id, 'vencida')}>Vencer</button>
+                                    )}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </>
+                    );
+                  })()}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
+
+      {/* ── SEGURIDAD ── */}
+      <div style={{ padding: '24px 16px 0' }}>
+        <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', paddingLeft: 2, marginBottom: 12 }}>
+          Seguridad y Preferencias
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={{ borderRadius: 14, background: 'var(--bg-2)', border: '1px solid var(--border)', padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}
+        >
+          <SectionHeader
+            title="Contraseña de acceso"
+            subtitle="Para entrar desde tu celular sin link de email"
+            icon={
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+              </svg>
+            }
+          />
+          <div style={{ display: 'flex', gap: 10 }}>
             <input
-              type="password"
-              placeholder="Nueva contraseña"
-              value={newPassword}
-              onChange={e => setNewPassword(e.target.value)}
-              style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-sm)', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0 var(--space-3)', color: 'var(--ink)' }}
+              type="password" placeholder="Nueva contraseña (mín. 6 caracteres)"
+              value={newPassword} onChange={e => setNewPassword(e.target.value)}
+              style={{ ...inputStyle, flex: 1 }}
             />
-            <button
+            <motion.button
+              whileTap={{ scale: 0.97 }}
               className="btn btn-secondary"
               onClick={handleUpdatePassword}
               disabled={updatingPassword || !newPassword.trim()}
-              style={{ minHeight: 40, padding: '0 var(--space-4)', fontSize: 'var(--text-sm)' }}
+              style={{ minHeight: 48, padding: '0 16px', fontSize: 14, borderRadius: 10, whiteSpace: 'nowrap' }}
             >
-              {updatingPassword ? 'Guardando...' : 'Guardar'}
-            </button>
+              {updatingPassword ? '...' : 'Guardar'}
+            </motion.button>
           </div>
-        </div>
+        </motion.div>
       </div>
 
-      {/* Tema — accesible para todos */}
-      <div style={{ padding: '0 var(--space-4)', marginBottom: 'var(--space-4)' }}>
-        <div className="section-label">Preferencias</div>
-        <div className="card" style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>Tema de la App</div>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)', marginTop: 2 }}>Cambiá entre modo oscuro y claro.</div>
-            </div>
-            <div style={{ display: 'flex', background: 'var(--bg-3)', padding: 4, borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
-              <button
-                type="button"
-                onClick={() => onThemeChange('dark')}
-                style={{
-                  background: theme === 'dark' ? 'var(--bg-2)' : 'none',
-                  border: 'none',
-                  color: theme === 'dark' ? 'var(--ink)' : 'var(--ink-3)',
-                  padding: '6px 12px',
-                  borderRadius: 'calc(var(--radius-sm) - 2px)',
-                  cursor: 'pointer',
-                  fontSize: 'var(--text-xs)',
-                  fontWeight: 600,
-                  transition: 'all 120ms',
-                }}
-              >
-                Oscuro
-              </button>
-              <button
-                type="button"
-                onClick={() => onThemeChange('light')}
-                style={{
-                  background: theme === 'light' ? 'var(--bg-2)' : 'none',
-                  border: 'none',
-                  color: theme === 'light' ? 'var(--ink)' : 'var(--ink-3)',
-                  padding: '6px 12px',
-                  borderRadius: 'calc(var(--radius-sm) - 2px)',
-                  cursor: 'pointer',
-                  fontSize: 'var(--text-xs)',
-                  fontWeight: 600,
-                  transition: 'all 120ms',
-                }}
-              >
-                Claro
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Logout */}
-      <div style={{ padding: '0 var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', paddingBottom: 'var(--space-6)' }}>
-        <button
-          className="btn btn-secondary btn-full"
-          style={{ minHeight: 48, color: 'var(--danger)', borderColor: 'var(--danger)' }}
-          onClick={handleLogout}
+      {/* ── TEMA ── */}
+      <div style={{ padding: '16px 16px 0' }}>
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={{ borderRadius: 14, background: 'var(--bg-2)', border: '1px solid var(--border)', padding: 20 }}
         >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: BRAND_DIM, border: `1px solid ${BRAND}33`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: BRAND }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                </svg>
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 15 }}>Tema de la App</div>
+                <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>Modo oscuro o claro</div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', background: 'var(--bg-3)', padding: 3, borderRadius: 10, border: '1px solid var(--border)', gap: 2 }}>
+              {[
+                { id: 'dark', label: 'Oscuro', icon: '🌙' },
+                { id: 'light', label: 'Claro', icon: '☀️' },
+              ].map(t => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => onThemeChange(t.id)}
+                  style={{
+                    background: theme === t.id ? 'var(--bg-2)' : 'none',
+                    border: theme === t.id ? `1px solid ${BRAND}44` : '1px solid transparent',
+                    color: theme === t.id ? 'var(--ink)' : 'var(--ink-3)',
+                    padding: '7px 14px', borderRadius: 8,
+                    cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                    transition: 'all 150ms',
+                  }}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* ── LOGOUT ── */}
+      <div style={{ padding: '20px 16px 32px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <motion.button
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.97 }}
+          className="btn btn-secondary btn-full"
+          onClick={handleLogout}
+          style={{
+            minHeight: 52, fontSize: 15, fontWeight: 700,
+            color: 'var(--danger)', borderColor: 'rgba(239,68,68,0.35)',
+            borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
           Cerrar sesión
-        </button>
-        <div style={{ textAlign: 'center', fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>
+        </motion.button>
+        <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--ink-3)' }}>
           Solvnt Gestión · v1.0
         </div>
       </div>
+
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        input:focus, textarea:focus, select:focus {
+          border-color: rgba(204,255,0,0.5) !important;
+          box-shadow: 0 0 0 3px rgba(204,255,0,0.08);
+        }
+      `}</style>
     </div>
   );
 }

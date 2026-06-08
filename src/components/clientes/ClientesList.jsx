@@ -68,53 +68,38 @@ export function ClientesList({ clientes, pedidos, devoluciones, negocioConfig, o
       {/* ── Header ── */}
       <div className="page-header">
         <h1>Clientes</h1>
-        {canWrite && (
-          <button
-            className="btn-icon"
-            onClick={() => setImportarOpen(true)}
-            aria-label="Importar clientes"
-            title="Importar desde CSV/Excel"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="17 8 12 3 7 8"/>
-              <line x1="12" y1="3" x2="12" y2="15"/>
-            </svg>
-          </button>
-        )}
-      </div>
-
-      <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-
-        {/* ── Botón agregar ── */}
-        {canWrite && (
-          <motion.button
-            whileTap={{ scale: 0.97 }}
-            onClick={onNew}
-            style={{
-              width: '100%', padding: '15px 18px',
-              borderRadius: 16,
-              background: `linear-gradient(135deg, ${BRAND_DIM}, rgba(204,255,0,0.04))`,
-              border: `1.5px dashed ${BRAND}55`,
-              cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-              color: BRAND, fontWeight: 700, fontSize: 15,
-              transition: 'opacity 150ms',
-            }}
-          >
-            <div style={{
-              width: 30, height: 30, borderRadius: '50%',
-              background: BRAND_DIM, border: `1.5px solid ${BRAND}66`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={BRAND} strokeWidth="2.5">
+        <div style={{ display: 'flex', gap: 8 }}>
+          {canWrite && (
+            <button
+              className="btn-icon"
+              onClick={onNew}
+              aria-label="Agregar nuevo cliente"
+              title="Agregar nuevo cliente"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <line x1="12" y1="5" x2="12" y2="19"/>
                 <line x1="5" y1="12" x2="19" y2="12"/>
               </svg>
-            </div>
-            Agregar nuevo cliente
-          </motion.button>
-        )}
+            </button>
+          )}
+          {canWrite && (
+            <button
+              className="btn-icon"
+              onClick={() => setImportarOpen(true)}
+              aria-label="Importar clientes"
+              title="Importar desde CSV/Excel"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
         {/* ── Banner cobros pendientes ── */}
         {deudores.length > 0 && (

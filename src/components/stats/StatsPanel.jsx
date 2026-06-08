@@ -71,29 +71,31 @@ function formatLargeCurrency(val) {
   return `$${val}`;
 }
 
-// Custom SVG Donut Chart
+// Custom SVG Pie Chart (renders as a filled pie chart, larger and highly legible)
 function DonutChart({ items }) {
   const total = items.reduce((s, i) => s + i.value, 0);
   if (total === 0) return null;
 
   let accumulatedPercent = 0;
-  const radius = 35;
-  const strokeWidth = 10;
+  const radius = 25;
+  const strokeWidth = 50;
   const circ = 2 * Math.PI * radius;
 
+  // Curated highly visible colors for dark/light modes
   const colors = [
-    'var(--primary)',
-    'var(--success)',
-    'var(--warning)',
-    'var(--danger)',
-    '#9c27b0',
-    '#00bcd4'
+    '#ccff00', // var(--primary) - lime
+    '#00e5ff', // cyan
+    '#ff9100', // orange
+    '#ff2d55', // pink-red
+    '#b388ff', // purple
+    '#39ff14'  // neon green
   ];
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-6)', padding: 'var(--space-2) 0' }}>
-      <svg viewBox="0 0 100 100" style={{ width: 110, height: 110, flexShrink: 0, overflow: 'visible' }}>
-        <g transform="rotate(-90 50 50)">
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-5)', padding: 'var(--space-2) 0' }}>
+      {/* Container for the Pie Chart SVG */}
+      <div style={{ position: 'relative', width: 160, height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)', overflow: 'visible' }}>
           {items.map((item, idx) => {
             const pct = item.value / total;
             const strokeLength = circ * pct;
@@ -111,28 +113,37 @@ function DonutChart({ items }) {
                 strokeWidth={strokeWidth}
                 strokeDasharray={`${strokeLength} ${circ}`}
                 strokeDashoffset={strokeOffset}
-                strokeLinecap="round"
                 style={{ transition: 'stroke-dashoffset 0.5s ease' }}
               />
             );
           })}
-        </g>
-        <text x="50" y="47" textAnchor="middle" fill="var(--ink-3)" fontSize="6" fontWeight="700" letterSpacing="0.05em">TOTAL</text>
-        <text x="50" y="58" textAnchor="middle" fill="var(--ink)" fontSize="8.5" fontWeight="900">{formatLargeCurrency(total)}</text>
-      </svg>
+        </svg>
+      </div>
       
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', flex: 1 }}>
+      {/* Legend below the pie chart with high contrast and legibility */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', width: '100%' }}>
         {items.map((item, idx) => {
           const pct = (item.value / total) * 100;
           return (
-            <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 'var(--text-xs)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <div style={{ width: 8, height: 8, borderRadius: '2px', background: colors[idx % colors.length] }} />
-                <span style={{ color: 'var(--ink-2)', fontWeight: 500 }}>{item.label}</span>
+            <div 
+              key={idx} 
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'space-between', 
+                padding: 'var(--space-2) var(--space-3)', 
+                background: 'var(--bg-3)', 
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--border)' 
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                <div style={{ width: 12, height: 12, borderRadius: '50%', background: colors[idx % colors.length], border: '1px solid rgba(255,255,255,0.2)' }} />
+                <span style={{ color: 'var(--ink)', fontWeight: 600, fontSize: 'var(--text-sm)' }}>{item.label}</span>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                <span style={{ fontWeight: 700, color: 'var(--ink)' }}>{pct.toFixed(0)}%</span>
-                <span style={{ fontSize: 9, color: 'var(--ink-3)' }}>{formatCurrency(item.value)}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
+                <span style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-3)' }}>{formatCurrency(item.value)}</span>
+                <span style={{ fontWeight: 800, color: '#ccff00', fontSize: 'var(--text-base)', minWidth: 45, textAlign: 'right' }}>{pct.toFixed(0)}%</span>
               </div>
             </div>
           );

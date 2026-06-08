@@ -10,6 +10,7 @@ import {
   procesarCuotasVencidas,
   isOwnerEmail,
   getUserRole,
+  isEmailAllowed,
   setEffectiveUserId,
   getSuscripcion, crearSuscripcionTrial,
   getAlertasConfig,
@@ -210,28 +211,20 @@ export default function App() {
       const email = session.user.email;
       const init = async () => {
         // Post-auth whitelist check (works because user is now authenticated)
-        const { data: entry, error: entryErr } = await supabase
+        const allowed = await isEmailAllowed(email);
+        if (!allowed) {
+          toast("Acceso denegado: El correo " + email + " no está autorizado en el equipo.", "error");
+          await supabase.auth.signOut();
+          return;
+        }
+
+        // Get allowed_emails entry (if any) to set effective user ID for team members
+        const { data: entry } = await supabase
           .from('allowed_emails')
           .select('id, owner_user_id, is_owner')
           .eq('email', email.toLowerCase().trim())
           .maybeSingle();
 
-        if (entryErr) {
-          console.error("Error checking whitelist:", entryErr);
-          toast("Error al verificar acceso: " + entryErr.message, "error");
-          // If we fail to query the whitelist table, don't boot the user immediately.
-          // Let them proceed so they aren't locked out due to transient network/RLS check glitches.
-          loadAll();
-          return;
-        }
-
-        const superadmin = import.meta.env.VITE_SUPERADMIN_EMAIL;
-        const isSuperadmin = superadmin && email.toLowerCase().trim() === superadmin.toLowerCase().trim();
-        if (!isSuperadmin && !entry) {
-          toast("Acceso denegado: El correo " + email + " no está autorizado en el equipo.", "error");
-          await supabase.auth.signOut();
-          return;
-        }
         // For team members: use owner's user_id for all writes
         if (entry?.owner_user_id && !entry.is_owner) {
           setEffectiveUserId(entry.owner_user_id);

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatCurrency } from '../../lib/utils.js';
 import { ConfirmModal, Modal } from '../shared/Modal.jsx';
@@ -18,18 +18,37 @@ function StockBadge({ stock, stockMinimo }) {
 function AjusteStockModal({ open, producto, onClose, onAjustar }) {
   const [delta, setDelta] = useState('');
   const [tipo, setTipo] = useState('sumar');
+  const [loading, setLoading] = useState(false);
+  const loadingRef = useRef(false);
 
-  function handleConfirm() {
+  useEffect(() => {
+    if (open) {
+      setLoading(false);
+      loadingRef.current = false;
+    }
+  }, [open]);
+
+  async function handleConfirm() {
+    if (loadingRef.current) return;
     const cantidad = parseInt(delta);
     if (isNaN(cantidad) || cantidad <= 0) return;
-    onAjustar(producto.id, tipo === 'sumar' ? cantidad : -cantidad);
-    setDelta('');
-    setTipo('sumar');
-    onClose();
+    loadingRef.current = true;
+    setLoading(true);
+    try {
+      await onAjustar(producto.id, tipo === 'sumar' ? cantidad : -cantidad);
+      setDelta('');
+      setTipo('sumar');
+      onClose();
+    } catch (e) {
+      console.error(e);
+      loadingRef.current = false;
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
-    <Modal open={open} title={`Ajustar stock — ${producto?.nombre}`} onClose={onClose}>
+    <Modal open={open} title={`Ajustar stock — ${producto?.nombre}`} onClose={loading ? () => {} : onClose}>
       {open && (
         <>
           <div style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
@@ -38,6 +57,7 @@ function AjusteStockModal({ open, producto, onClose, onAjustar }) {
                 className={`filter-chip${tipo === 'sumar' ? ' active' : ''}`}
                 style={{ flex: 1 }}
                 onClick={() => setTipo('sumar')}
+                disabled={loading}
               >
                 + Agregar
               </button>
@@ -45,6 +65,7 @@ function AjusteStockModal({ open, producto, onClose, onAjustar }) {
                 className={`filter-chip${tipo === 'restar' ? ' active' : ''}`}
                 style={{ flex: 1 }}
                 onClick={() => setTipo('restar')}
+                disabled={loading}
               >
                 − Descontar
               </button>
@@ -59,6 +80,7 @@ function AjusteStockModal({ open, producto, onClose, onAjustar }) {
                 value={delta}
                 onChange={e => setDelta(e.target.value)}
                 autoFocus
+                disabled={loading}
               />
             </div>
             {producto && (
@@ -73,10 +95,10 @@ function AjusteStockModal({ open, producto, onClose, onAjustar }) {
             )}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', padding: 'var(--space-4)', paddingTop: 0 }}>
-            <button className="btn btn-primary btn-full" onClick={handleConfirm} disabled={!delta || parseInt(delta) <= 0}>
-              Confirmar ajuste
+            <button className="btn btn-primary btn-full" onClick={handleConfirm} disabled={loading || !delta || parseInt(delta) <= 0}>
+              {loading ? 'Ajustando...' : 'Confirmar ajuste'}
             </button>
-            <button className="btn btn-secondary btn-full" onClick={onClose}>Cancelar</button>
+            <button className="btn btn-secondary btn-full" onClick={onClose} disabled={loading}>Cancelar</button>
           </div>
         </>
       )}
@@ -98,8 +120,8 @@ export function ProductosList({ productos, onNew, onEdit, onDelete, onStockChang
       ? productos.filter(p => !p.marca)
       : productos.filter(p => p.marca === marcaFiltro);
 
-  function handleDelete(id) {
-    onDelete(id);
+  async function handleDelete(id) {
+    await onDelete(id);
     setConfirmDel(null);
     toast('Producto eliminado');
   }
@@ -107,7 +129,7 @@ export function ProductosList({ productos, onNew, onEdit, onDelete, onStockChang
   async function handleAjuste(productoId, delta) {
     try {
       await ajustarStock(productoId, delta);
-      if (onStockChange) onStockChange();
+      if (onStockChange) await onStockChange();
       toast(delta > 0 ? `+${delta} unidades agregadas` : `${Math.abs(delta)} unidades descontadas`);
     } catch (e) {
       toast(e.message, 'error');

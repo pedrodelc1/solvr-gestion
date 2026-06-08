@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
 
@@ -80,14 +80,49 @@ export function Modal({ open, title, onClose, children }) {
 }
 
 export function ConfirmModal({ open, title, message, onConfirm, onCancel }) {
+  const [loading, setLoading] = useState(false);
+  const loadingRef = useRef(false);
+
+  useEffect(() => {
+    if (!open) {
+      setLoading(false);
+      loadingRef.current = false;
+    }
+  }, [open]);
+
+  const handleConfirm = async () => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
+    setLoading(true);
+    try {
+      await onConfirm();
+    } catch (e) {
+      console.error(e);
+      loadingRef.current = false;
+      setLoading(false);
+    }
+  };
+
   return (
-    <Modal open={open} title={title} onClose={onCancel}>
+    <Modal open={open} title={title} onClose={loading ? () => {} : onCancel}>
       <div style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
         <p style={{ color: 'var(--ink-2)', lineHeight: 1.6 }}>{message}</p>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', padding: 'var(--space-4)', paddingTop: 0 }}>
-        <button className="btn btn-danger btn-full" onClick={onConfirm}>Confirmar</button>
-        <button className="btn btn-secondary btn-full" onClick={onCancel}>Cancelar</button>
+        <button
+          className="btn btn-danger btn-full"
+          onClick={handleConfirm}
+          disabled={loading}
+        >
+          {loading ? 'Confirmando...' : 'Confirmar'}
+        </button>
+        <button
+          className="btn btn-secondary btn-full"
+          onClick={onCancel}
+          disabled={loading}
+        >
+          Cancelar
+        </button>
       </div>
     </Modal>
   );

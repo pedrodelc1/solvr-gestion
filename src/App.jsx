@@ -482,7 +482,8 @@ export default function App() {
               window.history.replaceState({}, document.title, window.location.pathname);
               setVerifyTokenHash(null);
             }}
-            style={{ background: 'none', border: 'none', color: 'var(--ink-3)', fontSize: 'var(--text-sm)', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
+            disabled={verifyingOtp}
+            style={{ background: 'none', border: 'none', color: 'var(--ink-3)', fontSize: 'var(--text-sm)', cursor: verifyingOtp ? 'not-allowed' : 'pointer', textDecoration: 'underline', padding: 0, opacity: verifyingOtp ? 0.5 : 1 }}
           >
             Cancelar y volver al login
           </button>

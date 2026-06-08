@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Modal } from '../shared/Modal.jsx';
 import { today } from '../../lib/utils.js';
 
@@ -9,17 +9,37 @@ export function GastoForm({ open, categorias, onSave, onClose }) {
   const [cat, setCat] = useState(categorias[0] || 'Otros');
   const [error, setError] = useState('');
 
-  function handleSave() {
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+
+  useEffect(() => {
+    if (open) {
+      setSaving(false);
+      savingRef.current = false;
+    }
+  }, [open]);
+
+  async function handleSave() {
+    if (savingRef.current) return;
     if (!desc.trim() || !fecha || isNaN(parseFloat(monto)) || parseFloat(monto) <= 0) {
       setError('Completá todos los campos');
       return;
     }
-    onSave({ descripcion: desc.trim(), monto: parseFloat(monto), fecha, categoria: cat });
-    setDesc('');
-    setMonto('');
-    setFecha(today());
-    setCat(categorias[0] || 'Otros');
-    setError('');
+    savingRef.current = true;
+    setSaving(true);
+    try {
+      await onSave({ descripcion: desc.trim(), monto: parseFloat(monto), fecha, categoria: cat });
+      setDesc('');
+      setMonto('');
+      setFecha(today());
+      setCat(categorias[0] || 'Otros');
+      setError('');
+    } catch (e) {
+      setError(e.message);
+      savingRef.current = false;
+    } finally {
+      setSaving(false);
+    }
   }
 
   function handleClose() {
@@ -28,7 +48,7 @@ export function GastoForm({ open, categorias, onSave, onClose }) {
   }
 
   return (
-    <Modal open={open} title="Nuevo gasto" onClose={handleClose}>
+    <Modal open={open} title="Nuevo gasto" onClose={saving ? () => {} : handleClose}>
       {open && (
         <>
           <div style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
@@ -42,6 +62,7 @@ export function GastoForm({ open, categorias, onSave, onClose }) {
                 onChange={e => setDesc(e.target.value)}
                 autoCorrect="off"
                 autoFocus
+                disabled={saving}
               />
             </div>
             <div className="form-row">
@@ -54,6 +75,7 @@ export function GastoForm({ open, categorias, onSave, onClose }) {
                   min="0"
                   value={monto}
                   onChange={e => setMonto(e.target.value)}
+                  disabled={saving}
                 />
               </div>
               <div className="form-group">
@@ -63,20 +85,23 @@ export function GastoForm({ open, categorias, onSave, onClose }) {
                   type="date"
                   value={fecha}
                   onChange={e => setFecha(e.target.value)}
+                  disabled={saving}
                 />
               </div>
             </div>
             <div className="form-group">
               <label htmlFor="fg-cat">Categoría</label>
-              <select id="fg-cat" value={cat} onChange={e => setCat(e.target.value)}>
+              <select id="fg-cat" value={cat} onChange={e => setCat(e.target.value)} disabled={saving}>
                 {categorias.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             {error && <p style={{ color: 'var(--color-danger)', fontSize: 'var(--text-sm)' }}>{error}</p>}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', padding: 'var(--space-4)', paddingTop: 0 }}>
-            <button className="btn btn-primary btn-full" onClick={handleSave}>Guardar</button>
-            <button className="btn btn-secondary btn-full" onClick={handleClose}>Cancelar</button>
+            <button className="btn btn-primary btn-full" onClick={handleSave} disabled={saving}>
+              {saving ? 'Guardando...' : 'Guardar'}
+            </button>
+            <button className="btn btn-secondary btn-full" onClick={handleClose} disabled={saving}>Cancelar</button>
           </div>
         </>
       )}

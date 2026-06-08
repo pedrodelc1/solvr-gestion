@@ -80,23 +80,33 @@ function NewProductInline({ onCreated, onCancel, toast }) {
   const [marca, setMarca] = useState('');
   const [precio, setPrecio] = useState('');
   const [costo, setCosto] = useState('');
+  const [creating, setCreating] = useState(false);
 
-  function handleCreate() {
+  async function handleCreate() {
     if (!nombre.trim()) { toast('Ingresá el nombre', 'error'); return; }
     if (!precio || parseFloat(precio) <= 0) { toast('Ingresá el precio', 'error'); return; }
-    const np = { id: uid(), nombre: nombre.trim(), marca: marca.trim() || null, precio: parseFloat(precio), costo: parseFloat(costo) || 0 };
-    onCreated(np);
+    setCreating(true);
+    try {
+      const np = { id: uid(), nombre: nombre.trim(), marca: marca.trim() || null, precio: parseFloat(precio), costo: parseFloat(costo) || 0 };
+      await onCreated(np);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setCreating(false);
+    }
   }
 
   return (
     <div className="new-prod-inline">
-      <input type="text" className="np-nombre" placeholder="Nombre del producto" value={nombre} onChange={e => setNombre(e.target.value)} autoFocus />
-      <input type="text" className="np-marca" placeholder="Marca" value={marca} onChange={e => setMarca(e.target.value)} />
-      <input type="number" className="np-precio" placeholder="Precio" min="0" step="0.01" value={precio} onChange={e => setPrecio(e.target.value)} />
-      <input type="number" className="np-costo" placeholder="Costo" min="0" step="0.01" value={costo} onChange={e => setCosto(e.target.value)} />
+      <input type="text" className="np-nombre" placeholder="Nombre del producto" value={nombre} onChange={e => setNombre(e.target.value)} autoFocus disabled={creating} />
+      <input type="text" className="np-marca" placeholder="Marca" value={marca} onChange={e => setMarca(e.target.value)} disabled={creating} />
+      <input type="number" className="np-precio" placeholder="Precio" min="0" step="0.01" value={precio} onChange={e => setPrecio(e.target.value)} disabled={creating} />
+      <input type="number" className="np-costo" placeholder="Costo" min="0" step="0.01" value={costo} onChange={e => setCosto(e.target.value)} disabled={creating} />
       <div className="np-actions">
-        <button className="btn btn-primary" onClick={handleCreate}>✓ Crear</button>
-        <button className="btn btn-secondary" onClick={onCancel}>✕</button>
+        <button className="btn btn-primary" onClick={handleCreate} disabled={creating}>
+          {creating ? 'Creando...' : '✓ Crear'}
+        </button>
+        <button className="btn btn-secondary" onClick={onCancel} disabled={creating}>✕</button>
       </div>
     </div>
   );
@@ -278,10 +288,12 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
     }));
   }
 
-  function handleNewProductCreated(idx, newProd) {
+  async function handleNewProductCreated(idx, newProd) {
     const newProds = [...productos, newProd];
     setProductos(newProds);
-    onProductoCreated(newProd);
+    try {
+      await onProductoCreated(newProd);
+    } catch (_) {}
     setItems(items.map((it, i) => i === idx ? { ...it, productoId: newProd.id, _creatingNew: false } : it));
     toast('Producto creado');
   }
@@ -354,7 +366,7 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
       <div className="detail-header">
-        <button className="btn-icon" onClick={onBack} aria-label="Volver">
+        <button className="btn-icon" onClick={saving ? undefined : onBack} aria-label="Volver" style={{ opacity: saving ? 0.5 : 1, cursor: saving ? 'not-allowed' : 'pointer' }}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
         <h2>{existing ? 'Editar pedido' : 'Nuevo pedido'}</h2>

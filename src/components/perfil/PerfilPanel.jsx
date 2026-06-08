@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../lib/supabase.js';
 import { formatCurrency, formatDate, saldoCliente } from '../../lib/utils.js';
@@ -178,6 +178,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
   const [metodosPago, setMetodosPago] = useState('');
   const [recordatorioPlantilla, setRecordatorioPlantilla] = useState('');
   const [savingNegocio, setSavingNegocio] = useState(false);
+  const savingNegocioRef = useRef(false);
 
   useEffect(() => {
     setNegocioNombre(negocioConfig?.nombre || '');
@@ -193,7 +194,9 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
   }, [negocioConfig]);
 
   async function handleSaveConfig() {
+    if (savingNegocioRef.current) return;
     if (!negocioNombre.trim()) return;
+    savingNegocioRef.current = true;
     setSavingNegocio(true);
     try {
       const isMonedaChanged = moneda !== negocioConfig?.moneda;
@@ -210,6 +213,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
       if (isMonedaChanged) setTimeout(() => window.location.reload(), 300);
     } catch (e) {
       toast(e.message, 'error');
+      savingNegocioRef.current = false;
     } finally {
       setSavingNegocio(false);
     }
@@ -227,20 +231,48 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [updatingPassword, setUpdatingPassword] = useState(false);
+  const [loadingMap, setLoadingMap] = useState({});
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const updatingPasswordRef = useRef(false);
+  const loadingMapRef = useRef({});
+  const loggingOutRef = useRef(false);
+  const addingRef = useRef(false);
+  const savingAlertaRef = useRef(false);
+
+  async function runAction(id, actionFn) {
+    if (loadingMapRef.current[id]) return;
+    loadingMapRef.current[id] = true;
+    setLoadingMap(prev => ({ ...prev, [id]: true }));
+    try {
+      await actionFn();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      loadingMapRef.current[id] = false;
+      setLoadingMap(prev => ({ ...prev, [id]: false }));
+    }
+  }
 
   async function handleUpdatePassword() {
+    if (updatingPasswordRef.current) return;
     if (!newPassword.trim() || newPassword.trim().length < 6) {
       toast('La contraseña debe tener al menos 6 caracteres', 'error');
       return;
     }
+    updatingPasswordRef.current = true;
     setUpdatingPassword(true);
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword.trim() });
       if (error) throw error;
       toast('Contraseña establecida con éxito');
       setNewPassword('');
-    } catch (e) { toast(e.message, 'error'); }
-    finally { setUpdatingPassword(false); }
+    } catch (e) {
+      toast(e.message, 'error');
+      updatingPasswordRef.current = false;
+    } finally {
+      setUpdatingPassword(false);
+    }
   }
 
   useEffect(() => {
@@ -256,7 +288,9 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
   }, [isOwner, showAdminPanel]);
 
   async function handleAdd() {
+    if (addingRef.current) return;
     if (!newEmail.trim()) return;
+    addingRef.current = true;
     setAdding(true);
     try {
       const arr = await addAllowedEmail(newEmail.trim(), newRol);
@@ -264,51 +298,77 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
       toast('Miembro agregado al equipo');
     } catch (e) {
       toast(e.message.includes('unique') ? 'Ese email ya está en el equipo' : e.message, 'error');
-    } finally { setAdding(false); }
+      addingRef.current = false;
+    } finally {
+      setAdding(false);
+    }
   }
 
   async function handleChangeRol(id, rol) {
-    try {
-      const arr = await updateMemberRol(id, rol);
-      setAllowedEmails(arr); setEditingRolId(null);
-      toast('Rol actualizado');
-    } catch (e) { toast(e.message, 'error'); }
+    await runAction(id, async () => {
+      try {
+        const arr = await updateMemberRol(id, rol);
+        setAllowedEmails(arr); setEditingRolId(null);
+        toast('Rol actualizado');
+      } catch (e) { toast(e.message, 'error'); }
+    });
   }
 
   async function handleRemove(id) {
-    try {
-      const arr = await removeAllowedEmail(id);
-      setAllowedEmails(arr); toast('Email eliminado');
-    } catch (e) { toast(e.message, 'error'); }
+    await runAction(id, async () => {
+      try {
+        const arr = await removeAllowedEmail(id);
+        setAllowedEmails(arr); toast('Email eliminado');
+      } catch (e) { toast(e.message, 'error'); }
+    });
   }
 
   async function handleSaveAlerta() {
+    if (savingAlertaRef.current) return;
+    savingAlertaRef.current = true;
     setSavingAlerta(true);
     try {
       await saveAlertasConfig(diasAlerta);
       toast('Configuración guardada');
-    } catch (e) { toast(e.message, 'error'); }
-    finally { setSavingAlerta(false); }
+    } catch (e) {
+      toast(e.message, 'error');
+      savingAlertaRef.current = false;
+    } finally {
+      setSavingAlerta(false);
+    }
   }
 
   async function handleUpdateSuscripcion(id, estado) {
-    try {
-      const arr = await updateSuscripcion(id, { estado });
-      setSuscripciones(arr); toast(`Suscripción ${estado}`);
-    } catch (e) { toast(e.message, 'error'); }
+    await runAction(id + '-' + estado, async () => {
+      try {
+        const arr = await updateSuscripcion(id, { estado });
+        setSuscripciones(arr); toast(`Suscripción ${estado}`);
+      } catch (e) { toast(e.message, 'error'); }
+    });
   }
 
   async function handleRenovar(id) {
-    try {
-      const arr = await renovarSuscripcion(id);
-      setSuscripciones(arr); toast('+30 días aplicados');
-    } catch (e) { toast(e.message, 'error'); }
+    await runAction(id + '-renovar', async () => {
+      try {
+        const arr = await renovarSuscripcion(id);
+        setSuscripciones(arr); toast('+30 días aplicados');
+      } catch (e) { toast(e.message, 'error'); }
+    });
   }
 
   async function handleLogout() {
-    await supabase.auth.signOut();
-    toast('Sesión cerrada');
-    setTimeout(() => window.location.reload(), 500);
+    if (loggingOutRef.current) return;
+    loggingOutRef.current = true;
+    setLoggingOut(true);
+    try {
+      await supabase.auth.signOut();
+      toast('Sesión cerrada');
+      setTimeout(() => window.location.reload(), 500);
+    } catch (e) {
+      toast(e.message, 'error');
+      loggingOutRef.current = false;
+      setLoggingOut(false);
+    }
   }
 
   const diasRestantes = suscripcion
@@ -995,12 +1055,14 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
                                 key={r.id}
                                 type="button"
                                 onClick={() => handleChangeRol(m.id, r.id)}
+                                disabled={loadingMap[m.id]}
                                 style={{
-                                  padding: '5px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                                  padding: '5px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: loadingMap[m.id] ? 'not-allowed' : 'pointer',
                                   border: `1px solid ${(m.rol || 'vendedor') === r.id ? r.color : 'var(--border)'}`,
                                   background: (m.rol || 'vendedor') === r.id ? r.bg : 'none',
                                   color: (m.rol || 'vendedor') === r.id ? r.color : 'var(--ink-3)',
                                   transition: 'all 120ms',
+                                  opacity: loadingMap[m.id] ? 0.5 : 1,
                                 }}
                               >
                                 {r.label}
@@ -1008,7 +1070,8 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
                             ))}
                             <button
                               onClick={() => setEditingRolId(null)}
-                              style={{ padding: '5px 10px', borderRadius: 999, fontSize: 12, background: 'none', border: '1px solid var(--border)', color: 'var(--ink-3)', cursor: 'pointer' }}
+                              disabled={loadingMap[m.id]}
+                              style={{ padding: '5px 10px', borderRadius: 999, fontSize: 12, background: 'none', border: '1px solid var(--border)', color: 'var(--ink-3)', cursor: loadingMap[m.id] ? 'not-allowed' : 'pointer', opacity: loadingMap[m.id] ? 0.5 : 1 }}
                             >
                               Cancelar
                             </button>
@@ -1017,13 +1080,15 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
                           <div style={{ display: 'flex', gap: 12 }}>
                             <button
                               onClick={() => setEditingRolId(m.id)}
-                              style={{ fontSize: 12, color: BRAND, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 600 }}
+                              disabled={loadingMap[m.id]}
+                              style={{ fontSize: 12, color: BRAND, background: 'none', border: 'none', cursor: loadingMap[m.id] ? 'not-allowed' : 'pointer', padding: 0, fontWeight: 600, opacity: loadingMap[m.id] ? 0.5 : 1 }}
                             >
                               Cambiar rol
                             </button>
                             <button
                               onClick={() => handleRemove(m.id)}
-                              style={{ fontSize: 12, color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 600 }}
+                              disabled={loadingMap[m.id]}
+                              style={{ fontSize: 12, color: 'var(--danger)', background: 'none', border: 'none', cursor: loadingMap[m.id] ? 'not-allowed' : 'pointer', padding: 0, fontWeight: 600, opacity: loadingMap[m.id] ? 0.5 : 1 }}
                             >
                               Quitar acceso
                             </button>
@@ -1165,39 +1230,45 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
                                   {!isBaja && (
                                     <button
                                       onClick={() => handleRenovar(s.id)}
+                                      disabled={loadingMap[s.id + '-renovar'] || loadingMap[s.id + '-activa'] || loadingMap[s.id + '-bloqueada']}
                                       style={{
                                         height: 32, padding: '0 10px', borderRadius: 8,
                                         background: BRAND_DIM, border: `1px solid ${BRAND}44`,
-                                        color: BRAND, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                                        color: BRAND, fontSize: 11, fontWeight: 700, cursor: (loadingMap[s.id + '-renovar'] || loadingMap[s.id + '-activa'] || loadingMap[s.id + '-bloqueada']) ? 'not-allowed' : 'pointer',
                                         whiteSpace: 'nowrap',
+                                        opacity: (loadingMap[s.id + '-renovar'] || loadingMap[s.id + '-activa'] || loadingMap[s.id + '-bloqueada']) ? 0.5 : 1,
                                       }}
                                     >
-                                      +30d
+                                      {loadingMap[s.id + '-renovar'] ? '...' : '+30d'}
                                     </button>
                                   )}
                                   {isBaja ? (
                                     <button
                                       onClick={() => handleUpdateSuscripcion(s.id, 'activa')}
+                                      disabled={loadingMap[s.id + '-renovar'] || loadingMap[s.id + '-activa'] || loadingMap[s.id + '-bloqueada']}
                                       style={{
                                         height: 32, padding: '0 10px', borderRadius: 8,
                                         background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.35)',
-                                        color: '#4ade80', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                                        color: '#4ade80', fontSize: 11, fontWeight: 700, cursor: (loadingMap[s.id + '-renovar'] || loadingMap[s.id + '-activa'] || loadingMap[s.id + '-bloqueada']) ? 'not-allowed' : 'pointer',
                                         whiteSpace: 'nowrap',
+                                        opacity: (loadingMap[s.id + '-renovar'] || loadingMap[s.id + '-activa'] || loadingMap[s.id + '-bloqueada']) ? 0.5 : 1,
                                       }}
                                     >
-                                      Reactivar
+                                      {loadingMap[s.id + '-activa'] ? '...' : 'Reactivar'}
                                     </button>
                                   ) : (
                                     <button
                                       onClick={() => handleUpdateSuscripcion(s.id, 'bloqueada')}
+                                      disabled={loadingMap[s.id + '-renovar'] || loadingMap[s.id + '-activa'] || loadingMap[s.id + '-bloqueada']}
                                       style={{
                                         height: 32, padding: '0 10px', borderRadius: 8,
                                         background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.3)',
-                                        color: '#f87171', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                                        color: '#f87171', fontSize: 11, fontWeight: 700, cursor: (loadingMap[s.id + '-renovar'] || loadingMap[s.id + '-activa'] || loadingMap[s.id + '-bloqueada']) ? 'not-allowed' : 'pointer',
                                         whiteSpace: 'nowrap',
+                                        opacity: (loadingMap[s.id + '-renovar'] || loadingMap[s.id + '-activa'] || loadingMap[s.id + '-bloqueada']) ? 0.5 : 1,
                                       }}
                                     >
-                                      Dar de baja
+                                      {loadingMap[s.id + '-bloqueada'] ? '...' : 'Dar de baja'}
                                     </button>
                                   )}
                                 </div>
@@ -1303,20 +1374,23 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
       {/* ── LOGOUT ── */}
       <div style={{ padding: '20px 16px 32px', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <motion.button
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.97 }}
+          whileHover={loggingOut ? undefined : { scale: 1.01 }}
+          whileTap={loggingOut ? undefined : { scale: 0.97 }}
           className="btn btn-secondary btn-full"
           onClick={handleLogout}
+          disabled={loggingOut}
           style={{
             minHeight: 52, fontSize: 15, fontWeight: 700,
             color: 'var(--danger)', borderColor: 'rgba(239,68,68,0.35)',
             borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+            opacity: loggingOut ? 0.5 : 1,
+            cursor: loggingOut ? 'not-allowed' : 'pointer',
           }}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
           </svg>
-          Cerrar sesión
+          {loggingOut ? 'Cerrando sesión...' : 'Cerrar sesión'}
         </motion.button>
         <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--ink-3)' }}>
           Solvnt Gestión · v1.0

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { saveNegocioConfig, saveCliente, savePedido } from '../../lib/db.js';
 import { today, uid } from '../../lib/utils.js';
@@ -36,6 +36,7 @@ function Stepper({ current }) {
 export function OnboardingWizard({ onComplete }) {
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
 
   const [negocioNombre, setNegocioNombre] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
@@ -50,30 +51,43 @@ export function OnboardingWizard({ onComplete }) {
   const [medioPago, setMedioPago] = useState('efectivo');
 
   async function handleSkip() {
+    if (savingRef.current) return;
+    savingRef.current = true;
+    setSaving(true);
     try {
       await saveNegocioConfig({ nombre: negocioNombre || 'Mi Negocio', logo_url: null, onboarding_done: true });
     } catch (_) {}
+    savingRef.current = false;
+    setSaving(false);
     onComplete();
   }
 
   async function handleStep0() {
+    if (savingRef.current) return;
     if (!negocioNombre.trim()) return;
+    savingRef.current = true;
     setSaving(true);
-    await saveNegocioConfig({ nombre: negocioNombre.trim(), logo_url: logoUrl.trim() || null, onboarding_done: false });
+    try {
+      await saveNegocioConfig({ nombre: negocioNombre.trim(), logo_url: logoUrl.trim() || null, onboarding_done: false });
+      setStep(1);
+    } catch (_) {}
+    savingRef.current = false;
     setSaving(false);
-    setStep(1);
   }
 
   async function handleStep1() {
+    if (savingRef.current) return;
     if (!clienteNombre.trim()) return;
+    savingRef.current = true;
     setSaving(true);
     try {
       const arr = await saveCliente({ nombre: clienteNombre.trim(), contacto: clienteContacto.trim(), tipo_precio: 'minorista' });
       const nuevo = arr.find(c => c.nombre === clienteNombre.trim());
       setClienteCreado(nuevo || null);
+      setStep(2);
     } catch (_) {}
+    savingRef.current = false;
     setSaving(false);
-    setStep(2);
   }
 
   function skipStep1() {
@@ -81,8 +95,10 @@ export function OnboardingWizard({ onComplete }) {
   }
 
   async function handleStep2() {
+    if (savingRef.current) return;
     if (!itemNombre.trim() || !itemPrecio) return;
     if (!clienteCreado) { setStep(3); return; }
+    savingRef.current = true;
     setSaving(true);
     try {
       const precio = parseFloat(itemPrecio) || 0;
@@ -101,18 +117,30 @@ export function OnboardingWizard({ onComplete }) {
         nota: null,
         tipo: 'pedido',
       });
+      setStep(3);
     } catch (_) {}
+    savingRef.current = false;
     setSaving(false);
-    setStep(3);
   }
 
   function skipStep2() {
     setStep(3);
   }
 
+  const [finishing, setFinishing] = useState(false);
+  const finishingRef = useRef(false);
+
   async function handleFinish() {
-    await saveNegocioConfig({ nombre: negocioNombre || 'Mi Negocio', logo_url: logoUrl || null, onboarding_done: true });
-    onComplete();
+    if (finishingRef.current) return;
+    finishingRef.current = true;
+    setFinishing(true);
+    try {
+      await saveNegocioConfig({ nombre: negocioNombre || 'Mi Negocio', logo_url: logoUrl || null, onboarding_done: true });
+      onComplete();
+    } catch (_) {
+      finishingRef.current = false;
+      setFinishing(false);
+    }
   }
 
   return (
@@ -146,7 +174,7 @@ export function OnboardingWizard({ onComplete }) {
               <button className="btn btn-primary btn-full" onClick={handleStep0} disabled={saving || !negocioNombre.trim()} style={{ minHeight: 48, marginBottom: 'var(--space-3)' }}>
                 {saving ? 'Guardando...' : 'Continuar →'}
               </button>
-              <button className="btn btn-secondary btn-full" onClick={handleSkip} style={{ minHeight: 44 }}>Saltar configuración</button>
+              <button className="btn btn-secondary btn-full" onClick={handleSkip} disabled={saving} style={{ minHeight: 44 }}>Saltar configuración</button>
             </motion.div>
           )}
 
@@ -165,7 +193,7 @@ export function OnboardingWizard({ onComplete }) {
               <button className="btn btn-primary btn-full" onClick={handleStep1} disabled={saving || !clienteNombre.trim()} style={{ minHeight: 48, marginBottom: 'var(--space-3)' }}>
                 {saving ? 'Guardando...' : 'Guardar y continuar →'}
               </button>
-              <button className="btn btn-secondary btn-full" onClick={skipStep1} style={{ minHeight: 44 }}>Saltar</button>
+              <button className="btn btn-secondary btn-full" onClick={skipStep1} disabled={saving} style={{ minHeight: 44 }}>Saltar</button>
             </motion.div>
           )}
 
@@ -200,7 +228,7 @@ export function OnboardingWizard({ onComplete }) {
               <button className="btn btn-primary btn-full" onClick={handleStep2} disabled={saving || !itemNombre.trim() || !itemPrecio} style={{ minHeight: 48, marginBottom: 'var(--space-3)' }}>
                 {saving ? 'Guardando...' : 'Guardar y continuar →'}
               </button>
-              <button className="btn btn-secondary btn-full" onClick={skipStep2} style={{ minHeight: 44 }}>Saltar</button>
+              <button className="btn btn-secondary btn-full" onClick={skipStep2} disabled={saving} style={{ minHeight: 44 }}>Saltar</button>
             </motion.div>
           )}
 
@@ -216,8 +244,8 @@ export function OnboardingWizard({ onComplete }) {
               <p style={{ color: 'var(--ink-2)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-8)', lineHeight: 1.7 }}>
                 Tu negocio está configurado.<br />Podés seguir agregando clientes, productos y pedidos.
               </p>
-              <button className="btn btn-primary btn-full" onClick={handleFinish} style={{ minHeight: 52, fontSize: 'var(--text-base)', fontWeight: 700 }}>
-                Ir a la app →
+              <button className="btn btn-primary btn-full" onClick={handleFinish} disabled={finishing} style={{ minHeight: 52, fontSize: 'var(--text-base)', fontWeight: 700 }}>
+                {finishing ? 'Cargando...' : 'Ir a la app →'}
               </button>
             </motion.div>
           )}

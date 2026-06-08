@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Modal } from '../shared/Modal.jsx';
 
 const DRAFT_KEY = 'draft_nuevo_cliente';
@@ -25,9 +25,13 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
   const [fotoUrl, setFotoUrl] = useState('');
   const [hoverFoto, setHoverFoto] = useState(false);
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
 
   useEffect(() => {
     if (!open) return;
+    setSaving(false);
+    savingRef.current = false;
     if (existing) {
       setNombre(existing.nombre || '');
       setContacto(existing.contacto || '');
@@ -93,7 +97,8 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
     reader.readAsDataURL(file);
   }
 
-  function handleSave() {
+  async function handleSave() {
+    if (savingRef.current) return;
     if (!nombre.trim()) {
       setError('El nombre es obligatorio');
       return;
@@ -102,17 +107,25 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
     if (contactoLimpio.startsWith('54')) contactoLimpio = contactoLimpio.slice(2);
     if (contactoLimpio.length === 11 && contactoLimpio.startsWith('9')) contactoLimpio = contactoLimpio.slice(1);
 
-    clearDraft();
-    onSave({
-      ...existing,
-      nombre: nombre.trim(),
-      contacto: contactoLimpio,
-      email: email.trim(),
-      direccion: direccion.trim(),
-      tipo_precio: tipoPrecio,
-      saldo_inicial: parseFloat(saldoInicial) || 0,
-      foto_url: fotoUrl || null,
-    });
+    savingRef.current = true;
+    setSaving(true);
+    try {
+      await onSave({
+        ...existing,
+        nombre: nombre.trim(),
+        contacto: contactoLimpio,
+        email: email.trim(),
+        direccion: direccion.trim(),
+        tipo_precio: tipoPrecio,
+        saldo_inicial: parseFloat(saldoInicial) || 0,
+        foto_url: fotoUrl || null,
+      });
+      clearDraft();
+    } catch (e) {
+      setError(e.message);
+      savingRef.current = false;
+      setSaving(false);
+    }
   }
 
   function handleClose() {
@@ -124,7 +137,7 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
     <Modal
       open={open}
       title={existing ? 'Editar cliente' : 'Nuevo cliente'}
-      onClose={handleClose}
+      onClose={saving ? () => {} : handleClose}
     >
       {open && (
         <>
@@ -133,18 +146,18 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-2)' }}>
               <div 
                 style={{ position: 'relative', width: 72, height: 72 }}
-                onMouseEnter={() => setHoverFoto(true)}
-                onMouseLeave={() => setHoverFoto(false)}
+                onMouseEnter={() => !saving && setHoverFoto(true)}
+                onMouseLeave={() => !saving && setHoverFoto(false)}
               >
                 <div
-                  onClick={() => document.getElementById('cliente-foto-upload').click()}
+                  onClick={() => !saving && document.getElementById('cliente-foto-upload').click()}
                   style={{
                     width: '100%', height: '100%', borderRadius: '50%',
                     background: fotoUrl ? 'none' : 'var(--bg-3)',
                     border: '1px solid var(--border)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 24, fontWeight: 700, color: 'var(--ink-3)',
-                    cursor: 'pointer',
+                    cursor: saving ? 'not-allowed' : 'pointer',
                     position: 'relative',
                     overflow: 'hidden',
                   }}
@@ -158,24 +171,26 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
                     </svg>
                   )}
                   
-                  <div style={{
-                    position: 'absolute',
-                    inset: 0,
-                    background: 'rgba(0,0,0,0.5)',
-                    opacity: hoverFoto ? 1 : 0,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    transition: 'opacity 0.2s',
-                  }}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2">
-                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                      <circle cx="12" cy="13" r="4"/>
-                    </svg>
-                  </div>
+                  {!saving && (
+                    <div style={{
+                      position: 'absolute',
+                      inset: 0,
+                      background: 'rgba(0,0,0,0.5)',
+                      opacity: hoverFoto ? 1 : 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'opacity 0.2s',
+                    }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                        <circle cx="12" cy="13" r="4"/>
+                      </svg>
+                    </div>
+                  )}
                 </div>
 
-                {fotoUrl && hoverFoto && (
+                {fotoUrl && hoverFoto && !saving && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -215,6 +230,7 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
                 accept="image/*"
                 style={{ display: 'none' }}
                 onChange={handleFotoChange}
+                disabled={saving}
               />
             </div>
 
@@ -230,6 +246,7 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
                 autoCorrect="off"
                 autoCapitalize="words"
                 autoFocus
+                disabled={saving}
               />
             </div>
             <div className="form-group">
@@ -241,6 +258,7 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
                 value={contacto}
                 onChange={e => { setContacto(e.target.value); if (!existing) saveDraft({ ...ds(), contacto: e.target.value }); }}
                 autoComplete="off"
+                disabled={saving}
               />
             </div>
             <div className="form-group">
@@ -253,6 +271,7 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
                 onChange={e => { setEmail(e.target.value); if (!existing) saveDraft({ ...ds(), email: e.target.value }); }}
                 autoComplete="off"
                 autoCapitalize="none"
+                disabled={saving}
               />
             </div>
             <div className="form-group">
@@ -265,6 +284,7 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
                 onChange={e => { setDireccion(e.target.value); if (!existing) saveDraft({ ...ds(), direccion: e.target.value }); }}
                 autoComplete="off"
                 autoCorrect="off"
+                disabled={saving}
               />
             </div>
             {!existing && (
@@ -279,6 +299,7 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
                   value={saldoInicial}
                   onChange={e => { setSaldoInicial(e.target.value); if (!existing) saveDraft({ ...ds(), saldoInicial: e.target.value }); }}
                   autoComplete="off"
+                  disabled={saving}
                 />
               </div>
             )}
@@ -290,6 +311,7 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
                   className={`filter-chip${tipoPrecio === 'minorista' ? ' active' : ''}`}
                   style={{ flex: 1, minHeight: 40 }}
                   onClick={() => { setTipoPrecio('minorista'); if (!existing) saveDraft({ ...ds(), tipoPrecio: 'minorista' }); }}
+                  disabled={saving}
                 >
                   Minorista
                 </button>
@@ -298,6 +320,7 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
                   className={`filter-chip${tipoPrecio === 'mayorista' ? ' active' : ''}`}
                   style={{ flex: 1, minHeight: 40 }}
                   onClick={() => { setTipoPrecio('mayorista'); if (!existing) saveDraft({ ...ds(), tipoPrecio: 'mayorista' }); }}
+                  disabled={saving}
                 >
                   Mayorista
                 </button>
@@ -306,8 +329,10 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
             {error && <p style={{ color: 'var(--color-danger)', fontSize: 'var(--text-sm)' }}>{error}</p>}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', padding: 'var(--space-4)', paddingTop: 0 }}>
-            <button className="btn btn-primary btn-full" onClick={handleSave}>Guardar</button>
-            <button className="btn btn-secondary btn-full" onClick={handleClose}>Cancelar</button>
+            <button className="btn btn-primary btn-full" onClick={handleSave} disabled={saving}>
+              {saving ? 'Guardando...' : 'Guardar'}
+            </button>
+            <button className="btn btn-secondary btn-full" onClick={handleClose} disabled={saving}>Cancelar</button>
           </div>
         </>
       )}

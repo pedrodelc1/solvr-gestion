@@ -463,10 +463,16 @@ export function StatsPanel({ pedidos, gastos, clientes, productos, onExportCSV }
     return Object.values(groups).sort((a, b) => a.sortKey - b.sortKey);
   }, [filteredPedidos, filteredGastos, from, to]);
 
+  const downloadingRef = useRef(false);
+
   function handleExport() {
-    if (!from || !to) return;
+    if (downloadingRef.current || !from || !to) return;
+    downloadingRef.current = true;
     setDownloading(true);
-    setTimeout(() => setDownloading(false), 1200);
+    setTimeout(() => {
+      downloadingRef.current = false;
+      setDownloading(false);
+    }, 1200);
     onExportCSV(from, to);
   }
 
@@ -476,9 +482,10 @@ export function StatsPanel({ pedidos, gastos, clientes, productos, onExportCSV }
       <div className="page-header">
         <h1>Resumen de Negocio</h1>
         <motion.button className="btn-icon" onClick={handleExport} aria-label="Exportar CSV"
-          whileTap={{ scale: 0.9 }}
+          disabled={downloading}
+          whileTap={downloading ? undefined : { scale: 0.9 }}
           animate={downloading ? { borderColor: 'var(--primary)' } : { borderColor: 'var(--border)' }}
-          style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', transition: 'border-color 0.3s' }}>
+          style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', transition: 'border-color 0.3s', opacity: downloading ? 0.5 : 1, cursor: downloading ? 'not-allowed' : 'pointer' }}>
           <motion.svg viewBox="0 0 24 24" fill="none" stroke={downloading ? 'var(--primary)' : 'currentColor'} strokeWidth="2">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
             <polyline points="7 10 12 15 17 10"/>

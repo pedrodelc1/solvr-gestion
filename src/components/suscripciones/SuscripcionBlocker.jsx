@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { renovarSuscripcion } from '../../lib/db.js';
 import { supabase } from '../../lib/supabase.js';
@@ -18,15 +18,24 @@ export function SuscripcionBlocker({ suscripcion, onRenovada }) {
   const vencimiento = suscripcion ? new Date(suscripcion.fecha_vencimiento) : null;
   const diasDiff = vencimiento ? Math.round((vencimiento - hoy) / (1000 * 60 * 60 * 24)) : 0;
 
+  const [loggingOut, setLoggingOut] = useState(false);
+  const loggingOutRef = useRef(false);
+  const loadingRef = useRef(false);
+
   async function handleLogout() {
+    if (loggingOutRef.current) return;
+    loggingOutRef.current = true;
+    setLoggingOut(true);
     await supabase.auth.signOut();
     window.location.reload();
   }
 
   async function handleRenovar() {
+    if (loadingRef.current) return;
     const mpFunctionUrl = import.meta.env.VITE_MP_FUNCTION_URL;
 
     if (!mpFunctionUrl) {
+      loadingRef.current = true;
       setLoading(true);
       try {
         if (suscripcion?.id) {
@@ -35,12 +44,14 @@ export function SuscripcionBlocker({ suscripcion, onRenovada }) {
         }
       } catch (e) {
         setError(e.message);
+        loadingRef.current = false;
       } finally {
         setLoading(false);
       }
       return;
     }
 
+    loadingRef.current = true;
     setLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -57,9 +68,11 @@ export function SuscripcionBlocker({ suscripcion, onRenovada }) {
         window.location.href = data.init_point;
       } else {
         setError('No se pudo iniciar el pago. Intentá de nuevo.');
+        loadingRef.current = false;
       }
     } catch (e) {
       setError('Error al conectar con el servicio de pagos.');
+      loadingRef.current = false;
     } finally {
       setLoading(false);
     }
@@ -139,8 +152,13 @@ export function SuscripcionBlocker({ suscripcion, onRenovada }) {
           </>
         )}
 
-        <button className="btn btn-secondary" onClick={handleLogout} style={{ minHeight: 44, fontSize: 'var(--text-sm)', width: '100%', marginBottom: 'var(--space-4)' }}>
-          Cerrar sesión
+        <button
+          className="btn btn-secondary"
+          onClick={handleLogout}
+          disabled={loading || loggingOut}
+          style={{ minHeight: 44, fontSize: 'var(--text-sm)', width: '100%', marginBottom: 'var(--space-4)', opacity: (loading || loggingOut) ? 0.5 : 1 }}
+        >
+          {loggingOut ? 'Cerrando sesión...' : 'Cerrar sesión'}
         </button>
         <p style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>¿Problemas? Contactá al administrador.</p>
       </div>

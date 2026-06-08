@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Modal } from '../shared/Modal.jsx';
 import { saveProducto } from '../../lib/db.js';
 import { formatCurrency } from '../../lib/utils.js';
@@ -7,6 +7,14 @@ export function ImportarProductosModal({ open, productos, onClose, onImportada, 
   const [preview, setPreview] = useState(null);
   const [importing, setImporting] = useState(false);
   const inputRef = useRef(null);
+  const importingRef = useRef(false);
+
+  useEffect(() => {
+    if (open) {
+      setImporting(false);
+      importingRef.current = false;
+    }
+  }, [open]);
 
   function handleFile(e) {
     const file = e.target.files?.[0];
@@ -76,7 +84,8 @@ export function ImportarProductosModal({ open, productos, onClose, onImportada, 
   }
 
   async function handleImportar() {
-    if (!preview) return;
+    if (!preview || importingRef.current) return;
+    importingRef.current = true;
     setImporting(true);
     const nuevos = preview.filter(r => !r.duplicado && r.precio > 0);
     let importados = 0;
@@ -91,6 +100,7 @@ export function ImportarProductosModal({ open, productos, onClose, onImportada, 
     onImportada?.();
     setPreview(null);
     if (inputRef.current) inputRef.current.value = '';
+    importingRef.current = false;
     setImporting(false);
     onClose();
   }
@@ -98,6 +108,7 @@ export function ImportarProductosModal({ open, productos, onClose, onImportada, 
   function handleClose() {
     setPreview(null);
     if (inputRef.current) inputRef.current.value = '';
+    importingRef.current = false;
     onClose();
   }
 
@@ -106,7 +117,7 @@ export function ImportarProductosModal({ open, productos, onClose, onImportada, 
   const nuevos     = preview ? preview.length - duplicados - sinPrecio : 0;
 
   return (
-    <Modal open={open} title="Importar productos" onClose={handleClose}>
+    <Modal open={open} title="Importar productos" onClose={importing ? () => {} : handleClose}>
       {open && (
         <>
           <div style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
@@ -183,7 +194,7 @@ export function ImportarProductosModal({ open, productos, onClose, onImportada, 
                 {importing ? 'Importando...' : `Importar ${nuevos} productos`}
               </button>
             )}
-            <button className="btn btn-secondary btn-full" onClick={handleClose}>Cancelar</button>
+            <button className="btn btn-secondary btn-full" onClick={handleClose} disabled={importing}>Cancelar</button>
           </div>
         </>
       )}

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Modal } from '../shared/Modal.jsx';
 import { saveCliente } from '../../lib/db.js';
 import { formatCurrency } from '../../lib/utils.js';
@@ -7,6 +7,14 @@ export function ImportarClientesModal({ open, clientes, onClose, onImportada, to
   const [preview, setPreview] = useState(null);
   const [importing, setImporting] = useState(false);
   const inputRef = useRef(null);
+  const importingRef = useRef(false);
+
+  useEffect(() => {
+    if (open) {
+      setImporting(false);
+      importingRef.current = false;
+    }
+  }, [open]);
 
   function handleFile(e) {
     const file = e.target.files?.[0];
@@ -76,7 +84,8 @@ export function ImportarClientesModal({ open, clientes, onClose, onImportada, to
   }
 
   async function handleImportar() {
-    if (!preview) return;
+    if (!preview || importingRef.current) return;
+    importingRef.current = true;
     setImporting(true);
     const nuevos = preview.filter(r => !r.duplicado);
     let importados = 0;
@@ -90,6 +99,7 @@ export function ImportarClientesModal({ open, clientes, onClose, onImportada, to
     onImportada?.();
     setPreview(null);
     if (inputRef.current) inputRef.current.value = '';
+    importingRef.current = false;
     setImporting(false);
     onClose();
   }
@@ -97,6 +107,7 @@ export function ImportarClientesModal({ open, clientes, onClose, onImportada, to
   function handleClose() {
     setPreview(null);
     if (inputRef.current) inputRef.current.value = '';
+    importingRef.current = false;
     onClose();
   }
 
@@ -104,7 +115,7 @@ export function ImportarClientesModal({ open, clientes, onClose, onImportada, to
   const nuevos = preview ? preview.length - duplicados : 0;
 
   return (
-    <Modal open={open} title="Importar clientes" onClose={handleClose}>
+    <Modal open={open} title="Importar clientes" onClose={importing ? () => {} : handleClose}>
       {open && (
         <>
           <div style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
@@ -183,7 +194,7 @@ export function ImportarClientesModal({ open, clientes, onClose, onImportada, to
                 {importing ? 'Importando...' : `Importar ${nuevos} clientes`}
               </button>
             )}
-            <button className="btn btn-secondary btn-full" onClick={handleClose}>Cancelar</button>
+            <button className="btn btn-secondary btn-full" onClick={handleClose} disabled={importing}>Cancelar</button>
           </div>
         </>
       )}

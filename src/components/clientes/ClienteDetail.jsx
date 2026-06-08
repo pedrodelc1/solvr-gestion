@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { formatCurrency, formatDate, saldoCliente } from '../../lib/utils.js';
 import { ConfirmModal, Modal } from '../shared/Modal.jsx';
 import { generarRemito, compartirRemito } from '../../lib/generarRemito.js';
@@ -31,12 +31,18 @@ export function ClienteDetail({ cliente, pedidos, devoluciones = [], comunicacio
   const [editSaldoOpen, setEditSaldoOpen] = useState(false);
   const [nuevoSaldo, setNuevoSaldo] = useState('');
 
+  const [guardandoSaldo, setGuardandoSaldo] = useState(false);
+  const guardandoSaldoRef = useRef(false);
+
   async function handleGuardarSaldo() {
+    if (guardandoSaldoRef.current) return;
     const val = parseFloat(nuevoSaldo);
     if (isNaN(val) || val < 0) {
       toast('Ingresá un monto de saldo válido', 'error');
       return;
     }
+    guardandoSaldoRef.current = true;
+    setGuardandoSaldo(true);
     try {
       await saveCliente({
         ...cliente,
@@ -47,6 +53,9 @@ export function ClienteDetail({ cliente, pedidos, devoluciones = [], comunicacio
       onRefresh();
     } catch (e) {
       toast(e.message, 'error');
+    } finally {
+      guardandoSaldoRef.current = false;
+      setGuardandoSaldo(false);
     }
   }
 
@@ -398,7 +407,7 @@ export function ClienteDetail({ cliente, pedidos, devoluciones = [], comunicacio
       <Modal
         open={editSaldoOpen}
         title="Modificar saldo inicial"
-        onClose={() => setEditSaldoOpen(false)}
+        onClose={guardandoSaldo ? () => {} : () => setEditSaldoOpen(false)}
       >
         <div style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           <p style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-2)', lineHeight: 1.4, margin: 0 }}>
@@ -416,11 +425,14 @@ export function ClienteDetail({ cliente, pedidos, devoluciones = [], comunicacio
               onChange={e => setNuevoSaldo(e.target.value)}
               autoComplete="off"
               autoFocus
+              disabled={guardandoSaldo}
             />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', marginTop: 'var(--space-2)' }}>
-            <button className="btn btn-primary btn-full" onClick={handleGuardarSaldo}>Guardar</button>
-            <button className="btn btn-secondary btn-full" onClick={() => setEditSaldoOpen(false)}>Cancelar</button>
+            <button className="btn btn-primary btn-full" onClick={handleGuardarSaldo} disabled={guardandoSaldo}>
+              {guardandoSaldo ? 'Guardando...' : 'Guardar'}
+            </button>
+            <button className="btn btn-secondary btn-full" onClick={() => setEditSaldoOpen(false)} disabled={guardandoSaldo}>Cancelar</button>
           </div>
         </div>
       </Modal>

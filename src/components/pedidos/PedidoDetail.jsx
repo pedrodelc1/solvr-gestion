@@ -41,13 +41,13 @@ export function PedidoDetail({ pedido, clientes, onBack, onUpdatePedido, onDelet
   return (
     <>
       <div className="detail-header">
-        <button className="btn-icon" onClick={onBack} aria-label="Volver">
+        <button className="btn-icon" onClick={saving ? undefined : onBack} aria-label="Volver" style={{ opacity: saving ? 0.5 : 1, cursor: saving ? 'not-allowed' : 'pointer' }}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <polyline points="15 18 9 12 15 6" />
           </svg>
         </button>
         <h2>Pedido del {formatDate(pedido.fecha)}</h2>
-        <button className="btn-icon danger" onClick={() => setConfirmDel(true)} aria-label="Eliminar">
+        <button className="btn-icon danger" onClick={saving ? undefined : () => setConfirmDel(true)} aria-label="Eliminar" style={{ opacity: saving ? 0.5 : 1, cursor: saving ? 'not-allowed' : 'pointer' }}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <polyline points="3 6 5 6 21 6" />
             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
@@ -121,6 +121,7 @@ export function PedidoDetail({ pedido, clientes, onBack, onUpdatePedido, onDelet
               onChange={e => setAbonoInput(e.target.value)}
               inputMode="numeric"
               style={{ flex: 1 }}
+              disabled={saving}
             />
             <button
               className="btn btn-secondary"

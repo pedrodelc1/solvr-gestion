@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { formatCurrency, formatDate, calcularMora, fechaVencimiento } from '../../lib/utils.js';
 import { ConfirmModal, Modal } from '../shared/Modal.jsx';
@@ -74,48 +74,84 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
     return clientes.find(c => c.id === clienteId)?.nombre || '—';
   }
 
-  function handleToggle(p) {
-    if (p.cobrado) {
-      onUpdate(p.id, { cobrado: false, montoAbonado: 0 });
-      toast('Pedido reabierto');
-    } else {
-      onUpdate(p.id, { cobrado: true, montoAbonado: p.totalFinal ?? p.totalCalculado });
-      toast('Cobrado');
+  const [loadingMap, setLoadingMap] = useState({});
+  const [pagoSaving, setPagoSaving] = useState(false);
+  const loadingMapRef = useRef({});
+  const pagoSavingRef = useRef(false);
+
+  async function runAction(id, actionFn) {
+    if (loadingMapRef.current[id]) return;
+    loadingMapRef.current[id] = true;
+    setLoadingMap(prev => ({ ...prev, [id]: true }));
+    try {
+      await actionFn();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      loadingMapRef.current[id] = false;
+      setLoadingMap(prev => ({ ...prev, [id]: false }));
     }
   }
 
-  function handlePagoSave() {
+  async function handleToggle(p) {
+    await runAction(p.id, async () => {
+      if (p.cobrado) {
+        await onUpdate(p.id, { cobrado: false, montoAbonado: 0 });
+        toast('Pedido reabierto');
+      } else {
+        await onUpdate(p.id, { cobrado: true, montoAbonado: p.totalFinal ?? p.totalCalculado });
+        toast('Cobrado');
+      }
+    });
+  }
+
+  async function handlePagoSave() {
+    if (pagoSavingRef.current) return;
     const monto = parseFloat(pagoMonto);
     if (isNaN(monto) || monto <= 0) { toast('Ingresá un monto válido', 'error'); return; }
     const p = pedidos.find(x => x.id === pagoModal.pedidoId);
     if (!p) return;
     const nuevoAbonado = (p.montoAbonado || 0) + monto;
     const total = p.totalFinal ?? p.totalCalculado;
-    onUpdate(p.id, nuevoAbonado >= total
-      ? { cobrado: true, montoAbonado: total }
-      : { montoAbonado: nuevoAbonado }
-    );
-    setPagoModal(null);
-    setPagoMonto('');
-    toast('Pago registrado');
+
+    pagoSavingRef.current = true;
+    setPagoSaving(true);
+    try {
+      await onUpdate(p.id, nuevoAbonado >= total
+        ? { cobrado: true, montoAbonado: total }
+        : { montoAbonado: nuevoAbonado }
+      );
+      setPagoModal(null);
+      setPagoMonto('');
+      toast('Pago registrado');
+    } catch (e) {
+      toast(e.message, 'error');
+      pagoSavingRef.current = false;
+    } finally {
+      setPagoSaving(false);
+    }
   }
 
-  function handleDelete(id) {
-    onDelete(id);
-    setConfirmDel(null);
-    toast('Pedido eliminado');
+  async function handleDelete(id) {
+    await runAction(id, async () => {
+      await onDelete(id);
+      setConfirmDel(null);
+      toast('Pedido eliminado');
+    });
   }
 
   async function handleConvertir(id) {
-    try {
-      await convertirPresupuesto(id);
-      if (onRefresh) onRefresh();
-      toast('Presupuesto convertido a pedido');
-    } catch (e) {
-      toast(e.message, 'error');
-    } finally {
-      setConfirmConvertir(null);
-    }
+    await runAction(id, async () => {
+      try {
+        await convertirPresupuesto(id);
+        if (onRefresh) await onRefresh();
+        toast('Presupuesto convertido a pedido');
+      } catch (e) {
+        toast(e.message, 'error');
+      } finally {
+        setConfirmConvertir(null);
+      }
+    });
   }
 
   return (
@@ -240,20 +276,35 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
                 <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-2)', flexWrap: 'wrap' }}>
                   {esPresupuesto ? (
                     canCobrar && (
-                      <button className="btn btn-primary" style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-sm)' }} onClick={() => setConfirmConvertir(p.id)}>
-                        Convertir a pedido
+                      <button
+                        className="btn btn-primary"
+                        style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-sm)', opacity: loadingMap[p.id] ? 0.5 : 1 }}
+                        onClick={() => setConfirmConvertir(p.id)}
+                        disabled={loadingMap[p.id]}
+                      >
+                        {loadingMap[p.id] ? 'Procesando...' : 'Convertir a pedido'}
                       </button>
                     )
                   ) : (
                     <>
                       {canCobrar && !p.cobrado && !(p.medioPago === 'tarjeta' && p.cuotas > 1) && (
-                        <button className="btn btn-secondary" style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-sm)' }} onClick={() => { setPagoModal({ pedidoId: p.id, resta }); setPagoMonto(''); }}>
+                        <button
+                          className="btn btn-secondary"
+                          style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-sm)', opacity: loadingMap[p.id] ? 0.5 : 1 }}
+                          onClick={() => { setPagoModal({ pedidoId: p.id, resta }); setPagoMonto(''); }}
+                          disabled={loadingMap[p.id]}
+                        >
                           + Pago parcial
                         </button>
                       )}
                       {canCobrar && !(p.medioPago === 'tarjeta' && p.cuotas > 1 && !p.cobrado) && (
-                        <button className={`btn ${p.cobrado ? 'btn-secondary' : 'btn-primary'}`} style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-sm)' }} onClick={() => handleToggle(p)}>
-                          {p.cobrado ? 'Reabrir' : 'Cobrar'}
+                        <button
+                          className={`btn ${p.cobrado ? 'btn-secondary' : 'btn-primary'}`}
+                          style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-sm)', opacity: loadingMap[p.id] ? 0.5 : 1 }}
+                          onClick={() => handleToggle(p)}
+                          disabled={loadingMap[p.id]}
+                        >
+                          {loadingMap[p.id] ? 'Procesando...' : p.cobrado ? 'Reabrir' : 'Cobrar'}
                         </button>
                       )}
                     </>
@@ -262,14 +313,22 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
                     <button
                       className="btn-icon"
                       aria-label={todoEntregado ? 'Revertir entrega' : 'Marcar como entregado'}
-                      onClick={() => todoEntregado
-                        ? onRevertirEntregado && onRevertirEntregado(p.id)
-                        : onMarcarEntregado(p.id)
-                      }
+                      onClick={() => {
+                        if (loadingMap[p.id]) return;
+                        runAction(p.id, async () => {
+                          if (todoEntregado) {
+                            if (onRevertirEntregado) await onRevertirEntregado(p.id);
+                          } else {
+                            await onMarcarEntregado(p.id);
+                          }
+                        });
+                      }}
                       title={todoEntregado ? 'Revertir entrega (por error)' : 'Marcar como entregado'}
+                      disabled={loadingMap[p.id]}
                       style={{
                         color: todoEntregado ? '#fbbf24' : 'var(--ink-3)',
-                        opacity: 1,
+                        opacity: loadingMap[p.id] ? 0.5 : 1,
+                        cursor: loadingMap[p.id] ? 'not-allowed' : 'pointer',
                         transition: 'color 200ms',
                       }}
                     >
@@ -350,19 +409,21 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
         )}
       </div>
 
-      <Modal open={!!pagoModal} title="Registrar pago parcial" onClose={() => setPagoModal(null)}>
+      <Modal open={!!pagoModal} title="Registrar pago parcial" onClose={pagoSaving ? () => {} : () => setPagoModal(null)}>
         {pagoModal && (
           <>
             <div style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
               <div className="form-group">
                 <label htmlFor="mp-monto">Monto a abonar ($)</label>
-                <input id="mp-monto" type="number" inputMode="decimal" placeholder="0" min="1" step="0.01" value={pagoMonto} onChange={e => setPagoMonto(e.target.value)} autoFocus />
+                <input id="mp-monto" type="number" inputMode="decimal" placeholder="0" min="1" step="0.01" value={pagoMonto} onChange={e => setPagoMonto(e.target.value)} autoFocus disabled={pagoSaving} />
               </div>
               <p style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-3)' }}>Saldo restante: {formatCurrency(pagoModal.resta)}</p>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', padding: 'var(--space-4)', paddingTop: 0 }}>
-              <button className="btn btn-primary btn-full" onClick={handlePagoSave}>Registrar pago</button>
-              <button className="btn btn-secondary btn-full" onClick={() => setPagoModal(null)}>Cancelar</button>
+              <button className="btn btn-primary btn-full" onClick={handlePagoSave} disabled={pagoSaving}>
+                {pagoSaving ? 'Registrando...' : 'Registrar pago'}
+              </button>
+              <button className="btn btn-secondary btn-full" onClick={() => setPagoModal(null)} disabled={pagoSaving}>Cancelar</button>
             </div>
           </>
         )}

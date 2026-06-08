@@ -782,7 +782,7 @@ export async function renovarSuscripcion(suscripcionId) {
     })
     .eq('id', suscripcionId);
   if (error) throw error;
-  return getSuscripcion();
+  return getSuscripciones();
 }
 
 // ── CUOTAS AUTOMÁTICAS ────────────────────────────────────

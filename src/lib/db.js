@@ -593,7 +593,8 @@ export async function getAllowedEmails() {
     .from('allowed_emails')
     .select('id, email, is_owner, rol, trial_activo, owner_user_id, created_at')
     .order('created_at', { ascending: true });
-  if (error) return [];
+  if (error) { console.error('[getAllowedEmails] ERROR:', error); return []; }
+  console.log('[getAllowedEmails] OK:', data?.length, 'rows');
   return data;
 }
 
@@ -778,7 +779,8 @@ export async function getSuscripciones() {
     .from('suscripciones')
     .select('*, planes(*)')
     .order('created_at', { ascending: false });
-  if (error) return [];
+  if (error) { console.error('[getSuscripciones] ERROR:', error); return []; }
+  console.log('[getSuscripciones] OK:', data?.length, 'rows');
   return data;
 }
 

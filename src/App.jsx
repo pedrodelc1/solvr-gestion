@@ -136,33 +136,29 @@ export default function App() {
 
   // ── Auth ──────────────────────────────────────────────────
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_ev, sess) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_ev, sess) => {
+      setSession(sess);
+      setAuthChecked(true);
+
       if (sess) {
-        try {
-          const { data: { user } } = await supabase.auth.getUser();
+        supabase.auth.getUser().then(({ data: { user } }) => {
           if (user) {
-            sess.user = user;
+            setSession(prev => prev && prev.user.id === user.id ? { ...prev, user } : prev);
           }
-        } catch (err) {
-          console.error('Error loading fresh user details:', err);
-        }
+        }).catch(err => console.error('Error loading fresh user details:', err));
       }
-      setSession(sess ? { ...sess } : null);
-      setAuthChecked(true);
     });
-    supabase.auth.getSession().then(async ({ data: { session: s } }) => {
-      if (s) {
-        try {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user) {
-            s.user = user;
-          }
-        } catch (err) {
-          console.error('Error loading fresh user details:', err);
-        }
-      }
-      setSession(s ? { ...s } : null);
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
+      setSession(s);
       setAuthChecked(true);
+
+      if (s) {
+        supabase.auth.getUser().then(({ data: { user } }) => {
+          if (user) {
+            setSession(prev => prev && prev.user.id === user.id ? { ...prev, user } : prev);
+          }
+        }).catch(err => console.error('Error loading fresh user details:', err));
+      }
     });
     return () => subscription.unsubscribe();
   }, []);

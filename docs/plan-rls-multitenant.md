@@ -1534,10 +1534,10 @@ alter policy clientes_select_v2 on clientes rename to clientes_select;
 - [x] Rename `_v2` → nombre canónico (65 renames: 16 tablas × 4 + suscripciones × 1; `planes_select` ya era canónico)
 - [x] Validaciones inline V1–V5 en `008_phase5_finalize.sql`: 0 policies _v2, 66 canónicas, NOT NULL confirmado, gobernanza intacta
 - [x] `scripts/validate-phase5.sql` con checks A1–A8 automáticos + template comentado de tests B (aislamiento) y C (gate suscripción S1–S7) para ejecutar con usuarios de test del §5.1
-- [ ] `008_phase5_finalize.sql` ejecutado en Supabase SQL Editor — pendiente ejecución manual
-- [ ] `scripts/validate-phase5.sql` Sección A ejecutada — todos los NOTICE deben decir PASS
-- [ ] Tests S1–S7 del gate de suscripción (§5.5.1) corren estrictos y pasan: con suscripción vencida, INSERT/UPDATE/DELETE en tablas transaccionales fallan (requiere usuarios de test del §5.1)
-- [ ] Smoke E2E manual post-migración
+- [x] `008_phase5_finalize.sql` ejecutado en Supabase SQL Editor — ejecutado en producción (2026-06-10)
+- [x] `scripts/validate-phase5.sql` Sección A ejecutada — A1=0, A2=66, A3=0, A5=0, A6=1, A8=true → todos PASS (2026-06-10)
+- [ ] Tests S1–S7 del gate de suscripción (§5.5.1) — diferido a staging con usuarios de test del §5.1
+- [ ] Smoke E2E manual post-migración — diferido
 
 ### Fase 6 — UI de gestión de miembros + invitaciones
 - [ ] Sección "Miembros" en PerfilPanel

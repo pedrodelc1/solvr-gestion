@@ -206,10 +206,10 @@ export default function App() {
   useEffect(() => {
     if (authChecked && session) {
       const init = async () => {
-        // Resolver negocio activo del usuario autenticado
-        const { data: negocioId } = await supabase.rpc('mi_negocio_id');
+        // Resolver negocio activo; si no es miembro aún, busca en allowed_emails y crea la membresía
+        const { data: negocioId } = await supabase.rpc('claim_team_access');
         if (!negocioId) {
-          toast("Acceso denegado: no tenés un negocio asociado a este email.", "error");
+          toast("Acceso denegado: este email no está autorizado. Contactá al administrador.", "error");
           await supabase.auth.signOut();
           return;
         }

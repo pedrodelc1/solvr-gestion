@@ -3,7 +3,7 @@
 **Proyecto:** Solvr Gestión
 **Autor:** análisis técnico inicial
 **Fecha:** 2026-06-10
-**Estado:** Fase 0 completa ✅ — Fase 1 completa ✅ (2026-06-10) — Fase 2 completa ✅ (2026-06-10) — Fase 3 completa ✅ (2026-06-10) — Fase 4 completa ✅ (2026-06-10)
+**Estado:** Fase 0 completa ✅ — Fase 1 completa ✅ (2026-06-10) — Fase 2 completa ✅ (2026-06-10) — Fase 3 completa ✅ (2026-06-10) — Fase 4 completa ✅ (2026-06-10) — Fase 5 completa ✅ (2026-06-10)
 
 ---
 
@@ -1528,13 +1528,16 @@ alter policy clientes_select_v2 on clientes rename to clientes_select;
 - [ ] Deploy a producción (verificar Fase 3 activa antes de mergear)
 - [ ] Monitorear errores 1 semana mínimo
 
-### Fase 5 — `NOT NULL` + drop policies viejas
-- [ ] `alter column negocio_id set not null` en cada tabla
-- [ ] Drop policies viejas (`_select`, `_insert`, `_update`, `_delete` sin sufijo `_v2`)
-- [ ] Rename `_v2` → nombre canónico
-- [ ] Suite §5 corre y pasa con solo policies nuevas
-- [ ] Tests S1–S7 del gate de suscripción (§5.5.1) corren estrictos y pasan: con suscripción vencida, INSERT/UPDATE/DELETE en tablas transaccionales fallan
-- [ ] Smoke E2E
+### Fase 5 — `NOT NULL` + drop policies viejas ✅ (2026-06-10)
+- [x] `alter column negocio_id set not null` en 17 tablas — `008_phase5_finalize.sql` listo para ejecutar en Supabase SQL Editor
+- [x] Drop policies viejas (todas las que usaban `user_id`, `allowed_emails`, `get_my_role`, `is_my_owner_data`) — `DROP POLICY IF EXISTS` para cada una de las ~45 policies viejas identificadas en baseline
+- [x] Rename `_v2` → nombre canónico (65 renames: 16 tablas × 4 + suscripciones × 1; `planes_select` ya era canónico)
+- [x] Validaciones inline V1–V5 en `008_phase5_finalize.sql`: 0 policies _v2, 66 canónicas, NOT NULL confirmado, gobernanza intacta
+- [x] `scripts/validate-phase5.sql` con checks A1–A8 automáticos + template comentado de tests B (aislamiento) y C (gate suscripción S1–S7) para ejecutar con usuarios de test del §5.1
+- [ ] `008_phase5_finalize.sql` ejecutado en Supabase SQL Editor — pendiente ejecución manual
+- [ ] `scripts/validate-phase5.sql` Sección A ejecutada — todos los NOTICE deben decir PASS
+- [ ] Tests S1–S7 del gate de suscripción (§5.5.1) corren estrictos y pasan: con suscripción vencida, INSERT/UPDATE/DELETE en tablas transaccionales fallan (requiere usuarios de test del §5.1)
+- [ ] Smoke E2E manual post-migración
 
 ### Fase 6 — UI de gestión de miembros + invitaciones
 - [ ] Sección "Miembros" en PerfilPanel

@@ -46,34 +46,156 @@
 begin;
 
 -- ────────────────────────────────────────────────────────────────────────
--- 0-PRE. Prerequisito: negocio_id en suscripciones
+-- 0-PRE. Prerequisito: negocio_id en TODAS las tablas de datos
 -- ────────────────────────────────────────────────────────────────────────
--- is_suscripcion_activa (language sql) se valida al momento de crearse:
--- PostgreSQL resuelve las columnas en el cuerpo de la función en el CREATE.
--- Si suscripciones.negocio_id no existe el CREATE falla con 42703.
--- Fase 2 debería haberla agregado, pero si fue parcial o no se ejecutó,
--- esta sección la agrega de forma defensiva con IF NOT EXISTS + backfill.
+-- Las policies y la función is_suscripcion_activa referencian negocio_id.
+-- PostgreSQL resuelve columnas en funciones language sql al hacer CREATE,
+-- y en policies al crearlas. Si falta la columna en cualquier tabla,
+-- el CREATE falla con 42703.
+-- Esta sección absorbe el trabajo de Fase 2: agrega la columna con
+-- IF NOT EXISTS (idempotente si Fase 2 ya corrió) y hace el backfill.
 
-alter table suscripciones
-  add column if not exists negocio_id uuid references negocios(id);
+-- Tablas con user_id directo
+alter table clientes              add column if not exists negocio_id uuid references negocios(id);
+alter table productos             add column if not exists negocio_id uuid references negocios(id);
+alter table pedidos               add column if not exists negocio_id uuid references negocios(id);
+alter table gastos                add column if not exists negocio_id uuid references negocios(id);
+alter table categorias            add column if not exists negocio_id uuid references negocios(id);
+alter table alertas_config        add column if not exists negocio_id uuid references negocios(id);
+alter table suscripciones         add column if not exists negocio_id uuid references negocios(id);
+alter table negocio_config        add column if not exists negocio_id uuid references negocios(id);
+alter table devoluciones          add column if not exists negocio_id uuid references negocios(id);
+alter table comunicaciones        add column if not exists negocio_id uuid references negocios(id);
+alter table productos_precio_historial add column if not exists negocio_id uuid references negocios(id);
+alter table pedidos_recurrentes   add column if not exists negocio_id uuid references negocios(id);
+alter table proveedores           add column if not exists negocio_id uuid references negocios(id);
+alter table ordenes_compra        add column if not exists negocio_id uuid references negocios(id);
 
-create index if not exists suscripciones_negocio_idx
-  on suscripciones(negocio_id);
+-- Tablas hijo (desnormalización para evitar joins en las policies)
+alter table pedido_items          add column if not exists negocio_id uuid references negocios(id);
+alter table devolucion_items      add column if not exists negocio_id uuid references negocios(id);
+alter table ordenes_compra_items  add column if not exists negocio_id uuid references negocios(id);
 
-update suscripciones
-  set negocio_id = user_id
-  where negocio_id is null and user_id is not null;
+-- Índices (idempotentes)
+create index if not exists clientes_negocio_idx              on clientes(negocio_id);
+create index if not exists productos_negocio_idx             on productos(negocio_id);
+create index if not exists pedidos_negocio_idx               on pedidos(negocio_id);
+create index if not exists gastos_negocio_idx                on gastos(negocio_id);
+create index if not exists categorias_negocio_idx            on categorias(negocio_id);
+create index if not exists alertas_config_negocio_idx        on alertas_config(negocio_id);
+create index if not exists suscripciones_negocio_idx         on suscripciones(negocio_id);
+create index if not exists negocio_config_negocio_idx        on negocio_config(negocio_id);
+create index if not exists devoluciones_negocio_idx          on devoluciones(negocio_id);
+create index if not exists comunicaciones_negocio_idx        on comunicaciones(negocio_id);
+create index if not exists productos_precio_historial_negocio_idx on productos_precio_historial(negocio_id);
+create index if not exists pedidos_recurrentes_negocio_idx   on pedidos_recurrentes(negocio_id);
+create index if not exists proveedores_negocio_idx           on proveedores(negocio_id);
+create index if not exists ordenes_compra_negocio_idx        on ordenes_compra(negocio_id);
+create index if not exists pedido_items_negocio_idx          on pedido_items(negocio_id);
+create index if not exists devolucion_items_negocio_idx      on devolucion_items(negocio_id);
+create index if not exists ordenes_compra_items_negocio_idx  on ordenes_compra_items(negocio_id);
 
-do $$
-declare v_nulls bigint;
+-- Backfill tablas directas: negocio_id = user_id
+-- (Fase 1 creó negocios con id = user_id, la igualación es exacta)
+update clientes              set negocio_id = user_id where negocio_id is null and user_id is not null;
+update productos             set negocio_id = user_id where negocio_id is null and user_id is not null;
+update pedidos               set negocio_id = user_id where negocio_id is null and user_id is not null;
+update gastos                set negocio_id = user_id where negocio_id is null and user_id is not null;
+update categorias            set negocio_id = user_id where negocio_id is null and user_id is not null;
+update alertas_config        set negocio_id = user_id where negocio_id is null and user_id is not null;
+update suscripciones         set negocio_id = user_id where negocio_id is null and user_id is not null;
+update negocio_config        set negocio_id = user_id where negocio_id is null and user_id is not null;
+update devoluciones          set negocio_id = user_id where negocio_id is null and user_id is not null;
+update comunicaciones        set negocio_id = user_id where negocio_id is null and user_id is not null;
+update productos_precio_historial set negocio_id = user_id where negocio_id is null and user_id is not null;
+update pedidos_recurrentes   set negocio_id = user_id where negocio_id is null and user_id is not null;
+update proveedores           set negocio_id = user_id where negocio_id is null and user_id is not null;
+update ordenes_compra        set negocio_id = user_id where negocio_id is null and user_id is not null;
+
+-- Backfill tablas hijo desde el padre
+update pedido_items pi
+  set negocio_id = p.negocio_id
+  from pedidos p
+  where pi.pedido_id = p.id and pi.negocio_id is null and p.negocio_id is not null;
+
+update devolucion_items di
+  set negocio_id = d.negocio_id
+  from devoluciones d
+  where di.devolucion_id = d.id and di.negocio_id is null and d.negocio_id is not null;
+
+update ordenes_compra_items oci
+  set negocio_id = oc.negocio_id
+  from ordenes_compra oc
+  where oci.orden_compra_id = oc.id and oci.negocio_id is null and oc.negocio_id is not null;
+
+-- Trigger set_negocio_id_default (idempotente — OR REPLACE)
+create or replace function set_negocio_id_default()
+returns trigger language plpgsql security definer
+set search_path = public, pg_catalog as $$
 begin
-  select count(*) into v_nulls from suscripciones where negocio_id is null;
-  if v_nulls > 0 then
-    raise exception
-      'Prerequisito fallido: % fila(s) en suscripciones con negocio_id IS NULL '
-      'tras el backfill. Verificar que Fase 1 creó negocios para todos los owners.',
-      v_nulls;
+  if new.negocio_id is null then
+    new.negocio_id := mi_negocio_id();
   end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists clientes_set_negocio             on clientes;
+create trigger clientes_set_negocio             before insert on clientes             for each row execute function set_negocio_id_default();
+drop trigger if exists productos_set_negocio            on productos;
+create trigger productos_set_negocio            before insert on productos            for each row execute function set_negocio_id_default();
+drop trigger if exists pedidos_set_negocio              on pedidos;
+create trigger pedidos_set_negocio              before insert on pedidos              for each row execute function set_negocio_id_default();
+drop trigger if exists gastos_set_negocio               on gastos;
+create trigger gastos_set_negocio               before insert on gastos               for each row execute function set_negocio_id_default();
+drop trigger if exists categorias_set_negocio           on categorias;
+create trigger categorias_set_negocio           before insert on categorias           for each row execute function set_negocio_id_default();
+drop trigger if exists alertas_config_set_negocio       on alertas_config;
+create trigger alertas_config_set_negocio       before insert on alertas_config       for each row execute function set_negocio_id_default();
+drop trigger if exists suscripciones_set_negocio        on suscripciones;
+create trigger suscripciones_set_negocio        before insert on suscripciones        for each row execute function set_negocio_id_default();
+drop trigger if exists negocio_config_set_negocio       on negocio_config;
+create trigger negocio_config_set_negocio       before insert on negocio_config       for each row execute function set_negocio_id_default();
+drop trigger if exists devoluciones_set_negocio         on devoluciones;
+create trigger devoluciones_set_negocio         before insert on devoluciones         for each row execute function set_negocio_id_default();
+drop trigger if exists comunicaciones_set_negocio       on comunicaciones;
+create trigger comunicaciones_set_negocio       before insert on comunicaciones       for each row execute function set_negocio_id_default();
+drop trigger if exists productos_precio_historial_set_negocio on productos_precio_historial;
+create trigger productos_precio_historial_set_negocio before insert on productos_precio_historial for each row execute function set_negocio_id_default();
+drop trigger if exists pedidos_recurrentes_set_negocio  on pedidos_recurrentes;
+create trigger pedidos_recurrentes_set_negocio  before insert on pedidos_recurrentes  for each row execute function set_negocio_id_default();
+drop trigger if exists proveedores_set_negocio          on proveedores;
+create trigger proveedores_set_negocio          before insert on proveedores          for each row execute function set_negocio_id_default();
+drop trigger if exists ordenes_compra_set_negocio       on ordenes_compra;
+create trigger ordenes_compra_set_negocio       before insert on ordenes_compra       for each row execute function set_negocio_id_default();
+drop trigger if exists pedido_items_set_negocio         on pedido_items;
+create trigger pedido_items_set_negocio         before insert on pedido_items         for each row execute function set_negocio_id_default();
+drop trigger if exists devolucion_items_set_negocio     on devolucion_items;
+create trigger devolucion_items_set_negocio     before insert on devolucion_items     for each row execute function set_negocio_id_default();
+drop trigger if exists ordenes_compra_items_set_negocio on ordenes_compra_items;
+create trigger ordenes_compra_items_set_negocio before insert on ordenes_compra_items for each row execute function set_negocio_id_default();
+
+-- Validación: ninguna tabla con datos debe tener negocio_id IS NULL
+do $$
+declare
+  v_tabla text;
+  v_nulls bigint;
+begin
+  foreach v_tabla in array array[
+    'clientes','productos','pedidos','gastos','categorias',
+    'alertas_config','suscripciones','negocio_config','devoluciones',
+    'comunicaciones','productos_precio_historial','pedidos_recurrentes',
+    'proveedores','ordenes_compra',
+    'pedido_items','devolucion_items','ordenes_compra_items'
+  ] loop
+    execute format('select count(*) from %I where negocio_id is null', v_tabla) into v_nulls;
+    if v_nulls > 0 then
+      raise exception
+        'Prerequisito fallido: % fila(s) en % con negocio_id IS NULL. '
+        'Verificar que Fase 1 creó negocios para todos los user_id.', v_nulls, v_tabla;
+    end if;
+  end loop;
+  raise notice 'OK 0-PRE: negocio_id presente y backfilleado en las 17 tablas.';
 end $$;
 
 -- ────────────────────────────────────────────────────────────────────────

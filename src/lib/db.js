@@ -689,9 +689,6 @@ export async function addAllowedEmail(email, rol = 'vendedor') {
     .from('allowed_emails')
     .insert({ email: email.toLowerCase().trim(), rol, owner_user_id: ownerUserId });
   if (error) throw error;
-  // Si el usuario ya tiene cuenta, agregarlo a negocio_members inmediatamente.
-  // Si no tiene cuenta aún, el trigger on_auth_user_created lo incorporará al signup.
-  await supabase.rpc('add_member_by_email', { p_email: email.toLowerCase().trim(), p_rol: rol });
   return getAllowedEmails();
 }
 

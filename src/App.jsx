@@ -207,7 +207,9 @@ export default function App() {
     if (authChecked && session) {
       const init = async () => {
         // Resolver negocio activo; si no es miembro aún, busca en allowed_emails y crea la membresía
-        const { data: negocioId } = await supabase.rpc('claim_team_access');
+        const { data: negocioId, error: claimError } = await supabase.rpc('claim_team_access');
+        if (claimError) console.error('[claim_team_access] error:', claimError);
+        console.log('[claim_team_access] negocioId:', negocioId, 'user:', session.user.email);
         if (!negocioId) {
           toast("Acceso denegado: este email no está autorizado. Contactá al administrador.", "error");
           await supabase.auth.signOut();

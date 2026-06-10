@@ -569,25 +569,9 @@ export async function isEmailAllowed(email) {
   const superadmin = import.meta.env.VITE_SUPERADMIN_EMAIL;
   if (superadmin && email.toLowerCase().trim() === superadmin.toLowerCase().trim()) return true;
 
-  // Chequear allowed_emails
-  const { data: ae, error: aeError } = await supabase
-    .from('allowed_emails')
-    .select('id')
-    .eq('email', email.toLowerCase().trim())
-    .maybeSingle();
-  if (ae) return true;
-
-  // Chequear suscripciones activas/prueba
-  const { data: sus, error: susError } = await supabase
-    .from('suscripciones')
-    .select('id')
-    .eq('user_email', email.toLowerCase().trim())
-    .in('estado', ['activa', 'prueba'])
-    .maybeSingle();
-  if (sus) return true;
-
-  if (aeError && susError) return null;
-  return false;
+  const { data, error } = await supabase.rpc('check_email_allowed', { p_email: email.trim() });
+  if (error) return null;
+  return data === true;
 }
 
 export async function getAllowedEmails() {

@@ -396,3 +396,85 @@ alter table negocio_config add column if not exists num_inicial integer not null
 alter table negocio_config add column if not exists metodos_pago text not null default 'Efectivo, Transferencia, Tarjeta';
 
 alter table pedidos add column if not exists nro integer;
+
+-- ══════════════════════════════════════════════════════════
+-- TABLAS DE CONTROL DE ACCESO (recuperadas de producción — Fase 0)
+-- Estas tablas existían en producción pero no estaban versionadas aquí.
+-- DDL reconstruido a partir de src/lib/db.js y docs/plan-rls-multitenant.md §1.3.
+-- Ejecutar SÓLO si las tablas no existen (idempotente con IF NOT EXISTS).
+-- ══════════════════════════════════════════════════════════
+
+-- ── allowed_emails ────────────────────────────────────────
+-- Whitelist de emails autorizados. Referenciada por policies de suscripciones
+-- y por la lógica de autenticación de equipo en db.js.
+create table if not exists allowed_emails (
+  id             uuid primary key default gen_random_uuid(),
+  email          text not null unique,
+  owner_user_id  uuid references auth.users(id) on delete set null,
+  is_owner       boolean not null default false,
+  rol            text not null default 'vendedor', -- 'owner' | 'admin' | 'vendedor' | 'visualizador'
+  trial_activo   boolean not null default true,
+  created_at     timestamptz default now()
+);
+
+-- TODO (Fase 0 manual): verificar DDL real contra _baseline.allowed_emails_snapshot
+-- luego de ejecutar 001_phase0_audit.sql en el SQL Editor de Supabase.
+
+-- ── team_members ──────────────────────────────────────────
+-- Alternativa/alias de allowed_emails mencionada en contexto.md.
+-- Puede no existir en producción (verificar con _baseline.team_members_snapshot).
+create table if not exists team_members (
+  id            uuid primary key default gen_random_uuid(),
+  owner_id      uuid references auth.users(id) on delete cascade,
+  member_email  text not null,
+  role          text not null default 'vendedor',
+  created_at    timestamptz default now()
+);
+
+-- TODO (Fase 0 manual): confirmar si esta tabla existe en producción con
+-- _baseline.team_members_snapshot. Si no existe, comentar el bloque anterior.
+
+-- ══════════════════════════════════════════════════════════
+-- FUNCIONES HELPER DE ROLES (recuperadas de producción — Fase 0)
+-- Mencionadas en CLAUDE.md como implementadas; ausentes en este schema.
+-- Los cuerpos son stubs — recuperar el DDL real de:
+--   select definition from _baseline.function_defs where function_name = 'get_my_role';
+-- ══════════════════════════════════════════════════════════
+
+-- ── get_my_role() ─────────────────────────────────────────
+-- Devuelve el rol del usuario actual según allowed_emails.
+-- DDL real recuperado de producción (Fase 0 — 2026-06-10).
+--
+-- ⚠️ NOTA DE SEGURIDAD (registrada para Fase 3):
+-- El COALESCE externo devuelve 'owner' si el email no está en allowed_emails.
+-- Esto significa que cualquier usuario no listado es tratado como owner.
+-- En el modelo actual esto es intencional (los owners no se agregan a
+-- allowed_emails, solo los miembros del equipo). En la migración multi-tenant
+-- (Fase 3) esta función se reemplaza por mi_rol_en(negocio_id).
+create or replace function get_my_role()
+returns text
+language sql stable security definer
+as $function$
+  select coalesce(
+    case
+      when exists (select 1 from public.allowed_emails where email = auth.email() and is_owner = true)
+      then 'owner'
+      else (select coalesce(rol, 'vendedor') from public.allowed_emails where email = auth.email() limit 1)
+    end,
+    'owner'
+  );
+$function$;
+
+-- ── is_my_owner_data(user_id) ─────────────────────────────
+-- Verifica si el usuario actual es miembro del equipo del owner de esa fila.
+-- DDL real recuperado de producción (Fase 0 — 2026-06-10).
+create or replace function is_my_owner_data(row_user_id uuid)
+returns boolean
+language sql stable security definer
+as $$
+  select exists (
+    select 1 from public.allowed_emails
+    where email = auth.email()
+      and owner_user_id = row_user_id
+  );
+$$;

@@ -442,12 +442,17 @@ declare
   v_huerfanos int;
   v_muestra   uuid;
 begin
-  select count(*), min(o.user_id)
-    into v_huerfanos, v_muestra
+  select count(*)
+    into v_huerfanos
     from _owners_detectados o
    where not exists (select 1 from negocios where id = o.user_id);
 
   if v_huerfanos > 0 then
+    select o.user_id into v_muestra
+      from _owners_detectados o
+     where not exists (select 1 from negocios where id = o.user_id)
+     limit 1;
+
     raise exception
       'Backfill incompleto: % owner(s) con datos quedaron sin negocio. Muestra: %',
       v_huerfanos, v_muestra;

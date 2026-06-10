@@ -3,7 +3,7 @@
 **Proyecto:** Solvr Gestión
 **Autor:** análisis técnico inicial
 **Fecha:** 2026-06-10
-**Estado:** Fase 0 completa ✅ — Fase 1 pendiente (2026-06-10)
+**Estado:** Fase 0 completa ✅ — Fase 1 completa ✅ (2026-06-10) — Fase 2 pendiente
 
 ---
 
@@ -1464,18 +1464,18 @@ alter policy clientes_select_v2 on clientes rename to clientes_select;
 - [ ] Proyecto Supabase de staging clonado y funcional
 - [ ] Tests existentes pasan en staging (diferido — no hay suite automatizada)
 
-### Fase 1 — Infraestructura de tenancy
-- [ ] Migración SQL con `negocios`, `negocio_members`, `invitaciones` (con índices)
-- [ ] Funciones helper: `mi_negocio_id`, `es_miembro`, `mi_rol_en`, `puede_leer/escribir/eliminar/administrar`, `es_owner` (NO `is_suscripcion_activa` — se crea en Fase 3)
-- [ ] Policies de §3.3 en las nuevas tablas (todas en la misma transacción que el `enable rls`)
-- [ ] Trigger `on_auth_user_created` (signup self-service)
-- [ ] RPC `accept_invitation`
-- [ ] Backfill: construir `_owners_detectados` con UNION de `user_id` distinct sobre TODAS las tablas de datos (no solo `negocio_config`)
-- [ ] Backfill: cada owner detectado → negocio + membership owner
-- [ ] Backfill: cada `allowed_emails` no-owner cuyo `owner_user_id` ya tiene negocio → membership con rol
-- [ ] Verificación post-backfill #1: 0 owners detectados sin fila en `negocios` (bloque `do $$ raise exception ...`)
-- [ ] Verificación post-backfill #2: 0 negocios sin owner activo (bloque `do $$ raise exception ...`)
-- [ ] Soak 24h en staging sin issues
+### Fase 1 — Infraestructura de tenancy ✅ (2026-06-10)
+- [x] Migración SQL con `negocios`, `negocio_members`, `invitaciones` (con índices)
+- [x] Funciones helper: `mi_negocio_id`, `es_miembro`, `mi_rol_en`, `puede_leer/escribir/eliminar/administrar`, `es_owner` (NO `is_suscripcion_activa` — se crea en Fase 3)
+- [x] Policies de §3.3 en las nuevas tablas (todas en la misma transacción que el `enable rls`)
+- [x] Trigger `on_auth_user_created` (signup self-service)
+- [x] RPC `accept_invitation`
+- [x] Backfill: construir `_owners_detectados` con UNION de `user_id` distinct sobre TODAS las tablas de datos (no solo `negocio_config`)
+- [x] Backfill: cada owner detectado → negocio + membership owner
+- [x] Backfill: cada `allowed_emails` no-owner cuyo `owner_user_id` ya tiene negocio → membership con rol
+- [x] Verificación post-backfill #1: 0 owners detectados sin fila en `negocios` (bloque `do $$ raise exception ...`)
+- [x] Verificación post-backfill #2: 0 negocios sin owner activo (bloque `do $$ raise exception ...`)
+- [ ] Soak 24h en producción sin issues (iniciado 2026-06-10 — completar mañana antes de Fase 2)
 
 ### Fase 2 — `negocio_id` nullable + backfill en tablas de datos
 - [ ] Migración: `add column negocio_id uuid references negocios(id)` en cada tabla de datos

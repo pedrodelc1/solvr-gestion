@@ -3,7 +3,7 @@
 **Proyecto:** Solvr Gestión
 **Autor:** análisis técnico inicial
 **Fecha:** 2026-06-10
-**Estado:** Fase 0 completa ✅ — Fase 1 completa ✅ (2026-06-10) — Fase 2 completa ✅ (2026-06-10)
+**Estado:** Fase 0 completa ✅ — Fase 1 completa ✅ (2026-06-10) — Fase 2 completa ✅ (2026-06-10) — Fase 3 completa ✅ (2026-06-10)
 
 ---
 
@@ -1486,23 +1486,28 @@ alter policy clientes_select_v2 on clientes rename to clientes_select;
 - [x] Trigger `set_negocio_id_default` (BEFORE INSERT, security definer) en las 17 tablas
 - [x] `003_phase2_negocio_id.sql` listo para ejecutar en Supabase SQL Editor
 
-### Fase 3 — Mirror policies
-- [ ] Crear función `is_suscripcion_activa(uuid)` (§2.4) — prerequisito de las policies de abajo
-- [ ] Policies `_v2` para `clientes` (con gate de suscripción en INSERT/UPDATE/DELETE)
-- [ ] Policies `_v2` para `productos` (con gate)
-- [ ] Policies `_v2` para `pedidos` y `pedido_items` (con gate, en padre e hija)
-- [ ] Policies `_v2` para `gastos` (con gate)
-- [ ] Policies `_v2` para `categorias` (con gate)
-- [ ] Policies `_v2` para `negocio_config` (con gate)
-- [ ] Policies `_v2` para `alertas_config` (con gate)
-- [ ] Policies `_v2` para `devoluciones` y `devolucion_items` (con gate; reemplazo de `FOR ALL`)
-- [ ] Policies `_v2` para `comunicaciones` (con gate; reemplazo de `FOR ALL`)
-- [ ] Policies `_v2` para `productos_precio_historial` (con gate; reemplazo de `FOR ALL`)
-- [ ] Policies `_v2` para `pedidos_recurrentes` (con gate; reemplazo de `FOR ALL`)
-- [ ] Policies `_v2` para `proveedores` (con gate; reemplazo de `FOR ALL`)
-- [ ] Policies `_v2` para `ordenes_compra` y `ordenes_compra_items` (con gate; reemplazo de `FOR ALL`)
-- [ ] Policies `_v2` para `suscripciones` (sin gate, exenta)
-- [ ] Policy `planes_select` explícita
+### Fase 3 — Mirror policies ✅ (2026-06-10)
+- [x] Crear función `is_suscripcion_activa(uuid)` (§2.4) — prerequisito de las policies de abajo
+- [x] Policies `_v2` para `clientes` (con gate de suscripción en INSERT/UPDATE/DELETE)
+- [x] Policies `_v2` para `productos` (con gate)
+- [x] Policies `_v2` para `pedidos` y `pedido_items` (con gate, en padre e hija; negocio_id desnormalizado)
+- [x] Policies `_v2` para `gastos` (con gate)
+- [x] Policies `_v2` para `categorias` (con gate)
+- [x] Policies `_v2` para `negocio_config` (con gate; DELETE solo `es_owner`)
+- [x] Policies `_v2` para `alertas_config` (con gate; reemplazo de `FOR ALL`)
+- [x] Policies `_v2` para `devoluciones` y `devolucion_items` (con gate; reemplazo de `FOR ALL`; UPDATE agregado)
+- [x] Policies `_v2` para `comunicaciones` (con gate; reemplazo de `FOR ALL`)
+- [x] Policies `_v2` para `productos_precio_historial` (con gate; reemplazo de `FOR ALL`)
+- [x] Policies `_v2` para `pedidos_recurrentes` (con gate; reemplazo de `FOR ALL`)
+- [x] Policies `_v2` para `proveedores` (con gate; reemplazo de `FOR ALL`)
+- [x] Policies `_v2` para `ordenes_compra` y `ordenes_compra_items` (con gate; reemplazo de `FOR ALL`; UPDATE agregado en items)
+- [x] Policies `_v2` para `suscripciones` (solo SELECT, exenta del gate)
+- [x] Policy `planes_select` explícita (RLS habilitado en la misma tx)
+- [x] `004_phase3_mirror_policies.sql` listo para ejecutar en Supabase SQL Editor — 66 policies + función
+- [x] `scripts/validate-phase3.sql` con validaciones V1–V7 — ejecutar en SQL Editor post-migración
+- [x] Validación estática: 66 policies creadas (16 tablas × 4 + suscripciones × 1 + planes × 1), ningún SELECT tiene gate de suscripción, suscripciones usa `es_miembro` en vez de `puede_leer`
+- [ ] Ejecutar `004_phase3_mirror_policies.sql` en Supabase SQL Editor (staging → producción)
+- [ ] Correr `scripts/validate-phase3.sql` — todos los NOTICE deben decir PASS
 - [ ] Suite §5 corre y pasa con policies nuevas
 - [ ] Test específico: con suscripción `vencida`, lectura funciona pero INSERT/UPDATE/DELETE en tablas transaccionales falla en las _v2 (y todavía pasa por las viejas — comportamiento esperado durante coexistencia)
 - [ ] Soak 24–72h

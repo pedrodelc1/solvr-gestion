@@ -126,7 +126,7 @@ update devolucion_items di
 update ordenes_compra_items oci
   set negocio_id = oc.negocio_id
   from ordenes_compra oc
-  where oci.orden_compra_id = oc.id and oci.negocio_id is null and oc.negocio_id is not null;
+  where oci.orden_id = oc.id and oci.negocio_id is null and oc.negocio_id is not null;
 
 -- Trigger set_negocio_id_default (idempotente — OR REPLACE)
 create or replace function set_negocio_id_default()

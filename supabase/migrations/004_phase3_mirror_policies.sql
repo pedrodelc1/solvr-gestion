@@ -37,11 +37,44 @@
 -- IDEMPOTENTE:
 --   Cada CREATE POLICY está precedido de DROP POLICY IF EXISTS, así se puede
 --   re-ejecutar sin error si algo falló a mitad del bloque anterior.
+--   El bloque 0-PRE usa IF NOT EXISTS / WHERE IS NULL, por lo que también
+--   es seguro re-ejecutar aunque Fase 2 ya hubiera agregado la columna.
 --
 -- ROLLBACK: ver sección al final del archivo.
 -- ═══════════════════════════════════════════════════════════════════════════
 
 begin;
+
+-- ────────────────────────────────────────────────────────────────────────
+-- 0-PRE. Prerequisito: negocio_id en suscripciones
+-- ────────────────────────────────────────────────────────────────────────
+-- is_suscripcion_activa (language sql) se valida al momento de crearse:
+-- PostgreSQL resuelve las columnas en el cuerpo de la función en el CREATE.
+-- Si suscripciones.negocio_id no existe el CREATE falla con 42703.
+-- Fase 2 debería haberla agregado, pero si fue parcial o no se ejecutó,
+-- esta sección la agrega de forma defensiva con IF NOT EXISTS + backfill.
+
+alter table suscripciones
+  add column if not exists negocio_id uuid references negocios(id);
+
+create index if not exists suscripciones_negocio_idx
+  on suscripciones(negocio_id);
+
+update suscripciones
+  set negocio_id = user_id
+  where negocio_id is null and user_id is not null;
+
+do $$
+declare v_nulls bigint;
+begin
+  select count(*) into v_nulls from suscripciones where negocio_id is null;
+  if v_nulls > 0 then
+    raise exception
+      'Prerequisito fallido: % fila(s) en suscripciones con negocio_id IS NULL '
+      'tras el backfill. Verificar que Fase 1 creó negocios para todos los owners.',
+      v_nulls;
+  end if;
+end $$;
 
 -- ────────────────────────────────────────────────────────────────────────
 -- 0. Función is_suscripcion_activa
@@ -777,6 +810,14 @@ commit;
 -- -- planes: deshabilitar RLS (vuelve a acceso libre sin policy)
 -- drop policy if exists planes_select on planes;
 -- alter table planes disable row level security;
+--
+-- -- Si el bloque 0-PRE agregó la columna en esta fase (y Fase 2 no la había creado),
+-- -- revertirla también. SI Fase 2 ya la había creado, NO hacer el drop column.
+-- -- Verificar antes: select column_name from information_schema.columns
+-- --   where table_name='suscripciones' and column_name='negocio_id';
+-- -- Solo si Fase 2 NO la había creado:
+-- -- drop index if exists suscripciones_negocio_idx;
+-- -- alter table suscripciones drop column if exists negocio_id;
 --
 -- commit;
 -- ═══════════════════════════════════════════════════════════════════════════

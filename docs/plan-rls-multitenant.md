@@ -3,7 +3,7 @@
 **Proyecto:** Solvr Gestión
 **Autor:** análisis técnico inicial
 **Fecha:** 2026-06-10
-**Estado:** Fase 0 completa ✅ — Fase 1 completa ✅ (2026-06-10) — Fase 2 completa ✅ (2026-06-10) — Fase 3 completa ✅ (2026-06-10)
+**Estado:** Fase 0 completa ✅ — Fase 1 completa ✅ (2026-06-10) — Fase 2 completa ✅ (2026-06-10) — Fase 3 completa ✅ (2026-06-10) — Fase 4 completa ✅ (2026-06-10)
 
 ---
 
@@ -1512,14 +1512,20 @@ alter policy clientes_select_v2 on clientes rename to clientes_select;
 - [ ] Test específico: con suscripción `vencida`, lectura funciona pero INSERT/UPDATE/DELETE en tablas transaccionales falla en las _v2 (y todavía pasa por las viejas — comportamiento esperado durante coexistencia)
 - [ ] Soak 24–72h
 
-### Fase 4 — Migrar app a `negocio_id`
-- [ ] `db.js`: eliminar referencias a `user_id` en filtros, dejar que RLS filtre
-- [ ] `db.js`: insertar sin `negocio_id` (trigger lo completa)
-- [ ] `App.jsx`: eliminar `setEffectiveUserId`
-- [ ] `App.jsx`: cargar rol desde `negocio_members` en vez de `allowed_emails`
-- [ ] Reemplazar `getUserId()` por `mi_negocio_id()` donde corresponda
-- [ ] Smoke test manual de cada CRUD
-- [ ] Deploy a producción con feature flag o canary
+### Fase 4 — Migrar app a `negocio_id` ✅ (2026-06-10)
+- [x] `db.js`: eliminar `_effectiveUserId` y `setEffectiveUserId` — bug de seguridad principal resuelto
+- [x] `db.js`: eliminar `user_id: userId` de los INSERTs de tablas de datos (clientes, productos, pedidos, gastos, devoluciones, comunicaciones, pedidos_recurrentes, proveedores, ordenes_compra, productos_precio_historial); trigger y RLS lo resuelven
+- [x] `db.js`: eliminar `.eq('user_id', userId)` del WHERE de `updatePedido` — RLS filtra
+- [x] `db.js`: `saveCategorias` usa `negocio_id` (RPC) para el DELETE en vez de `user_id`
+- [x] `db.js`: `saveAlertasConfig` usa select→update/insert por `negocio_id` en vez de upsert en `user_id`
+- [x] `db.js`: `saveNegocioConfig` usa select→update/insert por `negocio_id` en vez de upsert en `user_id`
+- [x] `db.js`: `crearSuscripcionTrial` simplificada — elimina check de `allowed_emails.trial_activo`
+- [x] `App.jsx`: eliminar imports de `setEffectiveUserId`, `isOwnerEmail`, `getUserRole`, `isEmailAllowed`
+- [x] `App.jsx`: `init()` reemplaza lookup en `allowed_emails` por `mi_negocio_id()` + `negocio_members`
+- [x] `App.jsx`: `userRole` e `isOwner` se cargan desde `negocio_members.rol`
+- [x] Build limpio (`npm run build` ✓, 2.07s, 0 errores) — ver `scripts/validate-phase4.md`
+- [ ] Smoke test manual de cada CRUD en staging (requiere dos sesiones distintas)
+- [ ] Deploy a producción (verificar Fase 3 activa antes de mergear)
 - [ ] Monitorear errores 1 semana mínimo
 
 ### Fase 5 — `NOT NULL` + drop policies viejas

@@ -8,10 +8,6 @@ import {
   getGastos, saveGasto, deleteGasto,
   getCategorias,
   procesarCuotasVencidas,
-  isOwnerEmail,
-  getUserRole,
-  isEmailAllowed,
-  setEffectiveUserId,
   getSuscripcion, crearSuscripcionTrial,
   getAlertasConfig,
   getDevoluciones,
@@ -209,30 +205,34 @@ export default function App() {
 
   useEffect(() => {
     if (authChecked && session) {
-      const email = session.user.email;
       const init = async () => {
-        // Post-auth whitelist check (works because user is now authenticated)
-        const allowed = await isEmailAllowed(email);
-        if (!allowed) {
-          toast("Acceso denegado: El correo " + email + " no está autorizado en el equipo.", "error");
+        // Resolver negocio activo del usuario autenticado
+        const { data: negocioId } = await supabase.rpc('mi_negocio_id');
+        if (!negocioId) {
+          toast("Acceso denegado: no tenés un negocio asociado a este email.", "error");
           await supabase.auth.signOut();
           return;
         }
 
-        // Get allowed_emails entry (if any) to set effective user ID for team members
-        const { data: entry } = await supabase
-          .from('allowed_emails')
-          .select('id, owner_user_id, is_owner')
-          .eq('email', email.toLowerCase().trim())
+        // Cargar rol desde negocio_members
+        const { data: member } = await supabase
+          .from('negocio_members')
+          .select('rol')
+          .eq('negocio_id', negocioId)
+          .eq('user_id', session.user.id)
+          .eq('activo', true)
           .maybeSingle();
 
-        // For team members: use owner's user_id for all writes
-        if (entry?.owner_user_id && !entry.is_owner) {
-          setEffectiveUserId(entry.owner_user_id);
+        if (!member) {
+          toast("Acceso denegado: no sos miembro activo de ningún negocio.", "error");
+          await supabase.auth.signOut();
+          return;
         }
+
+        setUserRole(member.rol);
+        setIsOwner(member.rol === 'owner');
+
         loadAll();
-        isOwnerEmail(email).then(setIsOwner);
-        getUserRole(email).then(r => setUserRole(r || 'vendedor'));
         getSuscripcion().then(async sus => {
           if (!sus) {
             const nueva = await crearSuscripcionTrial();
@@ -245,8 +245,6 @@ export default function App() {
         getNegocioConfig().then(setNegocioConfig);
       };
       init();
-    } else if (authChecked && !session) {
-      setEffectiveUserId(null);
     }
   }, [authChecked, session, loadAll]);
 

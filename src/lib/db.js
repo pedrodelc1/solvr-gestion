@@ -34,13 +34,7 @@ function useSupabase() {
   );
 }
 
-// When a team member logs in, App.jsx calls this with the owner's user_id
-// so all writes go to the owner's account.
-let _effectiveUserId = null;
-export function setEffectiveUserId(uid) { _effectiveUserId = uid; }
-
 async function getUserId() {
-  if (_effectiveUserId) return _effectiveUserId;
   const { data } = await supabase.auth.getUser();
   return data?.user?.id;
 }
@@ -87,8 +81,7 @@ export async function saveCliente(data) {
     lsSet('clientes', arr);
     return arr;
   }
-  const userId = await getUserId();
-  if (!userId) throw new Error('Not authenticated');
+  if (!(await getUserId())) throw new Error('Not authenticated');
   const fields = {
     nombre: data.nombre,
     contacto: data.contacto || '',
@@ -102,7 +95,7 @@ export async function saveCliente(data) {
     const { error } = await supabase.from('clientes').update(fields).eq('id', data.id);
     if (error) throw error;
   } else {
-    const { error } = await supabase.from('clientes').insert({ ...fields, user_id: userId });
+    const { error } = await supabase.from('clientes').insert(fields);
     if (error) throw error;
   }
   return getClientes();
@@ -158,8 +151,7 @@ export async function saveProducto(data) {
     lsSet('productos', arr);
     return arr;
   }
-  const userId = await getUserId();
-  if (!userId) throw new Error('Not authenticated');
+  if (!(await getUserId())) throw new Error('Not authenticated');
   const fields = {
     nombre: data.nombre,
     marca: data.marca || null,
@@ -174,7 +166,6 @@ export async function saveProducto(data) {
     const { data: prev } = await supabase.from('productos').select('precio, costo, precio_mayorista').eq('id', data.id).single();
     if (prev && (prev.precio !== data.precio || prev.costo !== data.costo || prev.precio_mayorista !== (data.precio_mayorista || 0))) {
       await supabase.from('productos_precio_historial').insert({
-        user_id: userId,
         producto_id: data.id,
         precio: prev.precio,
         costo: prev.costo,
@@ -184,7 +175,7 @@ export async function saveProducto(data) {
     const { error } = await supabase.from('productos').update(fields).eq('id', data.id);
     if (error) throw error;
   } else {
-    const { error } = await supabase.from('productos').insert({ ...fields, user_id: userId });
+    const { error } = await supabase.from('productos').insert(fields);
     if (error) throw error;
   }
   return getProductos();
@@ -303,8 +294,7 @@ export async function savePedido(data) {
     }
     return arr;
   }
-  const userId = await getUserId();
-  if (!userId) throw new Error('Not authenticated');
+  if (!(await getUserId())) throw new Error('Not authenticated');
   if (!isUUID(data.clienteId)) {
     throw new Error('Este cliente fue creado sin conexión. Eliminalo y volvé a crearlo para poder guardar pedidos.');
   }
@@ -321,7 +311,6 @@ export async function savePedido(data) {
   const { data: inserted, error } = await supabase
     .from('pedidos')
     .insert({
-      user_id: userId,
       cliente_id: data.clienteId,
       fecha: data.fecha,
       total_calculado: data.totalCalculado,
@@ -391,10 +380,7 @@ export async function updatePedido(id, data) {
   if ('diasPlazo' in data) update.dias_plazo = data.diasPlazo;
   if ('tasaMora' in data) update.tasa_mora = data.tasaMora;
 
-  const userId = await getUserId();
-  if (!userId) throw new Error('Not authenticated');
-
-  const { error } = await supabase.from('pedidos').update(update).eq('id', id).eq('user_id', userId);
+  const { error } = await supabase.from('pedidos').update(update).eq('id', id);
   if (error) throw error;
 
   // Re-sync items: delete old, insert new
@@ -526,10 +512,8 @@ export async function saveGasto(data) {
     lsSet('gastos', arr);
     return arr;
   }
-  const userId = await getUserId();
-  if (!userId) throw new Error('Not authenticated');
+  if (!(await getUserId())) throw new Error('Not authenticated');
   const { error } = await supabase.from('gastos').insert({
-    user_id: userId,
     fecha: data.fecha,
     descripcion: data.descripcion,
     monto: data.monto,
@@ -567,10 +551,11 @@ export async function getCategorias() {
 export async function saveCategorias(arr) {
   lsSet('categorias', arr);
   if (!useSupabase()) return arr;
-  const userId = await getUserId();
-  if (!userId) return arr;
-  await supabase.from('categorias').delete().eq('user_id', userId);
+  const { data: negocioId } = await supabase.rpc('mi_negocio_id');
+  if (!negocioId) return arr;
+  await supabase.from('categorias').delete().eq('negocio_id', negocioId);
   if (arr.length) {
+    const userId = await getUserId();
     const rows = arr.map(nombre => ({ user_id: userId, nombre }));
     await supabase.from('categorias').insert(rows);
   }
@@ -735,11 +720,19 @@ export async function getAlertasConfig() {
 
 export async function saveAlertasConfig(diasSinCobro) {
   if (!useSupabase()) return;
-  const userId = await getUserId();
-  if (!userId) return;
-  await supabase
+  const { data: negocioId } = await supabase.rpc('mi_negocio_id');
+  if (!negocioId) return;
+  const { data: existing } = await supabase
     .from('alertas_config')
-    .upsert({ user_id: userId, dias_sin_cobro: diasSinCobro }, { onConflict: 'user_id' });
+    .select('id')
+    .eq('negocio_id', negocioId)
+    .maybeSingle();
+  if (existing) {
+    await supabase.from('alertas_config').update({ dias_sin_cobro: diasSinCobro }).eq('id', existing.id);
+  } else {
+    const userId = await getUserId();
+    await supabase.from('alertas_config').insert({ user_id: userId, dias_sin_cobro: diasSinCobro });
+  }
 }
 
 // ── SUSCRIPCIONES ─────────────────────────────────────────
@@ -759,27 +752,16 @@ export async function crearSuscripcionTrial() {
   const email = await getUserEmail();
   if (!userId) return null;
 
-  const { data: allowed } = await supabase
-    .from('allowed_emails')
-    .select('trial_activo')
-    .eq('email', email.toLowerCase().trim())
-    .maybeSingle();
-
-  const esTrial = !allowed || allowed.trial_activo !== false;
   const hoy = new Date();
   const vencimiento = new Date(hoy);
-  if (esTrial) {
-    vencimiento.setDate(vencimiento.getDate() + 14);
-  } else {
-    vencimiento.setFullYear(vencimiento.getFullYear() + 1);
-  }
+  vencimiento.setDate(vencimiento.getDate() + 14);
 
   const { data, error } = await supabase
     .from('suscripciones')
     .insert({
       user_id: userId,
       user_email: email,
-      estado: esTrial ? 'prueba' : 'activa',
+      estado: 'prueba',
       fecha_inicio: hoy.toISOString().slice(0, 10),
       fecha_vencimiento: vencimiento.toISOString().slice(0, 10),
     })
@@ -911,16 +893,32 @@ export async function saveNegocioConfig(cfg) {
     localStorage.setItem('sg_negocio', JSON.stringify(cfg));
     return cfg;
   }
-  const userId = await getUserId();
-  if (!userId) return cfg;
-  const { data, error } = await supabase
+  const { data: negocioId } = await supabase.rpc('mi_negocio_id');
+  if (!negocioId) return cfg;
+  const { data: existing } = await supabase
     .from('negocio_config')
-    .upsert({ user_id: userId, ...cfg, updated_at: new Date().toISOString() }, { onConflict: 'user_id' })
-    .select()
-    .single();
+    .select('id')
+    .eq('negocio_id', negocioId)
+    .maybeSingle();
+  let result, error;
+  if (existing) {
+    ({ data: result, error } = await supabase
+      .from('negocio_config')
+      .update({ ...cfg, updated_at: new Date().toISOString() })
+      .eq('id', existing.id)
+      .select()
+      .single());
+  } else {
+    const userId = await getUserId();
+    ({ data: result, error } = await supabase
+      .from('negocio_config')
+      .insert({ user_id: userId, ...cfg, updated_at: new Date().toISOString() })
+      .select()
+      .single());
+  }
   if (error) throw new Error(error.message);
-  localStorage.setItem('sg_negocio', JSON.stringify(data || cfg));
-  return data || cfg;
+  localStorage.setItem('sg_negocio', JSON.stringify(result || cfg));
+  return result || cfg;
 }
 
 // ── DEVOLUCIONES ──────────────────────────────────────────
@@ -956,12 +954,10 @@ export async function saveDevolucion(data) {
     localStorage.setItem('sg_devoluciones', JSON.stringify(arr));
     return getDevoluciones();
   }
-  const userId = await getUserId();
-  if (!userId) throw new Error('Not authenticated');
+  if (!(await getUserId())) throw new Error('Not authenticated');
   const { data: inserted, error } = await supabase
     .from('devoluciones')
     .insert({
-      user_id: userId,
       pedido_id: data.pedidoId,
       cliente_id: data.clienteId,
       fecha: data.fecha,
@@ -1003,10 +999,8 @@ export async function getComunicaciones(clienteId) {
 
 export async function registrarComunicacion(clienteId, tipo, mensaje) {
   if (!useSupabase()) return;
-  const userId = await getUserId();
-  if (!userId) return;
+  if (!(await getUserId())) return;
   await supabase.from('comunicaciones').insert({
-    user_id: userId,
     cliente_id: clienteId,
     tipo,
     mensaje,
@@ -1054,10 +1048,8 @@ export async function saveRecurrente(data) {
     localStorage.setItem('sg_recurrentes', JSON.stringify(arr));
     return getRecurrentes();
   }
-  const userId = await getUserId();
-  if (!userId) throw new Error('Not authenticated');
+  if (!(await getUserId())) throw new Error('Not authenticated');
   await supabase.from('pedidos_recurrentes').insert({
-    user_id: userId,
     cliente_id: data.clienteId,
     items: data.items,
     frecuencia: data.frecuencia,
@@ -1115,12 +1107,11 @@ export async function saveProveedor(data) {
     localStorage.setItem('sg_proveedores', JSON.stringify(arr));
     return getProveedores();
   }
-  const userId = await getUserId();
-  if (!userId) throw new Error('Not authenticated');
+  if (!(await getUserId())) throw new Error('Not authenticated');
   if (data.id) {
     await supabase.from('proveedores').update({ nombre: data.nombre, contacto: data.contacto }).eq('id', data.id);
   } else {
-    await supabase.from('proveedores').insert({ user_id: userId, nombre: data.nombre, contacto: data.contacto || null });
+    await supabase.from('proveedores').insert({ nombre: data.nombre, contacto: data.contacto || null });
   }
   return getProveedores();
 }
@@ -1164,12 +1155,10 @@ export async function getOrdenesCompra() {
 
 export async function saveOrdenCompra(data) {
   if (!useSupabase()) return getOrdenesCompra();
-  const userId = await getUserId();
-  if (!userId) throw new Error('Not authenticated');
+  if (!(await getUserId())) throw new Error('Not authenticated');
   const { data: inserted, error } = await supabase
     .from('ordenes_compra')
     .insert({
-      user_id: userId,
       proveedor_id: data.proveedorId || null,
       fecha: data.fecha,
       estado: data.estado || 'borrador',

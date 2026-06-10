@@ -3,7 +3,7 @@
 **Proyecto:** Solvr Gestión
 **Autor:** análisis técnico inicial
 **Fecha:** 2026-06-10
-**Estado:** Fase 0 completa ✅ — Fase 1 completa ✅ (2026-06-10) — Fase 2 pendiente
+**Estado:** Fase 0 completa ✅ — Fase 1 completa ✅ (2026-06-10) — Fase 2 completa ✅ (2026-06-10)
 
 ---
 
@@ -1477,13 +1477,14 @@ alter policy clientes_select_v2 on clientes rename to clientes_select;
 - [x] Verificación post-backfill #2: 0 negocios sin owner activo (bloque `do $$ raise exception ...`)
 - [ ] Soak 24h en producción sin issues (iniciado 2026-06-10 — completar mañana antes de Fase 2)
 
-### Fase 2 — `negocio_id` nullable + backfill en tablas de datos
-- [ ] Migración: `add column negocio_id uuid references negocios(id)` en cada tabla de datos
-- [ ] Índice `(negocio_id)` en cada tabla
-- [ ] Backfill desde `user_id`
-- [ ] Backfill de tablas hijo (`pedido_items`, `devolucion_items`, `ordenes_compra_items`)
-- [ ] Validación: `count(*) where negocio_id is null` = 0 en todas
-- [ ] Trigger `set_negocio_id_default` en cada tabla (BEFORE INSERT)
+### Fase 2 — `negocio_id` nullable + backfill en tablas de datos ✅ (2026-06-10)
+- [x] Migración: `add column negocio_id uuid references negocios(id)` en cada tabla de datos (14 tablas directas)
+- [x] Índice `(negocio_id)` en cada tabla (17 índices — 14 directas + 3 hijo)
+- [x] Backfill desde `user_id` (negocio_id = user_id, válido porque Fase 1 reusó user_id como negocios.id)
+- [x] Backfill de tablas hijo (`pedido_items`, `devolucion_items`, `ordenes_compra_items`) desde tabla padre
+- [x] Validación inline: bloque `do $$ ... raise exception` verifica `count(*) where negocio_id is null = 0` en las 17 tablas — aborta transacción si falla
+- [x] Trigger `set_negocio_id_default` (BEFORE INSERT, security definer) en las 17 tablas
+- [x] `003_phase2_negocio_id.sql` listo para ejecutar en Supabase SQL Editor
 
 ### Fase 3 — Mirror policies
 - [ ] Crear función `is_suscripcion_activa(uuid)` (§2.4) — prerequisito de las policies de abajo

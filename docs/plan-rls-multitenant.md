@@ -1506,7 +1506,7 @@ alter policy clientes_select_v2 on clientes rename to clientes_select;
 - [x] `004_phase3_mirror_policies.sql` listo para ejecutar en Supabase SQL Editor — 66 policies + función
 - [x] `scripts/validate-phase3.sql` con validaciones V1–V7 — ejecutar en SQL Editor post-migración
 - [x] Validación estática: 66 policies creadas (16 tablas × 4 + suscripciones × 1 + planes × 1), ningún SELECT tiene gate de suscripción, suscripciones usa `es_miembro` en vez de `puede_leer`
-- [ ] Ejecutar `004_phase3_mirror_policies.sql` en Supabase SQL Editor (staging → producción)
+- [x] Ejecutar `004_phase3_mirror_policies.sql` en Supabase SQL Editor — ejecutado en producción (2026-06-10)
 - [ ] Correr `scripts/validate-phase3.sql` — todos los NOTICE deben decir PASS
 - [ ] Suite §5 corre y pasa con policies nuevas
 - [ ] Test específico: con suscripción `vencida`, lectura funciona pero INSERT/UPDATE/DELETE en tablas transaccionales falla en las _v2 (y todavía pasa por las viejas — comportamiento esperado durante coexistencia)

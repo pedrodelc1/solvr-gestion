@@ -103,6 +103,15 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
       setError('El nombre es obligatorio');
       return;
     }
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError('El email no tiene un formato válido');
+      return;
+    }
+    const saldoNum = saldoInicial === '' ? 0 : parseFloat(saldoInicial);
+    if (isNaN(saldoNum) || saldoNum < 0) {
+      setError('El saldo previo debe ser un número mayor o igual a cero');
+      return;
+    }
     let contactoLimpio = contacto.replace(/\D/g, '');
     if (contactoLimpio.startsWith('54')) contactoLimpio = contactoLimpio.slice(2);
     if (contactoLimpio.length === 11 && contactoLimpio.startsWith('9')) contactoLimpio = contactoLimpio.slice(1);
@@ -117,7 +126,7 @@ export function ClienteForm({ open, existing, onSave, onClose }) {
         email: email.trim(),
         direccion: direccion.trim(),
         tipo_precio: tipoPrecio,
-        saldo_inicial: parseFloat(saldoInicial) || 0,
+        saldo_inicial: saldoNum || 0,
         foto_url: fotoUrl || null,
       });
       clearDraft();

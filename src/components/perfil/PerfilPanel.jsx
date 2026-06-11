@@ -114,7 +114,7 @@ const inputStyle = {
   outline: 'none',
 };
 
-export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gastos, suscripcion, negocioConfig, onNegocioSave, toast, theme, onThemeChange }) {
+export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gastos, devoluciones = [], suscripcion, negocioConfig, onNegocioSave, toast, theme, onThemeChange }) {
   const email = session?.user?.email || null;
   const inicial = email ? email[0].toUpperCase() : '?';
 
@@ -164,7 +164,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
 
   const totalClientes = clientes.length;
   const pendientes = pedidos.filter(p => !p.cobrado && p.tipo !== 'presupuesto').length;
-  const totalDeuda = clientes.reduce((s, c) => s + Math.max(0, saldoCliente(c, pedidos)), 0);
+  const totalDeuda = clientes.reduce((s, c) => s + Math.max(0, saldoCliente(c, pedidos, devoluciones)), 0);
   const totalGastos = gastos.reduce((s, g) => s + g.monto, 0);
 
   const [negocioNombre, setNegocioNombre] = useState('');
@@ -290,6 +290,10 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
   async function handleAdd() {
     if (addingRef.current) return;
     if (!newEmail.trim()) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail.trim())) {
+      toast('Ingresá un email válido', 'error');
+      return;
+    }
     addingRef.current = true;
     setAdding(true);
     try {
@@ -1347,8 +1351,8 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
 
             <div style={{ display: 'flex', background: 'var(--bg-3)', padding: 3, borderRadius: 10, border: '1px solid var(--border)', gap: 2 }}>
               {[
-                { id: 'dark', label: 'Oscuro', icon: '🌙' },
-                { id: 'light', label: 'Claro', icon: '☀️' },
+                { id: 'dark', label: 'Oscuro' },
+                { id: 'light', label: 'Claro' },
               ].map(t => (
                 <button
                   key={t.id}

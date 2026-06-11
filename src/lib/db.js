@@ -6,6 +6,7 @@ const LS_KEYS = {
   productos: 'sg_productos',
   pedidos: 'sg_pedidos',
   gastos: 'sg_gastos',
+  cobros: 'sg_cobros',
   categorias: 'sg_cats',
 };
 
@@ -42,6 +43,28 @@ async function getUserId() {
 async function getUserEmail() {
   const { data } = await supabase.auth.getUser();
   return data?.user?.email;
+}
+
+// Traduce errores de Postgres (constraints/RLS) a mensajes claros para el usuario
+function friendlyError(error) {
+  if (!error) return error;
+  const map = {
+    '23514': 'Los datos no pasaron la validación del servidor. Revisá montos y campos obligatorios.',
+    '23505': 'Ya existe un registro con esos datos.',
+    '23503': 'El registro está vinculado a otros datos y no se puede modificar así.',
+    '23502': 'Falta un campo obligatorio.',
+    '42501': 'No tenés permisos para realizar esta acción.',
+  };
+  if (error.code === '42501' || /row-level security/i.test(error.message || '')) {
+    return new Error(map['42501']);
+  }
+  return new Error(map[error.code] || error.message);
+}
+
+function requireMontoValido(monto, label = 'monto') {
+  const n = Number(monto);
+  if (!Number.isFinite(n) || n < 0) throw new Error(`El ${label} debe ser un número mayor o igual a cero`);
+  return n;
 }
 
 // ── CLIENTES ─────────────────────────────────────────────
@@ -82,21 +105,22 @@ export async function saveCliente(data) {
     return arr;
   }
   if (!(await getUserId())) throw new Error('Not authenticated');
+  if (!data.nombre || !String(data.nombre).trim()) throw new Error('El nombre del cliente es obligatorio');
   const fields = {
-    nombre: data.nombre,
+    nombre: String(data.nombre).trim(),
     contacto: data.contacto || '',
     email: data.email || '',
     direccion: data.direccion || '',
     tipo_precio: data.tipo_precio || 'minorista',
-    saldo_inicial: data.saldo_inicial || 0,
+    saldo_inicial: requireMontoValido(data.saldo_inicial || 0, 'saldo inicial'),
     foto_url: data.foto_url || null,
   };
   if (data.id) {
     const { error } = await supabase.from('clientes').update(fields).eq('id', data.id);
-    if (error) throw error;
+    if (error) throw friendlyError(error);
   } else {
     const { error } = await supabase.from('clientes').insert(fields);
-    if (error) throw error;
+    if (error) throw friendlyError(error);
   }
   return getClientes();
 }
@@ -152,14 +176,15 @@ export async function saveProducto(data) {
     return arr;
   }
   if (!(await getUserId())) throw new Error('Not authenticated');
+  if (!data.nombre || !String(data.nombre).trim()) throw new Error('El nombre del producto es obligatorio');
   const fields = {
-    nombre: data.nombre,
+    nombre: String(data.nombre).trim(),
     marca: data.marca || null,
-    precio: data.precio,
-    costo: data.costo || 0,
-    precio_mayorista: data.precio_mayorista || 0,
-    stock: data.stock ?? 0,
-    stock_minimo: data.stock_minimo ?? 5,
+    precio: requireMontoValido(data.precio, 'precio'),
+    costo: requireMontoValido(data.costo || 0, 'costo'),
+    precio_mayorista: requireMontoValido(data.precio_mayorista || 0, 'precio mayorista'),
+    stock: requireMontoValido(data.stock ?? 0, 'stock'),
+    stock_minimo: requireMontoValido(data.stock_minimo ?? 5, 'stock mínimo'),
   };
   if (data.id) {
     // Guardar historial si cambiaron los precios
@@ -173,10 +198,10 @@ export async function saveProducto(data) {
       });
     }
     const { error } = await supabase.from('productos').update(fields).eq('id', data.id);
-    if (error) throw error;
+    if (error) throw friendlyError(error);
   } else {
     const { error } = await supabase.from('productos').insert(fields);
-    if (error) throw error;
+    if (error) throw friendlyError(error);
   }
   return getProductos();
 }
@@ -298,6 +323,16 @@ export async function savePedido(data) {
   if (!isUUID(data.clienteId)) {
     throw new Error('Este cliente fue creado sin conexión. Eliminalo y volvé a crearlo para poder guardar pedidos.');
   }
+  requireMontoValido(data.totalCalculado, 'total');
+  requireMontoValido(data.totalFinal, 'total final');
+  requireMontoValido(data.montoAbonado || 0, 'monto abonado');
+  if (!data.fecha || !/^\d{4}-\d{2}-\d{2}$/.test(data.fecha)) throw new Error('La fecha del pedido no es válida');
+  if (!Array.isArray(data.items) || !data.items.length) throw new Error('El pedido necesita al menos un ítem');
+  for (const i of data.items) {
+    if (!i.nombre || !String(i.nombre).trim()) throw new Error('Todos los ítems necesitan un nombre');
+    if (!Number.isFinite(Number(i.cantidad)) || Number(i.cantidad) <= 0) throw new Error('Las cantidades deben ser mayores a cero');
+    requireMontoValido(i.precioUnitario, 'precio unitario');
+  }
 
   // Calculate next sequential number for Supabase
   const { data: maxData } = await supabase
@@ -329,7 +364,7 @@ export async function savePedido(data) {
     })
     .select()
     .single();
-  if (error) throw error;
+  if (error) throw friendlyError(error);
   if (data.items && data.items.length) {
     const items = data.items.map(i => ({
       pedido_id: inserted.id,
@@ -342,7 +377,7 @@ export async function savePedido(data) {
       fecha_entrega: i.fechaEntrega || null,
     }));
     const { error: eItems } = await supabase.from('pedido_items').insert(items);
-    if (eItems) throw eItems;
+    if (eItems) throw friendlyError(eItems);
   }
   // Solo descuenta stock en pedidos reales (no presupuestos)
   if (data.tipo !== 'presupuesto' && data.items) {
@@ -366,9 +401,9 @@ export async function updatePedido(id, data) {
 
   const update = {};
   if ('cobrado' in data) update.cobrado = data.cobrado;
-  if ('montoAbonado' in data) update.monto_abonado = data.montoAbonado;
-  if ('totalFinal' in data) update.total_final = data.totalFinal;
-  if ('totalCalculado' in data) update.total_calculado = data.totalCalculado;
+  if ('montoAbonado' in data) update.monto_abonado = requireMontoValido(data.montoAbonado, 'monto abonado');
+  if ('totalFinal' in data) update.total_final = requireMontoValido(data.totalFinal, 'total final');
+  if ('totalCalculado' in data) update.total_calculado = requireMontoValido(data.totalCalculado, 'total');
   if ('medioPago' in data) update.medio_pago = data.medioPago;
   if ('cuotas' in data) update.cuotas = data.cuotas;
   if ('nota' in data) update.nota = data.nota;
@@ -381,12 +416,12 @@ export async function updatePedido(id, data) {
   if ('tasaMora' in data) update.tasa_mora = data.tasaMora;
 
   const { error } = await supabase.from('pedidos').update(update).eq('id', id);
-  if (error) throw error;
+  if (error) throw friendlyError(error);
 
   // Re-sync items: delete old, insert new
   if (data.items) {
     const { error: eDel } = await supabase.from('pedido_items').delete().eq('pedido_id', id);
-    if (eDel) throw eDel;
+    if (eDel) throw friendlyError(eDel);
     if (data.items.length > 0) {
       const newItems = data.items.map(i => ({
         pedido_id: id,
@@ -399,7 +434,7 @@ export async function updatePedido(id, data) {
         fecha_entrega: i.fechaEntrega || null,
       }));
       const { error: eIns } = await supabase.from('pedido_items').insert(newItems);
-      if (eIns) throw eIns;
+      if (eIns) throw friendlyError(eIns);
     }
   }
 
@@ -513,13 +548,17 @@ export async function saveGasto(data) {
     return arr;
   }
   if (!(await getUserId())) throw new Error('Not authenticated');
+  if (!data.descripcion || !String(data.descripcion).trim()) throw new Error('La descripción del gasto es obligatoria');
+  if (!data.fecha || !/^\d{4}-\d{2}-\d{2}$/.test(data.fecha)) throw new Error('La fecha del gasto no es válida');
+  const monto = Number(data.monto);
+  if (!Number.isFinite(monto) || monto <= 0) throw new Error('El monto debe ser mayor a cero');
   const { error } = await supabase.from('gastos').insert({
     fecha: data.fecha,
-    descripcion: data.descripcion,
-    monto: data.monto,
+    descripcion: String(data.descripcion).trim(),
+    monto,
     categoria: data.categoria,
   });
-  if (error) throw error;
+  if (error) throw friendlyError(error);
   return getGastos();
 }
 
@@ -534,6 +573,69 @@ export async function deleteGasto(id) {
   return getGastos();
 }
 
+// ── COBROS SUELTOS ────────────────────────────────────────
+
+function validarCobro(data) {
+  const monto = Number(data.monto);
+  if (!Number.isFinite(monto) || monto <= 0) throw new Error('El monto debe ser un número mayor a cero');
+  if (!data.descripcion || !String(data.descripcion).trim()) throw new Error('La descripción es obligatoria');
+  if (String(data.descripcion).trim().length > 300) throw new Error('La descripción no puede superar los 300 caracteres');
+  if (!data.fecha || !/^\d{4}-\d{2}-\d{2}$/.test(data.fecha)) throw new Error('La fecha no es válida');
+  if (!data.metodo || !String(data.metodo).trim()) throw new Error('Elegí un método de cobro');
+  return {
+    fecha: data.fecha,
+    monto,
+    descripcion: String(data.descripcion).trim(),
+    metodo: String(data.metodo).trim().toLowerCase(),
+  };
+}
+
+export async function getCobros() {
+  if (!useSupabase()) return lsGet('cobros', []);
+  const { data, error } = await supabase
+    .from('cobros')
+    .select('*')
+    .order('fecha', { ascending: false });
+  if (error) {
+    console.error('[getCobros] failed:', error.message);
+    return lsGet('cobros', []);
+  }
+  const mapped = data.map(r => ({
+    id: r.id,
+    fecha: r.fecha,
+    monto: r.monto,
+    descripcion: r.descripcion,
+    metodo: r.metodo,
+  }));
+  lsSet('cobros', mapped);
+  return mapped;
+}
+
+export async function saveCobro(data) {
+  const fields = validarCobro(data);
+  if (!useSupabase()) {
+    const arr = lsGet('cobros', []);
+    arr.unshift({ ...fields, id: uid() });
+    lsSet('cobros', arr);
+    return arr;
+  }
+  if (!(await getUserId())) throw new Error('Not authenticated');
+  const { error } = await supabase.from('cobros').insert(fields);
+  if (error) throw friendlyError(error);
+  return getCobros();
+}
+
+export async function deleteCobro(id) {
+  if (!useSupabase()) {
+    const arr = lsGet('cobros', []).filter(x => x.id !== id);
+    lsSet('cobros', arr);
+    return arr;
+  }
+  const { error } = await supabase.from('cobros').delete().eq('id', id);
+  if (error) throw error;
+  return getCobros();
+}
+
 // ── CATEGORIAS ────────────────────────────────────────────
 
 export async function getCategorias() {
@@ -546,20 +648,6 @@ export async function getCategorias() {
   const mapped = data.map(r => r.nombre);
   lsSet('categorias', mapped);
   return mapped;
-}
-
-export async function saveCategorias(arr) {
-  lsSet('categorias', arr);
-  if (!useSupabase()) return arr;
-  const { data: negocioId } = await supabase.rpc('mi_negocio_id');
-  if (!negocioId) return arr;
-  await supabase.from('categorias').delete().eq('negocio_id', negocioId);
-  if (arr.length) {
-    const userId = await getUserId();
-    const rows = arr.map(nombre => ({ user_id: userId, nombre }));
-    await supabase.from('categorias').insert(rows);
-  }
-  return arr;
 }
 
 // ── WHITELIST / OWNER ─────────────────────────────────────
@@ -582,89 +670,6 @@ export async function getAllowedEmails() {
     .order('created_at', { ascending: true });
   if (error) return [];
   return data;
-}
-
-export async function toggleTrialAcceso(emailId, email, activo) {
-  const { error } = await supabase
-    .from('allowed_emails')
-    .update({ trial_activo: activo })
-    .eq('id', emailId);
-  if (error) throw error;
-
-  const { data: sus } = await supabase
-    .from('suscripciones')
-    .select('id')
-    .eq('user_email', email.toLowerCase().trim())
-    .maybeSingle();
-
-  if (sus) {
-    const hoy = new Date();
-    const vencimiento = new Date(hoy);
-    if (activo) {
-      vencimiento.setDate(vencimiento.getDate() + 14);
-      await supabase.from('suscripciones').update({
-        estado: 'prueba',
-        fecha_vencimiento: vencimiento.toISOString().slice(0, 10),
-        updated_at: hoy.toISOString(),
-      }).eq('id', sus.id);
-    } else {
-      vencimiento.setFullYear(vencimiento.getFullYear() + 1);
-      await supabase.from('suscripciones').update({
-        estado: 'activa',
-        fecha_vencimiento: vencimiento.toISOString().slice(0, 10),
-        updated_at: hoy.toISOString(),
-      }).eq('id', sus.id);
-    }
-  }
-
-  return getAllowedEmails();
-}
-
-export async function isOwnerEmail(email) {
-  const superadmin = import.meta.env.VITE_SUPERADMIN_EMAIL;
-  if (superadmin && email.toLowerCase().trim() === superadmin.toLowerCase().trim()) return true;
-  if (!useSupabase()) return false;
-
-  const { data: ae } = await supabase
-    .from('allowed_emails')
-    .select('is_owner')
-    .eq('email', email.toLowerCase().trim())
-    .maybeSingle();
-  if (ae?.is_owner) return true;
-
-  // Si tiene suscripción activa/prueba → es dueño
-  const { data: sus } = await supabase
-    .from('suscripciones')
-    .select('id')
-    .eq('user_email', email.toLowerCase().trim())
-    .in('estado', ['activa', 'prueba'])
-    .maybeSingle();
-  return !!sus;
-}
-
-export async function getUserRole(email) {
-  if (!useSupabase() || !email) return 'owner';
-  const superadmin = import.meta.env.VITE_SUPERADMIN_EMAIL;
-  if (superadmin && email.toLowerCase().trim() === superadmin.toLowerCase().trim()) return 'owner';
-
-  const { data } = await supabase
-    .from('allowed_emails')
-    .select('is_owner, rol')
-    .eq('email', email.toLowerCase().trim())
-    .maybeSingle();
-  
-  if (!data) {
-    // Chequear si es dueño por suscripción
-    const { data: sus } = await supabase
-      .from('suscripciones')
-      .select('id')
-      .eq('user_email', email.toLowerCase().trim())
-      .in('estado', ['activa', 'prueba'])
-      .maybeSingle();
-    return sus ? 'owner' : null;
-  }
-  if (data.is_owner) return 'owner';
-  return data.rol || 'vendedor';
 }
 
 export async function addAllowedEmail(email, rol = 'vendedor') {
@@ -939,6 +944,8 @@ export async function saveDevolucion(data) {
     return getDevoluciones();
   }
   if (!(await getUserId())) throw new Error('Not authenticated');
+  requireMontoValido(data.montoTotal, 'monto de la devolución');
+  if (!data.items?.length) throw new Error('La devolución necesita al menos un ítem');
   const { data: inserted, error } = await supabase
     .from('devoluciones')
     .insert({
@@ -950,7 +957,7 @@ export async function saveDevolucion(data) {
     })
     .select()
     .single();
-  if (error) throw error;
+  if (error) throw friendlyError(error);
   if (data.items?.length) {
     await supabase.from('devolucion_items').insert(
       data.items.map(i => ({
@@ -992,240 +999,3 @@ export async function registrarComunicacion(clienteId, tipo, mensaje) {
   });
 }
 
-// ── HISTORIAL DE PRECIOS ──────────────────────────────────
-
-export async function getPrecioHistorial(productoId) {
-  if (!useSupabase()) return [];
-  const { data, error } = await supabase
-    .from('productos_precio_historial')
-    .select('*')
-    .eq('producto_id', productoId)
-    .order('fecha_desde', { ascending: false });
-  if (error) return [];
-  return data;
-}
-
-// ── PEDIDOS RECURRENTES ───────────────────────────────────
-
-export async function getRecurrentes() {
-  if (!useSupabase()) return JSON.parse(localStorage.getItem('sg_recurrentes') || '[]');
-  const { data, error } = await supabase
-    .from('pedidos_recurrentes')
-    .select('*')
-    .eq('activo', true)
-    .order('proximo_vencimiento', { ascending: true });
-  if (error) return [];
-  return data.map(r => ({
-    id: r.id,
-    clienteId: r.cliente_id,
-    items: r.items || [],
-    frecuencia: r.frecuencia,
-    proximoVencimiento: r.proximo_vencimiento,
-    activo: r.activo,
-  }));
-}
-
-export async function saveRecurrente(data) {
-  if (!useSupabase()) {
-    const arr = JSON.parse(localStorage.getItem('sg_recurrentes') || '[]');
-    arr.push({ ...data, id: uid() });
-    localStorage.setItem('sg_recurrentes', JSON.stringify(arr));
-    return getRecurrentes();
-  }
-  if (!(await getUserId())) throw new Error('Not authenticated');
-  await supabase.from('pedidos_recurrentes').insert({
-    cliente_id: data.clienteId,
-    items: data.items,
-    frecuencia: data.frecuencia,
-    proximo_vencimiento: data.proximoVencimiento,
-    activo: true,
-  });
-  return getRecurrentes();
-}
-
-export async function toggleRecurrente(id, activo) {
-  if (!useSupabase()) return getRecurrentes();
-  await supabase.from('pedidos_recurrentes').update({ activo }).eq('id', id);
-  return getRecurrentes();
-}
-
-export async function deleteRecurrente(id) {
-  if (!useSupabase()) {
-    const arr = JSON.parse(localStorage.getItem('sg_recurrentes') || '[]').filter(r => r.id !== id);
-    localStorage.setItem('sg_recurrentes', JSON.stringify(arr));
-    return getRecurrentes();
-  }
-  await supabase.from('pedidos_recurrentes').delete().eq('id', id);
-  return getRecurrentes();
-}
-
-export async function actualizarProximoVencimiento(id, frecuencia) {
-  const hoy = new Date();
-  const dias = frecuencia === 'semanal' ? 7 : frecuencia === 'quincenal' ? 15 : 30;
-  hoy.setDate(hoy.getDate() + dias);
-  const nuevo = hoy.toISOString().slice(0, 10);
-  if (useSupabase()) {
-    await supabase.from('pedidos_recurrentes').update({ proximo_vencimiento: nuevo }).eq('id', id);
-  }
-  return nuevo;
-}
-
-// ── PROVEEDORES ───────────────────────────────────────────
-
-export async function getProveedores() {
-  if (!useSupabase()) return JSON.parse(localStorage.getItem('sg_proveedores') || '[]');
-  const { data, error } = await supabase.from('proveedores').select('*').order('nombre');
-  if (error) return [];
-  return data;
-}
-
-export async function saveProveedor(data) {
-  if (!useSupabase()) {
-    const arr = JSON.parse(localStorage.getItem('sg_proveedores') || '[]');
-    if (data.id) {
-      const i = arr.findIndex(p => p.id === data.id);
-      if (i >= 0) arr[i] = data; else arr.push(data);
-    } else {
-      arr.push({ ...data, id: uid() });
-    }
-    localStorage.setItem('sg_proveedores', JSON.stringify(arr));
-    return getProveedores();
-  }
-  if (!(await getUserId())) throw new Error('Not authenticated');
-  if (data.id) {
-    await supabase.from('proveedores').update({ nombre: data.nombre, contacto: data.contacto }).eq('id', data.id);
-  } else {
-    await supabase.from('proveedores').insert({ nombre: data.nombre, contacto: data.contacto || null });
-  }
-  return getProveedores();
-}
-
-export async function deleteProveedor(id) {
-  if (!useSupabase()) {
-    const arr = JSON.parse(localStorage.getItem('sg_proveedores') || '[]').filter(p => p.id !== id);
-    localStorage.setItem('sg_proveedores', JSON.stringify(arr));
-    return getProveedores();
-  }
-  await supabase.from('proveedores').delete().eq('id', id);
-  return getProveedores();
-}
-
-// ── ÓRDENES DE COMPRA ─────────────────────────────────────
-
-export async function getOrdenesCompra() {
-  if (!useSupabase()) return JSON.parse(localStorage.getItem('sg_ordenes') || '[]');
-  const { data, error } = await supabase
-    .from('ordenes_compra')
-    .select('*, ordenes_compra_items(*), proveedores(nombre, contacto)')
-    .order('created_at', { ascending: false });
-  if (error) return [];
-  return data.map(r => ({
-    id: r.id,
-    proveedorId: r.proveedor_id,
-    proveedorNombre: r.proveedores?.nombre || 'Sin proveedor',
-    proveedorContacto: r.proveedores?.contacto || '',
-    fecha: r.fecha,
-    estado: r.estado,
-    total: r.total,
-    items: (r.ordenes_compra_items || []).map(i => ({
-      id: i.id,
-      productoId: i.producto_id,
-      nombre: i.nombre,
-      cantidad: i.cantidad,
-      precioUnitario: i.precio_unitario,
-    })),
-  }));
-}
-
-export async function saveOrdenCompra(data) {
-  if (!useSupabase()) return getOrdenesCompra();
-  if (!(await getUserId())) throw new Error('Not authenticated');
-  const { data: inserted, error } = await supabase
-    .from('ordenes_compra')
-    .insert({
-      proveedor_id: data.proveedorId || null,
-      fecha: data.fecha,
-      estado: data.estado || 'borrador',
-      total: data.total || 0,
-    })
-    .select()
-    .single();
-  if (error) throw error;
-  if (data.items?.length) {
-    await supabase.from('ordenes_compra_items').insert(
-      data.items.map(i => ({
-        orden_id: inserted.id,
-        producto_id: i.productoId || null,
-        nombre: i.nombre,
-        cantidad: i.cantidad,
-        precio_unitario: i.precioUnitario || 0,
-      }))
-    );
-  }
-  return getOrdenesCompra();
-}
-
-export async function updateOrdenEstado(id, estado) {
-  if (!useSupabase()) return getOrdenesCompra();
-  await supabase.from('ordenes_compra').update({ estado }).eq('id', id);
-  if (estado === 'recibida') {
-    const { data: items } = await supabase.from('ordenes_compra_items').select('*').eq('orden_id', id);
-    for (const item of items || []) {
-      if (item.producto_id) await ajustarStock(item.producto_id, item.cantidad);
-    }
-  }
-  return getOrdenesCompra();
-}
-
-// ── SEED (localStorage only, for first run) ───────────────
-
-export function seedLocalStorageIfEmpty() {
-  if (localStorage.getItem('sg_init')) return;
-  const y = new Date().getFullYear();
-  const m = String(new Date().getMonth() + 1).padStart(2, '0');
-
-  const clientes = [
-    { id: 'c1', nombre: 'Ana García', contacto: '1123456789' },
-    { id: 'c2', nombre: 'Roberto Sánchez', contacto: '1134567890' },
-    { id: 'c3', nombre: 'María López', contacto: '1145678901' },
-  ];
-  const productos = [
-    { id: 'p1', nombre: 'Alfajores x12', precio: 2400, costo: 1600, stock: 20, stock_minimo: 5 },
-    { id: 'p2', nombre: 'Galletitas surtidas', precio: 1800, costo: 1100, stock: 15, stock_minimo: 5 },
-    { id: 'p3', nombre: 'Chocolates x6', precio: 3200, costo: 2000, stock: 10, stock_minimo: 3 },
-    { id: 'p4', nombre: 'Caramelos x50', precio: 900, costo: 500, stock: 30, stock_minimo: 10 },
-    { id: 'p5', nombre: 'Chicles x100', precio: 1200, costo: 700, stock: 25, stock_minimo: 8 },
-  ];
-  const pedidos = [
-    {
-      id: 'pe1', clienteId: 'c1', fecha: `${y}-${m}-05`, tipo: 'pedido',
-      items: [
-        { productoId: 'p1', nombre: 'Alfajores x12', cantidad: 2, precioUnitario: 2400, costoUnitario: 1600 },
-        { productoId: 'p3', nombre: 'Chocolates x6', cantidad: 1, precioUnitario: 3200, costoUnitario: 2000 },
-      ],
-      totalCalculado: 8000, totalFinal: 8000, medioPago: 'efectivo', cuotas: 1, cobrado: true, montoAbonado: 8000,
-    },
-    {
-      id: 'pe2', clienteId: 'c2', fecha: `${y}-${m}-10`, tipo: 'pedido',
-      items: [{ productoId: 'p2', nombre: 'Galletitas surtidas', cantidad: 3, precioUnitario: 1800, costoUnitario: 1100 }],
-      totalCalculado: 5400, totalFinal: 5400, medioPago: 'tarjeta', cuotas: 3, cobrado: false, montoAbonado: 0,
-    },
-    {
-      id: 'pe3', clienteId: 'c1', fecha: `${y}-${m}-15`, tipo: 'presupuesto',
-      items: [{ productoId: 'p4', nombre: 'Caramelos x50', cantidad: 5, precioUnitario: 900, costoUnitario: 500 }],
-      totalCalculado: 4500, totalFinal: 4200, medioPago: 'efectivo', cuotas: 1, cobrado: false, montoAbonado: 0,
-    },
-  ];
-  const gastos = [
-    { id: 'g1', fecha: `${y}-${m}-01`, descripcion: 'Compra mercadería proveedor', monto: 45000, categoria: 'Mercadería' },
-    { id: 'g2', fecha: `${y}-${m}-08`, descripcion: 'Nafta semana', monto: 8000, categoria: 'Transporte' },
-    { id: 'g3', fecha: `${y}-${m}-12`, descripcion: 'Plan celular', monto: 3500, categoria: 'Servicios' },
-  ];
-
-  lsSet('clientes', clientes);
-  lsSet('productos', productos);
-  lsSet('pedidos', pedidos);
-  lsSet('gastos', gastos);
-  lsSet('categorias', DEFAULT_CATS);
-  localStorage.setItem('sg_init', '1');
-}

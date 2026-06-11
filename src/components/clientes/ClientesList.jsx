@@ -4,17 +4,13 @@ import { formatCurrency, saldoCliente } from '../../lib/utils.js';
 import { CobrosPanel } from './CobrosPanel.jsx';
 import { ImportarClientesModal } from './ImportarClientesModal.jsx';
 
-const BRAND     = '#ccff00';
-const BRAND_DIM = 'rgba(204,255,0,0.1)';
-const DIAS_MORA = 30; // días sin cobrar para considerar "mora"
-
 const ESTADOS = {
   ok:    { label: 'Al día',  color: '#4ade80', bg: 'rgba(74,222,128,0.07)',   border: 'rgba(74,222,128,0.2)'  },
   deuda: { label: 'Debe',    color: '#fbbf24', bg: 'rgba(251,191,36,0.07)',   border: 'rgba(251,191,36,0.25)' },
   mora:  { label: 'En mora', color: '#f87171', bg: 'rgba(248,113,113,0.07)',  border: 'rgba(248,113,113,0.3)' },
 };
 
-function getEstado(cliente, pedidos, devoluciones) {
+function getEstado(cliente, pedidos, devoluciones, diasMora) {
   const saldo = saldoCliente(cliente, pedidos, devoluciones);
   if (saldo <= 0) return { ...ESTADOS.ok, saldo };
 
@@ -24,7 +20,7 @@ function getEstado(cliente, pedidos, devoluciones) {
   );
   const tieneVencida = pedidosCliente.some(p => {
     const dias = Math.floor((hoy - new Date(p.fecha)) / (1000 * 60 * 60 * 24));
-    return dias > DIAS_MORA;
+    return dias > diasMora;
   });
 
   return tieneVencida
@@ -32,7 +28,7 @@ function getEstado(cliente, pedidos, devoluciones) {
     : { ...ESTADOS.deuda, saldo };
 }
 
-export function ClientesList({ clientes, pedidos, devoluciones, negocioConfig, onSelect, onNew, onRefresh, toast, userRole = 'owner' }) {
+export function ClientesList({ clientes, pedidos, devoluciones, negocioConfig, diasMora = 30, onSelect, onNew, onRefresh, toast, userRole = 'owner' }) {
   const canWrite = ['owner', 'admin', 'vendedor'].includes(userRole);
   const [query, setQuery]           = useState('');
   const [verCobros, setVerCobros]   = useState(false);
@@ -41,7 +37,7 @@ export function ClientesList({ clientes, pedidos, devoluciones, negocioConfig, o
   const q = query.toLowerCase();
 
   // Enrich clients with status
-  const clientesConEstado = clientes.map(c => ({ ...c, estado: getEstado(c, pedidos, devoluciones) }));
+  const clientesConEstado = clientes.map(c => ({ ...c, estado: getEstado(c, pedidos, devoluciones, diasMora) }));
   const deudores    = clientesConEstado.filter(c => c.estado.saldo > 0);
   const enMora      = deudores.filter(c => c.estado.label === 'En mora').length;
   const totalDeuda  = deudores.reduce((s, c) => s + c.estado.saldo, 0);

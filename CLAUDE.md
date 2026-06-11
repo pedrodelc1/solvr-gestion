@@ -15,18 +15,22 @@ App de gestión de pedidos/clientes para negocios pequeños. Pedro la está cons
 - Repo: `pedrodelc1/solvr-gestion` (GitHub, rama `main`)
 - Cada push a `main` deploya automáticamente
 
-## Estado actual (2026-06-02)
+## Estado actual (2026-06-11)
 
 ### Features implementadas y deployadas
 - Skeleton loader animado al cargar datos
 - Editar pedidos existentes
-- Campo `nota` en pedidos (requiere migration SQL en Supabase — ver abajo)
+- Campo `nota` en pedidos (migration ya aplicada en producción)
 - Buscador por cliente en lista de pedidos
 - Confirm modal al eliminar cliente
 - PWA manifest (`public/manifest.json`)
 - Títulos dinámicos por tab (`document.title`)
 - Dock con efecto magnification estilo Apple macOS (hover)
 - Modo offline eliminado — la app siempre requiere login con email
+- Cobros sueltos (ingresos sin pedido) en tab Caja — requiere migration 009 (ver abajo)
+- Doble validación: formularios React + validaciones en db.js + CHECK constraints (migration 010)
+- Variables CSS `--primary`, `--accent-2`, `--warning`, `--surface` definidas en index.css (antes se usaban sin estar definidas)
+- "En mora" en lista de clientes usa la config `dias_sin_cobro` (antes 30 hardcodeado)
 
 ### Dock (BottomNav)
 - Archivo: `src/components/shared/BottomNav.jsx`
@@ -36,45 +40,53 @@ App de gestión de pedidos/clientes para negocios pequeños. Pedro la está cons
 - `--nav-h: 58px` (más bajo que el original de 66px)
 
 ### Pending — acción manual requerida
-```sql
--- Correr en Supabase SQL Editor (producción):
-ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS nota text;
-```
+Aplicar en producción (SQL Editor o `supabase db push`):
+- `supabase/migrations/009_cobros_sueltos.sql` — tabla `cobros` + RLS (sin esto, registrar un cobro suelto falla)
+- `supabase/migrations/010_backend_checks.sql` — CHECK constraints de doble verificación (NOT VALID, no afecta datos existentes)
+
+Nota: el registro remoto de migrations solo tiene 001–002; las 003–008 se corrieron por SQL Editor. Para usar `db push` primero correr: `npx supabase migration repair --status applied 003 004 005 006 007 008`
 
 ## Estructura principal
 ```
 src/
   App.jsx                  — root, maneja estado global y routing por tab
   lib/
-    db.js                  — CRUD sobre Supabase (y localStorage fallback removido)
-    utils.js               — formatCurrency, formatDate, saldoCliente
+    db.js                  — CRUD sobre Supabase + validaciones + friendlyError
+    utils.js               — formatCurrency, formatDate, saldoCliente, calcularMora
     supabase.js            — cliente Supabase
+    generarRemito.js / presupuestoPDF.js — PDFs
+    animations.js
   components/
     auth/
-      LoginScreen.jsx      — login con magic link (sin modo offline)
+      LoginScreen.jsx      — login con magic link o contraseña
       SplashScreen.jsx
     shared/
-      BottomNav.jsx        — dock con 6 tabs + magnification
-      Modal.jsx
-      Toast.jsx
-      SkeletonLoader.jsx
+      BottomNav.jsx        — dock con tabs + magnification
+      Modal.jsx / Toast.jsx / SkeletonLoader.jsx / MedioPill.jsx / TrialBanner.jsx
     clientes/
-      ClientesList.jsx
-      ClienteDetail.jsx
-      ClienteForm.jsx
+      ClientesList.jsx / ClienteDetail.jsx / ClienteForm.jsx
+      CuentaCorriente.jsx  — extracto de cuenta exportable
+      CobrosPanel.jsx      — saldos pendientes + recordatorio WhatsApp
+      ImportarClientesModal.jsx
     pedidos/
-      PedidosList.jsx      — lista con filtros, búsqueda, pago parcial
-      PedidoForm.jsx       — crear/editar pedido, campo nota
+      PedidosList.jsx      — filtros, búsqueda, pago parcial, entregas, remitos
+      PedidoForm.jsx       — crear/editar, presupuestos, descuento, plazo, mora
+      DevolucionModal.jsx
     gastos/
-      GastosList.jsx
-      GastoForm.jsx
+      GastosList.jsx / GastoForm.jsx
+    caja/
+      CajaPanel.jsx        — caja del día: cobros, cobros sueltos, gastos, neto
+      CobroForm.jsx        — registrar cobro suelto (sin pedido)
     stats/
-      StatsPanel.jsx
+      StatsPanel.jsx / ChartCategorias.jsx
     productos/
-      ProductosList.jsx
-      ProductoForm.jsx
+      ProductosList.jsx / ProductoForm.jsx / ImportarProductosModal.jsx
+    suscripciones/
+      SuscripcionBlocker.jsx
+    onboarding/
+      OnboardingWizard.jsx / TeamWelcomeScreen.jsx
     perfil/
-      PerfilPanel.jsx      — sesión, whitelist de emails, export CSV
+      PerfilPanel.jsx      — config negocio, equipo/roles, suscripciones, tema
 ```
 
 ## Principio de doble verificación (Frontend + Backend)

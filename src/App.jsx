@@ -6,6 +6,7 @@ import {
   getProductos, saveProducto, deleteProducto,
   getPedidos, savePedido, updatePedido, deletePedido,
   getGastos, saveGasto, deleteGasto,
+  getCobros, saveCobro, deleteCobro,
   getCategorias,
   procesarCuotasVencidas,
   getSuscripcion, crearSuscripcionTrial,
@@ -34,6 +35,7 @@ import { ProductosList } from './components/productos/ProductosList.jsx';
 import { ProductoForm } from './components/productos/ProductoForm.jsx';
 import { PerfilPanel } from './components/perfil/PerfilPanel.jsx';
 import { CajaPanel } from './components/caja/CajaPanel.jsx';
+import { CobroForm } from './components/caja/CobroForm.jsx';
 import { SkeletonLoader } from './components/shared/SkeletonLoader.jsx';
 import { SuscripcionBlocker } from './components/suscripciones/SuscripcionBlocker.jsx';
 import { TrialBanner } from './components/shared/TrialBanner.jsx';
@@ -70,6 +72,7 @@ export default function App() {
   const [productos, setProductos] = useState([]);
   const [pedidos, setPedidos] = useState([]);
   const [gastos, setGastos] = useState([]);
+  const [cobros, setCobros] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [devoluciones, setDevoluciones] = useState([]);
   const [comunicaciones, setComunicaciones] = useState([]);
@@ -103,6 +106,9 @@ export default function App() {
 
   // Gastos UI
   const [gastoFormOpen, setGastoFormOpen] = useState(false);
+
+  // Caja UI
+  const [cobroFormOpen, setCobroFormOpen] = useState(false);
 
   // Productos UI
   const [productoFormOpen, setProductoFormOpen] = useState(false);
@@ -166,13 +172,14 @@ export default function App() {
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [c, pr, pe, g, cats, devs, coms] = await Promise.all([
-        getClientes(), getProductos(), getPedidos(), getGastos(), getCategorias(),
+      const [c, pr, pe, g, cob, cats, devs, coms] = await Promise.all([
+        getClientes(), getProductos(), getPedidos(), getGastos(), getCobros(), getCategorias(),
         getDevoluciones(), getComunicaciones(),
       ]);
       setClientes(c);
       setProductos(pr);
       setGastos(g);
+      setCobros(cob);
       setCategorias(cats);
       setDevoluciones(devs);
       setComunicaciones(coms);
@@ -194,7 +201,7 @@ export default function App() {
           setToasts(t => {
             const id = ++_toastId;
             setTimeout(() => setToasts(prev => prev.filter(x => x.id !== id)), 3500);
-            return [...t, { id, msg: `💳 Cuota ${proc.cuotasDue}/${proc.cuotas} registrada — ${nombre}`, type: 'success' }];
+            return [...t, { id, msg: `Cuota ${proc.cuotasDue}/${proc.cuotas} registrada — ${nombre}`, type: 'success' }];
           });
         });
       }
@@ -209,7 +216,6 @@ export default function App() {
         // Resolver negocio activo; si no es miembro aún, busca en allowed_emails y crea la membresía
         const { data: negocioId, error: claimError } = await supabase.rpc('claim_team_access');
         if (claimError) console.error('[claim_team_access] error:', claimError);
-        console.log('[claim_team_access] negocioId:', negocioId, 'user:', session.user.email);
         if (!negocioId) {
           toast("Acceso denegado: este email no está autorizado. Contactá al administrador.", "error");
           await supabase.auth.signOut();
@@ -379,6 +385,21 @@ export default function App() {
     try {
       const arr = await deleteGasto(id);
       setGastos(arr);
+    } catch (e) { toast(e.message, 'error'); }
+  }
+
+  async function handleSaveCobro(data) {
+    const arr = await saveCobro(data);
+    setCobros(arr);
+    setCobroFormOpen(false);
+    toast('Cobro registrado');
+  }
+
+  async function handleDeleteCobro(id) {
+    try {
+      const arr = await deleteCobro(id);
+      setCobros(arr);
+      toast('Cobro eliminado');
     } catch (e) { toast(e.message, 'error'); }
   }
 
@@ -569,6 +590,7 @@ export default function App() {
             pedidos={pedidos}
             devoluciones={devoluciones}
             negocioConfig={negocioConfig}
+            diasMora={diasSinCobro}
             onSelect={id => setSelectedClienteId(id)}
             onNew={() => { setEditingCliente(null); setClienteFormOpen(true); }}
             onRefresh={loadAll}
@@ -657,6 +679,9 @@ export default function App() {
             pedidos={pedidos}
             gastos={gastos}
             clientes={clientes}
+            cobrosSueltos={cobros}
+            onNuevoCobro={() => setCobroFormOpen(true)}
+            onDeleteCobro={handleDeleteCobro}
           />
         );
 
@@ -670,6 +695,7 @@ export default function App() {
             clientes={clientes}
             pedidos={pedidos}
             gastos={gastos}
+            devoluciones={devoluciones}
             suscripcion={suscripcion}
             negocioConfig={negocioConfig}
             onNegocioSave={async (cfg) => { const saved = await saveNegocioConfig(cfg); setNegocioConfig(saved); }}
@@ -724,6 +750,13 @@ export default function App() {
         categorias={categorias}
         onSave={handleSaveGasto}
         onClose={() => setGastoFormOpen(false)}
+      />
+
+      <CobroForm
+        open={cobroFormOpen}
+        metodos={(negocioConfig?.metodos_pago || 'Efectivo, Transferencia, Tarjeta').split(',').map(m => m.trim().toLowerCase()).filter(Boolean)}
+        onSave={handleSaveCobro}
+        onClose={() => setCobroFormOpen(false)}
       />
 
       <ProductoForm

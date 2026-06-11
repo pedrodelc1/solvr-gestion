@@ -109,6 +109,7 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
     if (pagoSavingRef.current) return;
     const monto = parseFloat(pagoMonto);
     if (isNaN(monto) || monto <= 0) { toast('Ingresá un monto válido', 'error'); return; }
+    if (monto > pagoModal.resta + 0.01) { toast(`El monto supera el saldo restante (${formatCurrency(pagoModal.resta)})`, 'error'); return; }
     const p = pedidos.find(x => x.id === pagoModal.pedidoId);
     if (!p) return;
     const nuevoAbonado = (p.montoAbonado || 0) + monto;
@@ -269,8 +270,14 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
                   {items.map(it => `${it.nombre} x${it.cantidad}`).join(' · ')}
                 </div>
                 {p.nota && (
-                  <div className="card-sub" style={{ fontStyle: 'italic', color: 'var(--ink-2)' }}>
-                    📝 {p.nota}
+                  <div className="card-sub" style={{ fontStyle: 'italic', color: 'var(--ink-2)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}>
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="16" y1="13" x2="8" y2="13" />
+                      <line x1="16" y1="17" x2="8" y2="17" />
+                    </svg>
+                    {p.nota}
                   </div>
                 )}
                 <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-2)', flexWrap: 'wrap' }}>

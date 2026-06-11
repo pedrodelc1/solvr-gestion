@@ -11,9 +11,13 @@
   --ink-3: #555555;
   --border: #222222;
   --accent: #ffffff;
+  --accent-2: rgba(255, 255, 255, 0.12);
   --lime: #ccff00;
   --lime-bg: rgba(204, 255, 0, 0.08);
   --lime-border: rgba(204, 255, 0, 0.35);
+  --primary: var(--lime);
+  --surface: var(--bg-3);
+  --warning: #f59e0b;
   --success:    #22c55e;
   --success-bg: #052e16;
   --danger:     #ef4444;
@@ -82,9 +86,11 @@ html[data-theme="light"] {
   --ink-3: #8e8e93;
   --border: #e0e0e0;
   --accent: #0a0a0a;
+  --accent-2: rgba(0, 0, 0, 0.08);
   --lime: #65a30d;
   --lime-bg: rgba(101, 163, 13, 0.08);
   --lime-border: rgba(101, 163, 13, 0.35);
+  --warning: #d97706;
   --success:    #16a34a;
   --success-bg: #dcfce7;
   --danger:     #dc2626;

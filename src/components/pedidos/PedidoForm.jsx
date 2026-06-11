@@ -333,6 +333,17 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
       return item.manualNombre?.trim() && item.manualPrecio && parseFloat(item.manualPrecio) >= 0 && item.cantidad > 0;
     });
     if (!validItems.length) { toast('Agregá al menos un ítem válido', 'error'); return; }
+    if (interes !== '' && (isNaN(parseFloat(interes)) || parseFloat(interes) < 0)) {
+      toast('El interés no puede ser negativo', 'error'); return;
+    }
+    if (descuentoHab && descuentoVal !== '') {
+      const dv = parseFloat(descuentoVal);
+      if (isNaN(dv) || dv < 0) { toast('El descuento no puede ser negativo', 'error'); return; }
+      if (descuentoTipo === 'porcentaje' && dv > 100) { toast('El descuento no puede superar el 100%', 'error'); return; }
+    }
+    if (finalManual && totalFinalVal !== '' && (isNaN(parseFloat(totalFinalVal)) || parseFloat(totalFinalVal) < 0)) {
+      toast('El total final no puede ser negativo', 'error'); return;
+    }
 
     const totalConInteres = totalConDescuento * (1 + pctInteres / 100);
     const totalFinal = finalManual && totalFinalVal !== '' ? parseFloat(totalFinalVal) : totalConInteres;

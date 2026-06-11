@@ -40,6 +40,18 @@ export function ProductoForm({ open, existing, onSave, onClose }) {
       setError('Completá nombre y precio');
       return;
     }
+    const campos = [
+      [costo, 'El costo'],
+      [precioMayorista, 'El precio mayorista'],
+      [stock, 'El stock'],
+      [stockMinimo, 'El stock mínimo'],
+    ];
+    for (const [val, label] of campos) {
+      if (val !== '' && (isNaN(parseFloat(val)) || parseFloat(val) < 0)) {
+        setError(`${label} no puede ser negativo`);
+        return;
+      }
+    }
     savingRef.current = true;
     setSaving(true);
     try {

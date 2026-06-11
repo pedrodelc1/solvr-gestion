@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { formatCurrency, today } from '../../lib/utils.js';
 import { listItem } from '../../lib/animations.js';
+import { ConfirmModal } from '../shared/Modal.jsx';
 
 function SvgChevron({ dir = 'left' }) {
   return (
@@ -28,8 +29,9 @@ function formatFecha(dateStr) {
 
 const MEDIO_LABEL = { efectivo: 'Efectivo', transferencia: 'Transferencia', tarjeta: 'Tarjeta', fiado: 'Tarjeta' };
 
-export function CajaPanel({ pedidos, gastos, clientes }) {
+export function CajaPanel({ pedidos, gastos, clientes, cobrosSueltos = [], onNuevoCobro, onDeleteCobro }) {
   const [fecha, setFecha] = useState(today());
+  const [confirmDelCobro, setConfirmDelCobro] = useState(null);
 
   const clienteNombre = id => clientes.find(c => c.id === id)?.nombre || '—';
 
@@ -40,30 +42,50 @@ export function CajaPanel({ pedidos, gastos, clientes }) {
       p.fecha === fecha
     ), [pedidos, fecha]);
 
+  const sueltosDelDia = useMemo(() =>
+    cobrosSueltos.filter(c => c.fecha === fecha),
+    [cobrosSueltos, fecha]
+  );
+
   const gastosDelDia = useMemo(() =>
     gastos.filter(g => g.fecha === fecha),
     [gastos, fecha]
   );
 
   const montoCobrado = p => p.cobrado ? p.totalFinal : (p.montoAbonado || 0);
+  const medioKey = m => (m === 'fiado' ? 'tarjeta' : (m || 'efectivo'));
 
-  const totalEfectivo = cobrosDelDia.filter(p => p.medioPago === 'efectivo').reduce((s, p) => s + montoCobrado(p), 0);
-  const totalTransferencia = cobrosDelDia.filter(p => p.medioPago === 'transferencia').reduce((s, p) => s + montoCobrado(p), 0);
-  const totalTarjeta = cobrosDelDia.filter(p => p.medioPago === 'tarjeta' || p.medioPago === 'fiado').reduce((s, p) => s + montoCobrado(p), 0);
-  const totalCobros = cobrosDelDia.reduce((s, p) => s + montoCobrado(p), 0);
+  const totalEfectivo = cobrosDelDia.filter(p => medioKey(p.medioPago) === 'efectivo').reduce((s, p) => s + montoCobrado(p), 0)
+    + sueltosDelDia.filter(c => medioKey(c.metodo) === 'efectivo').reduce((s, c) => s + c.monto, 0);
+  const totalTransferencia = cobrosDelDia.filter(p => medioKey(p.medioPago) === 'transferencia').reduce((s, p) => s + montoCobrado(p), 0)
+    + sueltosDelDia.filter(c => medioKey(c.metodo) === 'transferencia').reduce((s, c) => s + c.monto, 0);
+  const totalTarjeta = cobrosDelDia.filter(p => medioKey(p.medioPago) === 'tarjeta').reduce((s, p) => s + montoCobrado(p), 0)
+    + sueltosDelDia.filter(c => medioKey(c.metodo) === 'tarjeta').reduce((s, c) => s + c.monto, 0);
+  const totalCobros = cobrosDelDia.reduce((s, p) => s + montoCobrado(p), 0)
+    + sueltosDelDia.reduce((s, c) => s + c.monto, 0);
   const totalGastos = gastosDelDia.reduce((s, g) => s + g.monto, 0);
   const neto = totalCobros - totalGastos;
 
+  const totalOtros = totalCobros - totalEfectivo - totalTransferencia - totalTarjeta;
   const medios = [
     { label: 'Efectivo', value: totalEfectivo },
     { label: 'Transferencia', value: totalTransferencia },
     { label: 'Tarjeta', value: totalTarjeta },
+    { label: 'Otros', value: totalOtros },
   ].filter(m => m.value > 0);
 
   return (
     <>
       <div className="page-header">
         <h1>Caja del día</h1>
+        {onNuevoCobro && (
+          <button className="btn-icon" onClick={onNuevoCobro} aria-label="Registrar cobro suelto" title="Registrar cobro suelto">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Date navigator */}
@@ -163,6 +185,41 @@ export function CajaPanel({ pedidos, gastos, clientes }) {
         </>
       )}
 
+      {/* Cobros sueltos list */}
+      {sueltosDelDia.length > 0 && (
+        <>
+          <div className="section-label">Cobros sueltos ({sueltosDelDia.length})</div>
+          <div className="list-section">
+            {sueltosDelDia.map((c, i) => (
+              <motion.div key={c.id} className="card" {...listItem(i)}>
+                <div className="card-row">
+                  <span style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>{c.descripcion}</span>
+                  <span style={{ fontWeight: 800, color: 'var(--success)', fontSize: 'var(--text-base)', letterSpacing: '-0.01em' }}>{formatCurrency(c.monto)}</span>
+                </div>
+                <div className="card-row" style={{ marginTop: 'var(--space-1)' }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-3)' }}>
+                    {MEDIO_LABEL[c.metodo] || (c.metodo ? c.metodo.charAt(0).toUpperCase() + c.metodo.slice(1) : '')}
+                  </span>
+                  {onDeleteCobro && (
+                    <button
+                      className="btn-icon danger"
+                      aria-label="Eliminar cobro"
+                      onClick={() => setConfirmDelCobro(c.id)}
+                      style={{ width: 28, height: 28, minHeight: 28 }}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </>
+      )}
+
       {/* Gastos list */}
       {gastosDelDia.length > 0 && (
         <>
@@ -181,7 +238,7 @@ export function CajaPanel({ pedidos, gastos, clientes }) {
         </>
       )}
 
-      {cobrosDelDia.length === 0 && gastosDelDia.length === 0 && (
+      {cobrosDelDia.length === 0 && sueltosDelDia.length === 0 && gastosDelDia.length === 0 && (
         <div className="empty-state">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
             <rect x="2" y="5" width="20" height="14" rx="2" />
@@ -190,6 +247,14 @@ export function CajaPanel({ pedidos, gastos, clientes }) {
           <p>Sin movimientos para este día.</p>
         </div>
       )}
+
+      <ConfirmModal
+        open={!!confirmDelCobro}
+        title="Eliminar cobro"
+        message="¿Eliminar este cobro suelto? Esta acción no se puede deshacer."
+        onConfirm={() => { onDeleteCobro(confirmDelCobro); setConfirmDelCobro(null); }}
+        onCancel={() => setConfirmDelCobro(null)}
+      />
     </>
   );
 }

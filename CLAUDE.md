@@ -27,8 +27,8 @@ App de gestión de pedidos/clientes para negocios pequeños. Pedro la está cons
 - Títulos dinámicos por tab (`document.title`)
 - Dock con efecto magnification estilo Apple macOS (hover)
 - Modo offline eliminado — la app siempre requiere login con email
-- Cobros sueltos (ingresos sin pedido) en tab Caja — requiere migration 009 (ver abajo)
-- Doble validación: formularios React + validaciones en db.js + CHECK constraints (migration 010)
+- Cobros sueltos (ingresos sin pedido) en tab Caja — migration 009 aplicada
+- Doble validación: formularios React + validaciones en db.js + CHECK constraints (migration 010 aplicada)
 - Variables CSS `--primary`, `--accent-2`, `--warning`, `--surface` definidas en index.css (antes se usaban sin estar definidas)
 - "En mora" en lista de clientes usa la config `dias_sin_cobro` (antes 30 hardcodeado)
 
@@ -39,12 +39,8 @@ App de gestión de pedidos/clientes para negocios pequeños. Pedro la está cons
 - `overflow: visible` en `.bottom-nav` para que sobresalgan
 - `--nav-h: 58px` (más bajo que el original de 66px)
 
-### Pending — acción manual requerida
-Aplicar en producción (SQL Editor o `supabase db push`):
-- `supabase/migrations/009_cobros_sueltos.sql` — tabla `cobros` + RLS (sin esto, registrar un cobro suelto falla)
-- `supabase/migrations/010_backend_checks.sql` — CHECK constraints de doble verificación (NOT VALID, no afecta datos existentes)
-
-Nota: el registro remoto de migrations solo tiene 001–002; las 003–008 se corrieron por SQL Editor. Para usar `db push` primero correr: `npx supabase migration repair --status applied 003 004 005 006 007 008`
+### Migrations
+Todas aplicadas en producción (001–010) y el registro remoto está sincronizado — `npx supabase db push` funciona directo para futuras migrations.
 
 ## Estructura principal
 ```

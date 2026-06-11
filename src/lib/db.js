@@ -760,50 +760,47 @@ export async function crearSuscripcionTrial() {
   return data;
 }
 
-// Solo owner — lista todas las suscripciones
-export async function getSuscripciones() {
-  if (!useSupabase()) return [];
-  const { data, error } = await supabase
-    .from('suscripciones')
-    .select('*, planes(*)')
-    .order('created_at', { ascending: false });
-  if (error) return [];
-  return data;
+// ── PANEL SUPERADMIN ──────────────────────────────────────
+// Todas estas funciones pasan por RPCs security definer gateadas
+// con es_superadmin() en el backend — el frontend no decide nada.
+
+export async function esSuperadmin() {
+  if (!useSupabase()) return false;
+  const { data, error } = await supabase.rpc('es_superadmin');
+  if (error) return false;
+  return data === true;
 }
 
-// Solo owner — actualiza estado de una suscripción
+// Lista todas las suscripciones del sistema (solo superadmin)
+export async function getSuscripciones() {
+  if (!useSupabase()) return [];
+  const { data, error } = await supabase.rpc('admin_suscripciones');
+  if (error) return [];
+  return data || [];
+}
+
+// Whitelist global: todos los emails con acceso, su rol y negocio (solo superadmin)
+export async function getAdminWhitelist() {
+  if (!useSupabase()) return [];
+  const { data, error } = await supabase.rpc('admin_whitelist');
+  if (error) return [];
+  return data || [];
+}
+
+// Actualiza estado de una suscripción (solo superadmin)
 export async function updateSuscripcion(id, changes) {
-  const { error } = await supabase
-    .from('suscripciones')
-    .update({ ...changes, updated_at: new Date().toISOString() })
-    .eq('id', id);
-  if (error) throw error;
+  const { error } = await supabase.rpc('admin_update_suscripcion', {
+    p_id: id,
+    p_estado: changes.estado,
+  });
+  if (error) throw friendlyError(error);
   return getSuscripciones();
 }
 
-// Extiende la suscripción actual 30 días más
+// Extiende la suscripción 30 días (solo superadmin)
 export async function renovarSuscripcion(suscripcionId) {
-  const { data: sus } = await supabase
-    .from('suscripciones')
-    .select('fecha_vencimiento')
-    .eq('id', suscripcionId)
-    .single();
-  if (!sus) throw new Error('Suscripción no encontrada');
-  // Extiende desde hoy si ya venció, desde el vencimiento si todavía no
-  const base = new Date(sus.fecha_vencimiento);
-  const hoy = new Date();
-  const desde = base > hoy ? base : hoy;
-  const nuevoVencimiento = new Date(desde);
-  nuevoVencimiento.setDate(nuevoVencimiento.getDate() + 30);
-  const { error } = await supabase
-    .from('suscripciones')
-    .update({
-      estado: 'activa',
-      fecha_vencimiento: nuevoVencimiento.toISOString().slice(0, 10),
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', suscripcionId);
-  if (error) throw error;
+  const { error } = await supabase.rpc('admin_renovar_suscripcion', { p_id: suscripcionId });
+  if (error) throw friendlyError(error);
   return getSuscripciones();
 }
 

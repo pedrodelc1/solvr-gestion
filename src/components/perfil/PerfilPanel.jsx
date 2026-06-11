@@ -6,6 +6,7 @@ import {
   getAllowedEmails, addAllowedEmail, removeAllowedEmail, updateMemberRol,
   getAlertasConfig, saveAlertasConfig,
   getSuscripciones, updateSuscripcion, renovarSuscripcion,
+  esSuperadmin, getAdminWhitelist,
 } from '../../lib/db.js';
 
 const BRAND = 'var(--lime)';
@@ -159,8 +160,13 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
     reader.readAsDataURL(file);
   }
 
-  const isSuperAdmin = email && import.meta.env.VITE_SUPERADMIN_EMAIL &&
-    email.toLowerCase().trim() === import.meta.env.VITE_SUPERADMIN_EMAIL.toLowerCase().trim();
+  const [isSuperAdminDb, setIsSuperAdminDb] = useState(false);
+  useEffect(() => {
+    esSuperadmin().then(setIsSuperAdminDb);
+  }, []);
+
+  const isSuperAdmin = isSuperAdminDb || (email && import.meta.env.VITE_SUPERADMIN_EMAIL &&
+    email.toLowerCase().trim() === import.meta.env.VITE_SUPERADMIN_EMAIL.toLowerCase().trim());
 
   const totalClientes = clientes.length;
   const pendientes = pedidos.filter(p => !p.cobrado && p.tipo !== 'presupuesto').length;
@@ -227,6 +233,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
   const [diasAlerta, setDiasAlerta] = useState(7);
   const [savingAlerta, setSavingAlerta] = useState(false);
   const [suscripciones, setSuscripciones] = useState([]);
+  const [whitelist, setWhitelist] = useState([]);
   const [loadingSus, setLoadingSus] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [newPassword, setNewPassword] = useState('');
@@ -283,7 +290,11 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
   useEffect(() => {
     if (isOwner && showAdminPanel) {
       setLoadingSus(true);
-      getSuscripciones().then(data => { setSuscripciones(data); setLoadingSus(false); });
+      Promise.all([getSuscripciones(), getAdminWhitelist()]).then(([sus, wl]) => {
+        setSuscripciones(sus);
+        setWhitelist(wl);
+        setLoadingSus(false);
+      });
     }
   }, [isOwner, showAdminPanel]);
 
@@ -1282,6 +1293,72 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
                         </div>
                       </>
                     );
+                  })()}
+                </div>
+
+                {/* Whitelist global de accesos */}
+                <div style={{ marginTop: 8, borderRadius: 14, background: 'var(--bg-2)', border: '1px solid var(--border)', overflow: 'hidden' }}>
+                  <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ width: 28, height: 28, borderRadius: 8, background: BRAND_DIM, display: 'flex', alignItems: 'center', justifyContent: 'center', color: BRAND, flexShrink: 0 }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Whitelist de acceso</div>
+                      <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 1 }}>
+                        {whitelist.length} email{whitelist.length !== 1 ? 's' : ''} con acceso a la app
+                      </div>
+                    </div>
+                  </div>
+
+                  {loadingSus ? (
+                    <p style={{ fontSize: 13, color: 'var(--ink-3)', textAlign: 'center', padding: 20 }}>Cargando...</p>
+                  ) : whitelist.length === 0 ? (
+                    <p style={{ fontSize: 13, color: 'var(--ink-3)', padding: 20 }}>Sin emails autorizados.</p>
+                  ) : (() => {
+                    // La fila del dueño tiene owner_user_id null: se agrupa por su propio email
+                    const grupos = whitelist.reduce((acc, w) => {
+                      const key = w.owner_email || (w.is_owner ? w.email : 'sin-dueño');
+                      if (!acc[key]) acc[key] = { negocio: w.negocio_nombre, members: [] };
+                      if (!acc[key].negocio && w.negocio_nombre) acc[key].negocio = w.negocio_nombre;
+                      acc[key].members.push(w);
+                      return acc;
+                    }, {});
+                    Object.values(grupos).forEach(g => g.members.sort((a, b) => (b.is_owner ? 1 : 0) - (a.is_owner ? 1 : 0)));
+
+                    return Object.entries(grupos).map(([ownerEmail, grupo], gi, arr) => (
+                      <div key={ownerEmail} style={{ borderBottom: gi < arr.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                        <div style={{ padding: '10px 16px 6px', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-2)', textTransform: 'uppercase', letterSpacing: '0.05em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {grupo.negocio || 'Negocio sin nombre'}
+                          </span>
+                          <span style={{ fontSize: 10, color: 'var(--ink-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            · {ownerEmail}
+                          </span>
+                        </div>
+                        {grupo.members.map(w => (
+                          <div key={w.id} style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div style={{
+                              width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+                              background: w.is_owner ? BRAND_DIM : 'var(--bg-3)',
+                              border: `1px solid ${w.is_owner ? 'var(--lime-border)' : 'var(--border)'}`,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: 11, fontWeight: 800, color: w.is_owner ? BRAND : 'var(--ink-2)',
+                            }}>
+                              {(w.email || '?')[0].toUpperCase()}
+                            </div>
+                            <span style={{ fontSize: 12, color: 'var(--ink)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {w.email}
+                              {email && w.email?.toLowerCase() === email.toLowerCase() && (
+                                <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 700, color: BRAND, background: BRAND_DIM, padding: '1px 6px', borderRadius: 999 }}>vos</span>
+                              )}
+                            </span>
+                            <RolBadge rol={w.is_owner ? 'admin' : (w.rol || 'vendedor')} />
+                          </div>
+                        ))}
+                      </div>
+                    ));
                   })()}
                 </div>
               </motion.div>

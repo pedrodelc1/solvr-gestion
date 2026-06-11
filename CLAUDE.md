@@ -40,7 +40,13 @@ App de gestión de pedidos/clientes para negocios pequeños. Pedro la está cons
 - `--nav-h: 58px` (más bajo que el original de 66px)
 
 ### Migrations
-Todas aplicadas en producción (001–010) y el registro remoto está sincronizado — `npx supabase db push` funciona directo para futuras migrations.
+Todas aplicadas en producción (001–011) y el registro remoto está sincronizado — `npx supabase db push` funciona directo para futuras migrations.
+
+### Superadmin
+- Tabla `superadmins` en DB (email de Pedro) + `es_superadmin()` — el gate real está en el backend
+- RPCs security definer: `admin_whitelist()`, `admin_suscripciones()`, `admin_update_suscripcion()`, `admin_renovar_suscripcion()`
+- El Panel de Suscripciones (Perfil) lista suscripciones + whitelist global de accesos agrupada por negocio
+- `VITE_SUPERADMIN_EMAIL` (Vercel) sigue como fallback del gate de UI, pero ya no es necesario
 
 ## Estructura principal
 ```

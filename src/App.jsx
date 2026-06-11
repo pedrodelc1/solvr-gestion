@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from './lib/supabase.js';
 import {
@@ -77,6 +77,7 @@ export default function App() {
   const [devoluciones, setDevoluciones] = useState([]);
   const [comunicaciones, setComunicaciones] = useState([]);
   const [loading, setLoading] = useState(true);
+  const loadedOnceRef = useRef(false);
 
   const ALLOWED_TABS = {
     owner:        ['clientes', 'pedidos', 'gastos', 'stats', 'productos', 'caja', 'perfil'],
@@ -169,8 +170,10 @@ export default function App() {
   }, []);
 
   // ── Load data ─────────────────────────────────────────────
+  // El skeleton solo se muestra en la carga inicial; los refreshes en
+  // background (realtime) no desmontan la vista ni resetean estado local
   const loadAll = useCallback(async () => {
-    setLoading(true);
+    if (!loadedOnceRef.current) setLoading(true);
     try {
       const [c, pr, pe, g, cob, cats, devs, coms] = await Promise.all([
         getClientes(), getProductos(), getPedidos(), getGastos(), getCobros(), getCategorias(),
@@ -206,6 +209,7 @@ export default function App() {
         });
       }
     } finally {
+      loadedOnceRef.current = true;
       setLoading(false);
     }
   }, []);

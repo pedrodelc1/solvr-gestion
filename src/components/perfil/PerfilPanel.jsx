@@ -8,8 +8,8 @@ import {
   getSuscripciones, updateSuscripcion, renovarSuscripcion,
 } from '../../lib/db.js';
 
-const BRAND = '#ccff00';
-const BRAND_DIM = 'rgba(204,255,0,0.12)';
+const BRAND = 'var(--lime)';
+const BRAND_DIM = 'var(--lime-bg)';
 const BRAND_GLOW = '0 0 20px rgba(204,255,0,0.25)';
 
 const ROLES = [
@@ -61,7 +61,7 @@ function RolBadge({ rol }) {
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 4,
       padding: '3px 10px', borderRadius: 999,
-      background: r.bg, border: `1px solid ${r.color}55`,
+      background: r.bg, border: `1px solid var(--lime-border)`,
       color: r.color, fontSize: 11, fontWeight: 700,
       whiteSpace: 'nowrap', flexShrink: 0,
     }}>
@@ -76,7 +76,7 @@ function SectionHeader({ icon, title, subtitle }) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
       <div style={{
         width: 36, height: 36, borderRadius: 10,
-        background: BRAND_DIM, border: `1px solid ${BRAND}33`,
+        background: BRAND_DIM, border: `1px solid var(--lime-border)`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         color: BRAND, flexShrink: 0,
       }}>
@@ -466,7 +466,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
                 fontSize: 36, fontWeight: 800, color: '#080808',
                 boxShadow: BRAND_GLOW,
                 cursor: 'pointer',
-                border: `2px solid ${BRAND}55`,
+                border: `2px solid var(--lime-border)`,
                 position: 'relative', overflow: 'hidden',
               }}
             >
@@ -539,7 +539,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
               <span style={{
                 display: 'inline-flex', alignItems: 'center', gap: 5,
                 padding: '4px 12px', borderRadius: 999,
-                background: roleData.bg, border: `1px solid ${roleData.color}55`,
+                background: roleData.bg, border: `1px solid var(--lime-border)`,
                 color: roleData.color, fontSize: 12, fontWeight: 700,
               }}>
                 {isOwner ? (
@@ -618,14 +618,14 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
               animate={{ opacity: 1, y: 0 }}
               style={{
                 borderRadius: 14, background: 'var(--bg-2)',
-                border: `1px solid ${r.color}33`,
+                border: `1px solid var(--lime-border)`,
                 overflow: 'hidden',
               }}
             >
               <div style={{
                 padding: '12px 16px',
                 background: r.bg,
-                borderBottom: `1px solid ${r.color}22`,
+                borderBottom: `1px solid var(--lime-border)`,
                 display: 'flex', alignItems: 'center', gap: 8,
               }}>
                 <span style={{ color: r.color }}>{r.icon}</span>
@@ -1039,7 +1039,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <div style={{
                           width: 36, height: 36, borderRadius: '50%',
-                          background: mr.bg, border: `1.5px solid ${mr.color}44`,
+                          background: mr.bg, border: `1.5px solid var(--lime-border)`,
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           fontSize: 14, fontWeight: 800, color: mr.color, flexShrink: 0,
                         }}>
@@ -1116,7 +1116,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
             style={{
               width: '100%', padding: '14px 16px',
               borderRadius: 14, background: 'var(--bg-2)',
-              border: `1px solid ${showAdminPanel ? BRAND + '44' : 'var(--border)'}`,
+              border: `1px solid ${showAdminPanel ? 'var(--lime-border)' : 'var(--border)'}`,
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               cursor: 'pointer',
               transition: 'border-color 200ms',
@@ -1237,7 +1237,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
                                       disabled={loadingMap[s.id + '-renovar'] || loadingMap[s.id + '-activa'] || loadingMap[s.id + '-bloqueada']}
                                       style={{
                                         height: 32, padding: '0 10px', borderRadius: 8,
-                                        background: BRAND_DIM, border: `1px solid ${BRAND}44`,
+                                        background: BRAND_DIM, border: `1px solid var(--lime-border)`,
                                         color: BRAND, fontSize: 11, fontWeight: 700, cursor: (loadingMap[s.id + '-renovar'] || loadingMap[s.id + '-activa'] || loadingMap[s.id + '-bloqueada']) ? 'not-allowed' : 'pointer',
                                         whiteSpace: 'nowrap',
                                         opacity: (loadingMap[s.id + '-renovar'] || loadingMap[s.id + '-activa'] || loadingMap[s.id + '-bloqueada']) ? 0.5 : 1,
@@ -1338,7 +1338,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: BRAND_DIM, border: `1px solid ${BRAND}33`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: BRAND }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: BRAND_DIM, border: `1px solid var(--lime-border)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: BRAND }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
                 </svg>
@@ -1360,7 +1360,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
                   onClick={() => onThemeChange(t.id)}
                   style={{
                     background: theme === t.id ? 'var(--bg-2)' : 'none',
-                    border: theme === t.id ? `1px solid ${BRAND}44` : '1px solid transparent',
+                    border: theme === t.id ? `1px solid var(--lime-border)` : '1px solid transparent',
                     color: theme === t.id ? 'var(--ink)' : 'var(--ink-3)',
                     padding: '7px 14px', borderRadius: 8,
                     cursor: 'pointer', fontSize: 13, fontWeight: 600,

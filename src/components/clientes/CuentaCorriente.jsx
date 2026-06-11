@@ -1,5 +1,4 @@
 import { useRef, useState } from 'react';
-import html2canvas from 'html2canvas';
 import { formatCurrency, formatDate } from '../../lib/utils.js';
 
 // Construye un historial cronológico de débitos y créditos a partir de saldo inicial, pedidos y devoluciones
@@ -84,6 +83,7 @@ export function CuentaCorriente({ cliente, pedidos, devoluciones = [], onBack })
     if (!contentRef.current) return;
     setExportando(true);
     try {
+      const { default: html2canvas } = await import('html2canvas');
       const canvas = await html2canvas(contentRef.current, {
         scale: 2,
         backgroundColor: '#080808',

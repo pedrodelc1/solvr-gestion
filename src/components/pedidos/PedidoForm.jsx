@@ -24,7 +24,7 @@ function SearchableSelect({ value, options, onChange, placeholder = 'Buscar...' 
     return () => document.removeEventListener('pointerdown', onDown);
   }, [focused]);
 
-  const borderColor = focused ? '#ccff00' : hovered ? 'rgba(255,255,255,0.3)' : 'var(--border)';
+  const borderColor = focused ? 'var(--lime)' : hovered ? 'var(--ink-3)' : 'var(--border)';
 
   return (
     <div ref={wrapRef} style={{ position: 'relative' }}>
@@ -32,9 +32,9 @@ function SearchableSelect({ value, options, onChange, placeholder = 'Buscar...' 
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         onPointerDown={() => { setFocused(true); setTimeout(() => inputRef.current?.focus(), 0); }}
-        style={{ display: 'flex', alignItems: 'center', gap: 8, background: hovered && !focused ? 'rgba(255,255,255,0.05)' : 'var(--surface)', border: `1px solid ${borderColor}`, borderRadius: 8, padding: '0 12px', minHeight: 40, cursor: 'pointer', transition: 'border-color 0.15s, background 0.15s' }}
+        style={{ display: 'flex', alignItems: 'center', gap: 8, background: hovered && !focused ? 'var(--bg-4)' : 'var(--surface)', border: `1px solid ${borderColor}`, borderRadius: 8, padding: '0 12px', minHeight: 40, cursor: 'pointer', transition: 'border-color 0.15s, background 0.15s' }}
       >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={focused ? '#ccff00' : 'var(--ink-3)'} strokeWidth="2" style={{ flexShrink: 0, transition: 'stroke 0.15s' }}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={focused ? 'var(--lime)' : 'var(--ink-3)'} strokeWidth="2" style={{ flexShrink: 0, transition: 'stroke 0.15s' }}>
           <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
         <input
@@ -53,14 +53,14 @@ function SearchableSelect({ value, options, onChange, placeholder = 'Buscar...' 
       </div>
 
       {focused && (
-        <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: '#1c1c1c', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, zIndex: 999, maxHeight: 220, overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.8)' }}>
+        <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 8, zIndex: 999, maxHeight: 220, overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
           {filtered.map((o, i) => (
             <div
               key={o.value}
               onPointerDown={e => { e.preventDefault(); onChange(o.value); setFocused(false); setQ(''); setHoveredIdx(-1); }}
               onMouseEnter={() => setHoveredIdx(i)}
               onMouseLeave={() => setHoveredIdx(-1)}
-              style={{ padding: '12px 14px', fontSize: 'var(--text-sm)', color: o.value === value ? '#ccff00' : 'var(--ink)', cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.06)', background: o.value === value ? 'rgba(204,255,0,0.08)' : hoveredIdx === i ? 'rgba(255,255,255,0.07)' : 'transparent', transition: 'background 0.1s' }}
+              style={{ padding: '12px 14px', fontSize: 'var(--text-sm)', color: o.value === value ? 'var(--lime)' : 'var(--ink)', cursor: 'pointer', borderBottom: '1px solid var(--border)', background: o.value === value ? 'var(--lime-bg)' : hoveredIdx === i ? 'var(--bg-3)' : 'transparent', transition: 'background 0.1s' }}
             >
               {o.label}
             </div>

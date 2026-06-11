@@ -127,9 +127,9 @@ export function ImportarProductosModal({ open, productos, onClose, onImportada, 
                   Subí un archivo CSV o Excel. Columnas reconocidas:
                 </p>
                 <div style={{ background: 'var(--bg-3)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3)', fontSize: 'var(--text-xs)', fontFamily: 'monospace', color: 'var(--ink-2)', lineHeight: 2 }}>
-                  <span style={{ color: '#ccff00', fontWeight: 700 }}>nombre</span>
+                  <span style={{ color: 'var(--lime)', fontWeight: 700 }}>nombre</span>
                   {' · '}
-                  <span style={{ color: '#ccff00', fontWeight: 700 }}>precio</span>
+                  <span style={{ color: 'var(--lime)', fontWeight: 700 }}>precio</span>
                   {' · '}
                   <span style={{ color: 'var(--ink-3)' }}>marca · costo · precio_mayorista · stock · stock_min</span>
                 </div>

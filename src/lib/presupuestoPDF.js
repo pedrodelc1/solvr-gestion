@@ -1,4 +1,3 @@
-import { jsPDF } from 'jspdf';
 import { formatCurrency, formatDate } from './utils.js';
 
 let _sharing = false;
@@ -14,6 +13,7 @@ export async function compartirPresupuestoPDF(pedido, clienteNombre) {
   const cuit = localNegocio.cuit || '';
   const notaPdf = localNegocio.nota_pdf || '';
 
+  const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const W = 210;
   const margin = 18;

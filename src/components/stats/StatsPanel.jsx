@@ -142,7 +142,7 @@ function DonutChart({ items }) {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
                 <span style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-3)' }}>{formatCurrency(item.value)}</span>
-                <span style={{ fontWeight: 800, color: '#ccff00', fontSize: 'var(--text-base)', minWidth: 45, textAlign: 'right' }}>{pct.toFixed(0)}%</span>
+                <span style={{ fontWeight: 800, color: 'var(--lime)', fontSize: 'var(--text-base)', minWidth: 45, textAlign: 'right' }}>{pct.toFixed(0)}%</span>
               </div>
             </div>
           );

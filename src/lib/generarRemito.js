@@ -1,5 +1,3 @@
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 import { formatCurrency, formatDate } from './utils.js';
 
 export async function generarRemito({ pedido, cliente, negocio = 'Mi Negocio', logoUrl = null, isEntregado = false }) {
@@ -106,6 +104,7 @@ export async function generarRemito({ pedido, cliente, negocio = 'Mi Negocio', l
 
   document.body.appendChild(el);
   try {
+    const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([import('html2canvas'), import('jspdf')]);
     const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false });
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const imgData = canvas.toDataURL('image/png');

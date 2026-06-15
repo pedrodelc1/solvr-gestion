@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { Modal } from '../shared/Modal.jsx';
-import { today } from '../../lib/utils.js';
+import { today, formatCurrency, saldoCliente } from '../../lib/utils.js';
 
-function ClienteSearchSelect({ clientes, value, onChange, disabled }) {
+function ClienteSearchSelect({ clientes, value, onChange, disabled, getSaldo }) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const blurTimer = useRef(null);
@@ -90,33 +90,42 @@ function ClienteSearchSelect({ clientes, value, onChange, disabled }) {
           {filtrados.length === 0 ? (
             <div style={{ padding: '14px', fontSize: 13, color: 'var(--ink-3)' }}>Sin resultados</div>
           ) : (
-            filtrados.map(c => (
-              <button
-                key={c.id}
-                type="button"
-                onMouseDown={e => { e.preventDefault(); clearTimeout(blurTimer.current); pick(c.id); }}
-                style={{
-                  width: '100%', textAlign: 'left', padding: '10px 14px',
-                  background: 'none', border: 'none',
-                  display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-3)'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
-              >
-                <div style={{
-                  width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-                  background: 'var(--bg-3)', border: '1px solid var(--border)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 12, fontWeight: 800, color: 'var(--ink-2)',
-                }}>
-                  {c.nombre.charAt(0).toUpperCase()}
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.nombre}</div>
-                  {c.contacto && <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>{c.contacto}</div>}
-                </div>
-              </button>
-            ))
+            filtrados.map(c => {
+              const s = getSaldo ? getSaldo(c.id) : 0;
+              const debe = s > 0;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  disabled={!debe}
+                  onMouseDown={e => { e.preventDefault(); if (!debe) return; clearTimeout(blurTimer.current); pick(c.id); }}
+                  style={{
+                    width: '100%', textAlign: 'left', padding: '10px 14px',
+                    background: 'none', border: 'none',
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    cursor: debe ? 'pointer' : 'not-allowed', opacity: debe ? 1 : 0.55,
+                  }}
+                  onMouseEnter={e => { if (debe) e.currentTarget.style.background = 'var(--bg-3)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
+                >
+                  <div style={{
+                    width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+                    background: 'var(--bg-3)', border: '1px solid var(--border)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 12, fontWeight: 800, color: 'var(--ink-2)',
+                  }}>
+                    {c.nombre.charAt(0).toUpperCase()}
+                  </div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.nombre}</div>
+                    {c.contacto && <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>{c.contacto}</div>}
+                  </div>
+                  <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 700, color: debe ? '#f87171' : 'var(--ink-3)' }}>
+                    {debe ? formatCurrency(s) : 'Al día'}
+                  </span>
+                </button>
+              );
+            })
           )}
         </div>
       )}
@@ -124,7 +133,7 @@ function ClienteSearchSelect({ clientes, value, onChange, disabled }) {
   );
 }
 
-export function CobroForm({ open, clientes = [], preClienteId = null, metodos, onSave, onClose }) {
+export function CobroForm({ open, clientes = [], pedidos = [], devoluciones = [], cobros = [], preClienteId = null, metodos, onSave, onClose }) {
   const [clienteId, setClienteId] = useState('');
   const [desc, setDesc] = useState('');
   const [monto, setMonto] = useState('');
@@ -146,11 +155,21 @@ export function CobroForm({ open, clientes = [], preClienteId = null, metodos, o
 
   const clienteNombre = clientes.find(c => c.id === clienteId)?.nombre || '';
 
+  const getSaldo = (cid) => {
+    const c = clientes.find(x => x.id === cid);
+    return c ? saldoCliente(c, pedidos, devoluciones, cobros) : 0;
+  };
+  const saldoSel = clienteId ? getSaldo(clienteId) : null;
+
   function validar(finalDesc) {
     const m = parseFloat(monto);
     if (!finalDesc.trim()) return 'Ingresá un concepto o elegí un cliente';
     if (finalDesc.trim().length > 300) return 'El concepto es demasiado largo (máx. 300)';
     if (isNaN(m) || m <= 0) return 'Ingresá un monto mayor a cero';
+    if (clienteId) {
+      if (saldoSel <= 0) return 'Este cliente no tiene saldo pendiente. Para un ingreso suelto, elegí "Sin cliente".';
+      if (m > saldoSel + 0.01) return `El monto supera el saldo pendiente (${formatCurrency(saldoSel)})`;
+    }
     if (!fecha) return 'Elegí una fecha';
     if (fecha > today()) return 'La fecha no puede ser futura';
     if (!metodo.trim()) return 'Elegí un método de cobro';
@@ -200,7 +219,19 @@ export function CobroForm({ open, clientes = [], preClienteId = null, metodos, o
                 value={clienteId}
                 onChange={setClienteId}
                 disabled={saving}
+                getSaldo={getSaldo}
               />
+              {clienteId && (
+                saldoSel > 0 ? (
+                  <span style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>
+                    Saldo pendiente: <strong style={{ color: '#f87171' }}>{formatCurrency(saldoSel)}</strong>
+                  </span>
+                ) : (
+                  <span style={{ fontSize: 12, color: 'var(--warning, #f59e0b)', marginTop: 2 }}>
+                    Este cliente no tiene saldo pendiente.
+                  </span>
+                )
+              )}
             </div>
 
             <div className="form-group">

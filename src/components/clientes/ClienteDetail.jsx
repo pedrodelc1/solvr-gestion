@@ -189,7 +189,7 @@ export function ClienteDetail({ cliente, pedidos, devoluciones = [], cobros = []
         </button>
       </div>
 
-      {canRegistrarCobro && onRegistrarCobro && (
+      {canRegistrarCobro && onRegistrarCobro && saldo > 0 && (
         <div style={{ padding: '0 var(--space-4) var(--space-4)' }}>
           <button
             className="btn btn-secondary btn-full"

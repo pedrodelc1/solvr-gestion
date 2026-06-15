@@ -808,6 +808,9 @@ export default function App() {
       <CobroForm
         open={cobroFormOpen}
         clientes={clientes}
+        pedidos={pedidos}
+        devoluciones={devoluciones}
+        cobros={cobros}
         preClienteId={cobroPreClienteId}
         metodos={(negocioConfig?.metodos_pago || 'Efectivo, Transferencia, Tarjeta').split(',').map(m => m.trim().toLowerCase()).filter(Boolean)}
         onSave={handleSaveCobro}

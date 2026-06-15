@@ -4,13 +4,13 @@ import { formatCurrency, formatDate, saldoCliente } from '../../lib/utils.js';
 import { registrarComunicacion } from '../../lib/db.js';
 import { listItem } from '../../lib/animations.js';
 
-export function CobrosPanel({ clientes, pedidos, devoluciones, negocioConfig, onBack, userRole = 'owner' }) {
+export function CobrosPanel({ clientes, pedidos, devoluciones, cobros = [], negocioConfig, onBack, userRole = 'owner' }) {
   const canCobrar = ['owner', 'admin', 'vendedor'].includes(userRole);
   const [enviando, setEnviando] = useState({});
 
   const conSaldo = clientes
     .map(c => {
-      const saldo = saldoCliente(c, pedidos, devoluciones);
+      const saldo = saldoCliente(c, pedidos, devoluciones, cobros);
       const ultimoPedido = pedidos
         .filter(p => p.clienteId === c.id && !p.cobrado && p.tipo !== 'presupuesto')
         .sort((a, b) => b.fecha.localeCompare(a.fecha))[0];

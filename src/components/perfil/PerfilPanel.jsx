@@ -6,7 +6,7 @@ import {
   getAllowedEmails, addAllowedEmail, removeAllowedEmail, updateMemberRol,
   getAlertasConfig, saveAlertasConfig,
   getSuscripciones, updateSuscripcion, renovarSuscripcion,
-  esSuperadmin, getAdminWhitelist,
+  esSuperadmin, getAdminWhitelist, adminGrantOwner,
 } from '../../lib/db.js';
 
 const BRAND = 'var(--lime)';
@@ -115,7 +115,7 @@ const inputStyle = {
   outline: 'none',
 };
 
-export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gastos, devoluciones = [], suscripcion, negocioConfig, onNegocioSave, toast, theme, onThemeChange }) {
+export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gastos, devoluciones = [], cobros = [], suscripcion, negocioConfig, onNegocioSave, toast, theme, onThemeChange }) {
   const email = session?.user?.email || null;
   const inicial = email ? email[0].toUpperCase() : '?';
 
@@ -170,7 +170,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
 
   const totalClientes = clientes.length;
   const pendientes = pedidos.filter(p => !p.cobrado && p.tipo !== 'presupuesto').length;
-  const totalDeuda = clientes.reduce((s, c) => s + Math.max(0, saldoCliente(c, pedidos, devoluciones)), 0);
+  const totalDeuda = clientes.reduce((s, c) => s + Math.max(0, saldoCliente(c, pedidos, devoluciones, cobros)), 0);
   const totalGastos = gastos.reduce((s, g) => s + g.monto, 0);
 
   const [negocioNombre, setNegocioNombre] = useState('');
@@ -236,6 +236,9 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
   const [whitelist, setWhitelist] = useState([]);
   const [loadingSus, setLoadingSus] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [newOwnerEmail, setNewOwnerEmail] = useState('');
+  const [grantingOwner, setGrantingOwner] = useState(false);
+  const grantingOwnerRef = useRef(false);
   const [newPassword, setNewPassword] = useState('');
   const [updatingPassword, setUpdatingPassword] = useState(false);
   const [loadingMap, setLoadingMap] = useState({});
@@ -360,6 +363,30 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
         setSuscripciones(arr); toast(`Suscripción ${estado}`);
       } catch (e) { toast(e.message, 'error'); }
     });
+  }
+
+  async function handleGrantOwner() {
+    if (grantingOwnerRef.current) return;
+    const clean = newOwnerEmail.trim();
+    // Validación frontend (la real está en el backend: es_superadmin + regex)
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) {
+      toast('Ingresá un email válido', 'error');
+      return;
+    }
+    grantingOwnerRef.current = true;
+    setGrantingOwner(true);
+    try {
+      const wl = await adminGrantOwner(clean);
+      setWhitelist(wl);
+      setNewOwnerEmail('');
+      toast('Acceso de dueño otorgado');
+    } catch (e) {
+      toast(e.message, 'error');
+      grantingOwnerRef.current = false;
+    } finally {
+      setGrantingOwner(false);
+      grantingOwnerRef.current = false;
+    }
   }
 
   async function handleRenovar(id) {
@@ -1163,6 +1190,46 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
                 transition={{ duration: 0.22 }}
                 style={{ overflow: 'hidden' }}
               >
+                {/* Dar acceso a un dueño nuevo */}
+                <div style={{ marginTop: 8, borderRadius: 14, background: 'var(--bg-2)', border: `1px solid var(--lime-border)`, padding: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, background: BRAND_DIM, display: 'flex', alignItems: 'center', justifyContent: 'center', color: BRAND, flexShrink: 0 }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-3-3.87"/><path d="M4 21v-2a4 4 0 0 1 3-3.87"/><circle cx="12" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>Dar acceso a un dueño nuevo</div>
+                      <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 1 }}>Autorizá un email como dueño de su propio negocio</div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      type="email"
+                      placeholder="nuevo-dueño@email.com"
+                      value={newOwnerEmail}
+                      onChange={e => setNewOwnerEmail(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleGrantOwner()}
+                      style={{ ...inputStyle, flex: 1 }}
+                      autoComplete="off"
+                      autoCorrect="off"
+                      disabled={grantingOwner}
+                    />
+                    <motion.button
+                      whileTap={{ scale: 0.97 }}
+                      className="btn btn-primary"
+                      onClick={handleGrantOwner}
+                      disabled={grantingOwner || !newOwnerEmail.trim()}
+                      style={{ minHeight: 48, padding: '0 18px', fontSize: 14, fontWeight: 700, borderRadius: 10, whiteSpace: 'nowrap' }}
+                    >
+                      {grantingOwner ? '...' : 'Dar acceso'}
+                    </motion.button>
+                  </div>
+                  <p style={{ fontSize: 11, color: 'var(--ink-3)', margin: '10px 0 0', lineHeight: 1.4 }}>
+                    Cuando inicie sesión con ese email, se le crea su negocio con 14 días de prueba. Aparecerá abajo en la whitelist.
+                  </p>
+                </div>
+
                 <div style={{ marginTop: 8, borderRadius: 14, background: 'var(--bg-2)', border: '1px solid var(--border)', overflow: 'hidden' }}>
                   {loadingSus ? (
                     <p style={{ fontSize: 13, color: 'var(--ink-3)', textAlign: 'center', padding: 24 }}>Cargando...</p>

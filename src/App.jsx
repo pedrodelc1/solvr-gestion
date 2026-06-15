@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from './lib/supabase.js';
 import {
@@ -44,6 +44,25 @@ import { TeamWelcomeScreen } from './components/onboarding/TeamWelcomeScreen.jsx
 
 let _toastId = 0;
 
+// Recuerda la posición de scroll de cada vista (tab/lista) y la restaura al
+// volver, dentro de una ventana de tiempo. Así, si pasás de Clientes a Pedidos
+// y volvés, no te tira arriba: quedás donde estabas.
+const SCROLL_MEMORY_MS = 90000;
+function ScrollKeeper({ scrollKey, containerRef, memRef, children }) {
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (el) {
+      const saved = memRef.current[scrollKey];
+      el.scrollTop = saved && Date.now() - saved.ts < SCROLL_MEMORY_MS ? saved.top : 0;
+    }
+    return () => {
+      const e = containerRef.current;
+      if (e) memRef.current[scrollKey] = { top: e.scrollTop, ts: Date.now() };
+    };
+  }, [scrollKey]);
+  return children;
+}
+
 export default function App() {
   // ── Auth & Verification States ────────────────────────────
   const [session, setSession] = useState(null);
@@ -78,6 +97,15 @@ export default function App() {
   const [comunicaciones, setComunicaciones] = useState([]);
   const [loading, setLoading] = useState(true);
   const loadedOnceRef = useRef(false);
+  // Evita carreras: cada loadAll lleva un nº de secuencia; si llega una carga
+  // más nueva, las respuestas viejas se descartan (no pisan el estado fresco).
+  const loadSeqRef = useRef(0);
+  // Debounce de los refreshes por realtime: una ráfaga de cambios (ej. el
+  // cascade de un delete) colapsa en una sola recarga, ya con todo commiteado.
+  const reloadTimerRef = useRef(null);
+  // Scroll del contenedor de tabs + memoria de posiciones por vista.
+  const scrollRef = useRef(null);
+  const scrollMem = useRef({});
 
   const ALLOWED_TABS = {
     owner:        ['clientes', 'pedidos', 'gastos', 'stats', 'productos', 'caja', 'perfil'],
@@ -173,12 +201,16 @@ export default function App() {
   // El skeleton solo se muestra en la carga inicial; los refreshes en
   // background (realtime) no desmontan la vista ni resetean estado local
   const loadAll = useCallback(async () => {
+    const seq = ++loadSeqRef.current;
     if (!loadedOnceRef.current) setLoading(true);
     try {
       const [c, pr, pe, g, cob, cats, devs, coms] = await Promise.all([
         getClientes(), getProductos(), getPedidos(), getGastos(), getCobros(), getCategorias(),
         getDevoluciones(), getComunicaciones(),
       ]);
+      // Otra carga más nueva ya empezó: descartar esta respuesta para no pisar
+      // el estado fresco con datos viejos (causa del "fantasma" al borrar).
+      if (seq !== loadSeqRef.current) return;
       setClientes(c);
       setProductos(pr);
       setGastos(g);
@@ -196,6 +228,7 @@ export default function App() {
       }
 
       const { pedidos: peActualizados, procesados } = await procesarCuotasVencidas(pe);
+      if (seq !== loadSeqRef.current) return;
       setPedidos(peActualizados);
       if (procesados.length) {
         procesados.forEach(proc => {
@@ -210,7 +243,7 @@ export default function App() {
       }
     } finally {
       loadedOnceRef.current = true;
-      setLoading(false);
+      if (seq === loadSeqRef.current) setLoading(false);
     }
   }, []);
 
@@ -273,13 +306,18 @@ export default function App() {
           schema: 'public',
         },
         (payload) => {
-          // Background refresh when a change is detected on the DB
-          loadAll();
+          // Background refresh debounceado: una ráfaga de cambios (ej. el
+          // cascade de un delete, que emite varios eventos) dispara una sola
+          // recarga ~400ms después, cuando ya está todo commiteado. Evita el
+          // "fantasma" de borrar y que vuelva a aparecer.
+          if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
+          reloadTimerRef.current = setTimeout(() => { loadAll(); }, 400);
         }
       )
       .subscribe();
 
     return () => {
+      if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
       supabase.removeChannel(channel);
     };
   }, [session, loadAll]);
@@ -295,12 +333,12 @@ export default function App() {
     return clientes.filter(c => {
       const clientePedidos = pedidos.filter(p => p.clienteId === c.id && !p.cobrado && p.tipo !== 'presupuesto');
       if (!clientePedidos.length) return false;
-      if (saldoCliente(c, pedidos, devoluciones) <= 0) return false;
+      if (saldoCliente(c, pedidos, devoluciones, cobros) <= 0) return false;
       const oldest = clientePedidos.reduce((min, p) => p.fecha < min ? p.fecha : min, clientePedidos[0].fecha);
       const daysDiff = Math.round((new Date() - new Date(oldest)) / (1000 * 60 * 60 * 24));
       return daysDiff >= diasSinCobro;
     }).length;
-  }, [clientes, pedidos, devoluciones, diasSinCobro]);
+  }, [clientes, pedidos, devoluciones, cobros, diasSinCobro]);
 
   // ── Handlers ──────────────────────────────────────────────
 
@@ -350,7 +388,7 @@ export default function App() {
     try {
       const arr = await deletePedido(id);
       setPedidos(arr);
-    } catch (e) { toast(e.message, 'error'); }
+    } catch (e) { toast(e.message, 'error'); throw e; }
   }
 
   async function handleMarcarEntregado(id) {
@@ -569,6 +607,7 @@ export default function App() {
               cliente={selectedCliente}
               pedidos={pedidos}
               devoluciones={devoluciones}
+              cobros={cobros}
               comunicaciones={comunicaciones}
               negocio={negocioNombre}
               negocioConfig={negocioConfig}
@@ -593,6 +632,7 @@ export default function App() {
             clientes={clientes}
             pedidos={pedidos}
             devoluciones={devoluciones}
+            cobros={cobros}
             negocioConfig={negocioConfig}
             diasMora={diasSinCobro}
             onSelect={id => setSelectedClienteId(id)}
@@ -625,6 +665,7 @@ export default function App() {
             pedidos={pedidos}
             clientes={clientes}
             onNew={() => { setPreClienteId(null); setEditingPedido(null); setShowPedidoForm(true); }}
+            onRegistrarCobro={() => setCobroFormOpen(true)}
             onUpdate={handleUpdatePedido}
             onDelete={handleDeletePedido}
             onEdit={p => { setEditingPedido(p); setShowPedidoForm(true); }}
@@ -684,7 +725,6 @@ export default function App() {
             gastos={gastos}
             clientes={clientes}
             cobrosSueltos={cobros}
-            onNuevoCobro={() => setCobroFormOpen(true)}
             onDeleteCobro={handleDeleteCobro}
           />
         );
@@ -700,6 +740,7 @@ export default function App() {
             pedidos={pedidos}
             gastos={gastos}
             devoluciones={devoluciones}
+            cobros={cobros}
             suscripcion={suscripcion}
             negocioConfig={negocioConfig}
             onNegocioSave={async (cfg) => { const saved = await saveNegocioConfig(cfg); setNegocioConfig(saved); }}
@@ -724,7 +765,7 @@ export default function App() {
         <TrialBanner dias={diasTrial} onUpgrade={() => setActiveTab('perfil')} />
       )}
 
-      <div className="tab-content">
+      <div className="tab-content" ref={scrollRef}>
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab + (showPedidoForm ? '-form' : '') + (selectedClienteId ? '-detail' : '')}
@@ -735,7 +776,13 @@ export default function App() {
             transition={{ duration: 0.18, ease: [0, 0, 0.2, 1] }}
             style={{ display: 'flex', flexDirection: 'column' }}
           >
-            {renderTab()}
+            <ScrollKeeper
+              scrollKey={activeTab + (showPedidoForm ? '-form' : '') + (selectedClienteId ? '-detail' : '')}
+              containerRef={scrollRef}
+              memRef={scrollMem}
+            >
+              {renderTab()}
+            </ScrollKeeper>
           </motion.div>
         </AnimatePresence>
       </div>
@@ -758,6 +805,7 @@ export default function App() {
 
       <CobroForm
         open={cobroFormOpen}
+        clientes={clientes}
         metodos={(negocioConfig?.metodos_pago || 'Efectivo, Transferencia, Tarjeta').split(',').map(m => m.trim().toLowerCase()).filter(Boolean)}
         onSave={handleSaveCobro}
         onClose={() => setCobroFormOpen(false)}

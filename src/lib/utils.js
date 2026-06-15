@@ -80,7 +80,7 @@ export function fechaVencimiento(pedido) {
   return d.toISOString().slice(0, 10);
 }
 
-export function saldoCliente(clienteOrId, pedidos, devoluciones = []) {
+export function saldoCliente(clienteOrId, pedidos, devoluciones = [], cobros = []) {
   const clienteId = typeof clienteOrId === 'object' ? clienteOrId.id : clienteOrId;
   const saldoInicial = typeof clienteOrId === 'object' ? (clienteOrId.saldo_inicial || 0) : 0;
   const deuda = pedidos
@@ -89,7 +89,12 @@ export function saldoCliente(clienteOrId, pedidos, devoluciones = []) {
   const creditos = devoluciones
     .filter(d => d.clienteId === clienteId)
     .reduce((s, d) => s + d.montoTotal, 0);
-  return Math.max(0, deuda + saldoInicial - creditos);
+  // Cobros sueltos asociados al cliente: pagos de saldo pendiente (ej. importado)
+  // que reducen lo que debe, igual que un crédito.
+  const cobrosCliente = cobros
+    .filter(c => c.clienteId === clienteId)
+    .reduce((s, c) => s + (c.monto || 0), 0);
+  return Math.max(0, deuda + saldoInicial - creditos - cobrosCliente);
 }
 
 export function saldoPedido(pedido) {

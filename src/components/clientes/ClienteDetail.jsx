@@ -19,7 +19,7 @@ function TipoComBadge({ tipo }) {
   return <span className="badge badge-info" style={{ fontSize: 10 }}>{map[tipo] || tipo}</span>;
 }
 
-export function ClienteDetail({ cliente, pedidos, devoluciones = [], comunicaciones = [], onBack, onEdit, onDelete, onNuevoPedido, onRefresh, negocio, negocioConfig, toast, userRole = 'owner' }) {
+export function ClienteDetail({ cliente, pedidos, devoluciones = [], cobros = [], comunicaciones = [], onBack, onEdit, onDelete, onNuevoPedido, onRefresh, negocio, negocioConfig, toast, userRole = 'owner' }) {
   const canWrite = ['owner', 'admin', 'vendedor'].includes(userRole);
   const canDelete = ['owner', 'admin'].includes(userRole);
   const canCobrar = ['owner', 'admin', 'vendedor'].includes(userRole);
@@ -75,8 +75,11 @@ export function ClienteDetail({ cliente, pedidos, devoluciones = [], comunicacio
   const clientePedidos = pedidos
     .filter(p => p.clienteId === cliente.id)
     .sort((a, b) => b.fecha.localeCompare(a.fecha));
-  const saldo = saldoCliente(cliente, pedidos, devoluciones);
+  const saldo = saldoCliente(cliente, pedidos, devoluciones, cobros);
 
+  const clienteCobros = cobros
+    .filter(c => c.clienteId === cliente.id)
+    .sort((a, b) => b.fecha.localeCompare(a.fecha));
   const clienteDevoluciones = devoluciones.filter(d => d.clienteId === cliente.id);
   const clienteComunicaciones = comunicaciones
     .filter(c => c.clienteId === cliente.id)
@@ -281,6 +284,28 @@ export function ClienteDetail({ cliente, pedidos, devoluciones = [], comunicacio
                 {d.motivo && <div className="card-sub">{d.motivo}</div>}
                 <div className="card-sub" style={{ fontSize: 10 }}>
                   {d.items.map(i => `${i.nombre} x${i.cantidad}`).join(' · ')}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {clienteCobros.length > 0 && (
+        <>
+          <div className="section-label">Cobros registrados</div>
+          <div className="list-section">
+            {clienteCobros.map(c => (
+              <div key={c.id} className="card">
+                <div className="card-row">
+                  <span className="card-sub">{formatDate(c.fecha)}</span>
+                  <span style={{ fontWeight: 700, color: 'var(--success)', fontSize: 'var(--text-sm)' }}>
+                    −{formatCurrency(c.monto)}
+                  </span>
+                </div>
+                <div className="card-row">
+                  <span className="card-sub" style={{ flex: 1 }}>{c.descripcion}</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-3)', textTransform: 'capitalize' }}>{c.metodo}</span>
                 </div>
               </div>
             ))}

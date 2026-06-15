@@ -10,8 +10,8 @@ const ESTADOS = {
   mora:  { label: 'En mora', color: '#f87171', bg: 'rgba(248,113,113,0.07)',  border: 'rgba(248,113,113,0.3)' },
 };
 
-function getEstado(cliente, pedidos, devoluciones, diasMora) {
-  const saldo = saldoCliente(cliente, pedidos, devoluciones);
+function getEstado(cliente, pedidos, devoluciones, cobros, diasMora) {
+  const saldo = saldoCliente(cliente, pedidos, devoluciones, cobros);
   if (saldo <= 0) return { ...ESTADOS.ok, saldo };
 
   const hoy = new Date();
@@ -28,7 +28,7 @@ function getEstado(cliente, pedidos, devoluciones, diasMora) {
     : { ...ESTADOS.deuda, saldo };
 }
 
-export function ClientesList({ clientes, pedidos, devoluciones, negocioConfig, diasMora = 30, onSelect, onNew, onRefresh, toast, userRole = 'owner' }) {
+export function ClientesList({ clientes, pedidos, devoluciones, cobros = [], negocioConfig, diasMora = 30, onSelect, onNew, onRefresh, toast, userRole = 'owner' }) {
   const canWrite = ['owner', 'admin', 'vendedor'].includes(userRole);
   const [query, setQuery]           = useState('');
   const [verCobros, setVerCobros]   = useState(false);
@@ -37,7 +37,7 @@ export function ClientesList({ clientes, pedidos, devoluciones, negocioConfig, d
   const q = query.toLowerCase();
 
   // Enrich clients with status
-  const clientesConEstado = clientes.map(c => ({ ...c, estado: getEstado(c, pedidos, devoluciones, diasMora) }));
+  const clientesConEstado = clientes.map(c => ({ ...c, estado: getEstado(c, pedidos, devoluciones, cobros, diasMora) }));
   const deudores    = clientesConEstado.filter(c => c.estado.saldo > 0);
   const enMora      = deudores.filter(c => c.estado.label === 'En mora').length;
   const totalDeuda  = deudores.reduce((s, c) => s + c.estado.saldo, 0);
@@ -52,6 +52,7 @@ export function ClientesList({ clientes, pedidos, devoluciones, negocioConfig, d
         clientes={clientes}
         pedidos={pedidos}
         devoluciones={devoluciones}
+        cobros={cobros}
         negocioConfig={negocioConfig}
         onBack={() => setVerCobros(false)}
         userRole={userRole}
@@ -100,48 +101,50 @@ export function ClientesList({ clientes, pedidos, devoluciones, negocioConfig, d
         {/* ── Banner cobros pendientes ── */}
         {deudores.length > 0 && (
           <motion.button
-            whileTap={{ scale: 0.98 }}
+            whileHover={{ y: -1 }}
+            whileTap={{ scale: 0.985 }}
             onClick={() => setVerCobros(true)}
             style={{
-              width: '100%', padding: '10px 14px',
-              borderRadius: 12,
+              width: '100%', marginTop: 16, padding: '14px 16px',
+              borderRadius: 16,
               background: 'var(--bg-2)',
               border: '1px solid var(--border)',
               cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: 10,
+              display: 'flex', alignItems: 'center', gap: 13,
               textAlign: 'left',
             }}
           >
             <div style={{
-              width: 32, height: 32, borderRadius: 8,
+              width: 38, height: 38, borderRadius: 11,
               background: 'rgba(248,113,113,0.1)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
             }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2.5">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2.2">
                 <circle cx="12" cy="12" r="10"/>
                 <line x1="12" y1="8" x2="12" y2="12"/>
                 <line x1="12" y1="16" x2="12.01" y2="16"/>
               </svg>
             </div>
-            <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-2)' }}>
-                {deudores.length === 1 ? '1 cliente te debe' : `${deudores.length} clientes te deben`}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-2)' }}>
+                  {deudores.length === 1 ? '1 cliente te debe' : `${deudores.length} clientes te deben`}
+                </span>
                 {enMora > 0 && (
                   <span style={{
-                    marginLeft: 6,
-                    fontSize: 9, fontWeight: 700,
+                    fontSize: 9, fontWeight: 700, letterSpacing: '0.02em',
                     background: 'rgba(248,113,113,0.15)', color: '#f87171',
-                    padding: '1px 6px', borderRadius: 999,
+                    padding: '2px 7px', borderRadius: 999,
                   }}>
                     {enMora} en mora
                   </span>
                 )}
               </div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: '#f87171' }}>
+              <div style={{ fontSize: 19, fontWeight: 800, color: '#f87171', letterSpacing: '-0.02em', marginTop: 2 }}>
                 {formatCurrency(totalDeuda)}
               </div>
             </div>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2.5" style={{ flexShrink: 0 }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2.5" style={{ flexShrink: 0 }}>
               <polyline points="9 18 15 12 9 6"/>
             </svg>
           </motion.button>
@@ -196,6 +199,8 @@ export function ClientesList({ clientes, pedidos, devoluciones, negocioConfig, d
                 key={c.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
+                whileHover={{ y: -2 }}
+                whileTap={{ scale: 0.985 }}
                 transition={{ delay: i * 0.035, duration: 0.2 }}
                 onClick={() => onSelect(c.id)}
                 role="button"

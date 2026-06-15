@@ -2,7 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import { Modal } from '../shared/Modal.jsx';
 import { today } from '../../lib/utils.js';
 
-export function CobroForm({ open, metodos, onSave, onClose }) {
+export function CobroForm({ open, clientes = [], metodos, onSave, onClose }) {
+  const [clienteId, setClienteId] = useState('');
   const [desc, setDesc] = useState('');
   const [monto, setMonto] = useState('');
   const [fecha, setFecha] = useState(today());
@@ -20,10 +21,13 @@ export function CobroForm({ open, metodos, onSave, onClose }) {
     }
   }, [open, metodos]);
 
-  function validar() {
+  const clientesOrdenados = [...clientes].sort((a, b) => a.nombre.localeCompare(b.nombre));
+  const clienteNombre = clientes.find(c => c.id === clienteId)?.nombre || '';
+
+  function validar(finalDesc) {
     const m = parseFloat(monto);
-    if (!desc.trim()) return 'Ingresá una descripción';
-    if (desc.trim().length > 300) return 'La descripción es demasiado larga (máx. 300)';
+    if (!finalDesc.trim()) return 'Ingresá un concepto o elegí un cliente';
+    if (finalDesc.trim().length > 300) return 'El concepto es demasiado largo (máx. 300)';
     if (isNaN(m) || m <= 0) return 'Ingresá un monto mayor a cero';
     if (!fecha) return 'Elegí una fecha';
     if (fecha > today()) return 'La fecha no puede ser futura';
@@ -33,12 +37,14 @@ export function CobroForm({ open, metodos, onSave, onClose }) {
 
   async function handleSave() {
     if (savingRef.current) return;
-    const err = validar();
+    const finalDesc = desc.trim() || (clienteId ? `Cobro de saldo — ${clienteNombre}` : '');
+    const err = validar(finalDesc);
     if (err) { setError(err); return; }
     savingRef.current = true;
     setSaving(true);
     try {
-      await onSave({ descripcion: desc.trim(), monto: parseFloat(monto), fecha, metodo });
+      await onSave({ descripcion: finalDesc, monto: parseFloat(monto), fecha, metodo, clienteId: clienteId || null });
+      setClienteId('');
       setDesc('');
       setMonto('');
       setFecha(today());
@@ -62,19 +68,34 @@ export function CobroForm({ open, metodos, onSave, onClose }) {
         <>
           <div style={{ padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
             <p style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-2)', lineHeight: 1.4, margin: 0 }}>
-              Para ingresos sueltos que no corresponden a ningún pedido (señas, servicios, ventas de mostrador, etc.).
+              Registrá un pago que recibís. Si es de un cliente (ej. saldo pendiente o importado), elegilo y se descontará de lo que te debe.
             </p>
+
             <div className="form-group">
-              <label htmlFor="fc-desc">Descripción</label>
+              <label htmlFor="fc-cliente">Cliente</label>
+              <select
+                id="fc-cliente"
+                value={clienteId}
+                onChange={e => setClienteId(e.target.value)}
+                disabled={saving}
+              >
+                <option value="">Sin cliente (mostrador / suelto)</option>
+                {clientesOrdenados.map(c => (
+                  <option key={c.id} value={c.id}>{c.nombre}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="fc-desc">Concepto {clienteId ? '(opcional)' : ''}</label>
               <input
                 id="fc-desc"
                 type="text"
-                placeholder="Ej: seña, venta de mostrador..."
+                placeholder={clienteId ? 'Pago de saldo pendiente' : 'Ej: seña, venta de mostrador...'}
                 value={desc}
                 onChange={e => setDesc(e.target.value)}
                 maxLength={300}
                 autoCorrect="off"
-                autoFocus
                 disabled={saving}
               />
             </div>
@@ -91,6 +112,7 @@ export function CobroForm({ open, metodos, onSave, onClose }) {
                   value={monto}
                   onChange={e => setMonto(e.target.value)}
                   disabled={saving}
+                  autoFocus
                 />
               </div>
               <div className="form-group">

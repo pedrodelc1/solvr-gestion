@@ -33,10 +33,11 @@ const SORT_LABELS = {
   'precio-asc':  'Menor precio primero',
 };
 
-export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEdit, onMarcarEntregado, onRevertirEntregado, onRefresh, toast, userRole = 'owner' }) {
+export function PedidosList({ pedidos, clientes, onNew, onRegistrarCobro, onUpdate, onDelete, onEdit, onMarcarEntregado, onRevertirEntregado, onRefresh, toast, userRole = 'owner' }) {
   const canWrite = ['owner', 'admin', 'vendedor'].includes(userRole);
   const canDelete = ['owner', 'admin'].includes(userRole);
   const canCobrar = ['owner', 'admin', 'vendedor'].includes(userRole);
+  const canRegistrarCobro = ['owner', 'admin'].includes(userRole);
   const [filter, setFilter] = useState('all');
   const [sort, setSort] = useState('fecha-desc');
   const [sortOpen, setSortOpen] = useState(false);
@@ -168,6 +169,22 @@ export function PedidosList({ pedidos, clientes, onNew, onUpdate, onDelete, onEd
           </button>
         )}
       </div>
+
+      {canRegistrarCobro && onRegistrarCobro && (
+        <div style={{ padding: '0 var(--space-4) var(--space-3)' }}>
+          <button
+            className="btn btn-secondary btn-full"
+            onClick={onRegistrarCobro}
+            style={{ gap: 'var(--space-2)', minHeight: 44, fontWeight: 700 }}
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="1" x2="12" y2="23" />
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+            </svg>
+            Registrar cobro
+          </button>
+        </div>
+      )}
 
       <div className="filter-bar">
         {FILTERS.map(f => (

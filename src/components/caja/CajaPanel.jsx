@@ -29,7 +29,7 @@ function formatFecha(dateStr) {
 
 const MEDIO_LABEL = { efectivo: 'Efectivo', transferencia: 'Transferencia', tarjeta: 'Tarjeta', fiado: 'Tarjeta' };
 
-export function CajaPanel({ pedidos, gastos, clientes, cobrosSueltos = [], onNuevoCobro, onDeleteCobro }) {
+export function CajaPanel({ pedidos, gastos, clientes, cobrosSueltos = [], onDeleteCobro }) {
   const [fecha, setFecha] = useState(today());
   const [confirmDelCobro, setConfirmDelCobro] = useState(null);
 
@@ -78,14 +78,6 @@ export function CajaPanel({ pedidos, gastos, clientes, cobrosSueltos = [], onNue
     <>
       <div className="page-header">
         <h1>Caja del día</h1>
-        {onNuevoCobro && (
-          <button className="btn-icon" onClick={onNuevoCobro} aria-label="Registrar cobro suelto" title="Registrar cobro suelto">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-          </button>
-        )}
       </div>
 
       {/* Date navigator */}
@@ -193,8 +185,15 @@ export function CajaPanel({ pedidos, gastos, clientes, cobrosSueltos = [], onNue
             {sueltosDelDia.map((c, i) => (
               <motion.div key={c.id} className="card" {...listItem(i)}>
                 <div className="card-row">
-                  <span style={{ fontWeight: 600, fontSize: 'var(--text-sm)' }}>{c.descripcion}</span>
-                  <span style={{ fontWeight: 800, color: 'var(--success)', fontSize: 'var(--text-base)', letterSpacing: '-0.01em' }}>{formatCurrency(c.monto)}</span>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    {c.clienteId && (
+                      <div style={{ fontWeight: 700, fontSize: 'var(--text-sm)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {clienteNombre(c.clienteId)}
+                      </div>
+                    )}
+                    <span style={{ fontWeight: c.clienteId ? 500 : 600, fontSize: c.clienteId ? 'var(--text-xs)' : 'var(--text-sm)', color: c.clienteId ? 'var(--ink-3)' : 'var(--ink)' }}>{c.descripcion}</span>
+                  </div>
+                  <span style={{ fontWeight: 800, color: 'var(--success)', fontSize: 'var(--text-base)', letterSpacing: '-0.01em', flexShrink: 0 }}>{formatCurrency(c.monto)}</span>
                 </div>
                 <div className="card-row" style={{ marginTop: 'var(--space-1)' }}>
                   <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-3)' }}>

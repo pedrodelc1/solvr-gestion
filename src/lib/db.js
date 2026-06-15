@@ -131,8 +131,11 @@ export async function deleteCliente(id) {
     lsSet('clientes', arr);
     return arr;
   }
-  const { error } = await supabase.from('clientes').delete().eq('id', id);
-  if (error) throw error;
+  const { data, error } = await supabase.from('clientes').delete().eq('id', id).select('id');
+  if (error) throw friendlyError(error);
+  if (!data || data.length === 0) {
+    throw new Error('No se pudo eliminar el cliente: no tenés permiso o ya no existe.');
+  }
   return getClientes();
 }
 
@@ -250,12 +253,18 @@ export async function getPedidos() {
   ]);
 
   if (pedErr) {
+    // Error real (red/RLS): caemos a la última caché conocida para no romper UI.
     console.error('[getPedidos] pedidos query failed:', pedErr.message);
     return lsGet('pedidos', []);
   }
-  if (!pedRows || pedRows.length === 0) {
-    console.warn('[getPedidos] pedidos returned empty — possible RLS issue or no data');
+  if (!pedRows) {
     return lsGet('pedidos', []);
+  }
+  if (pedRows.length === 0) {
+    // La query funcionó y no hay pedidos: confiar en la DB y sincronizar la
+    // caché. Antes devolvía la caché vieja y "resucitaba" pedidos borrados.
+    lsSet('pedidos', []);
+    return [];
   }
 
   // Build items map (ignore if items query failed due to RLS)
@@ -447,8 +456,13 @@ export async function deletePedido(id) {
     lsSet('pedidos', arr);
     return arr;
   }
-  const { error } = await supabase.from('pedidos').delete().eq('id', id);
-  if (error) throw error;
+  // .select() para verificar que realmente se borró una fila. Si RLS bloquea,
+  // PostgREST no tira error pero borra 0 filas — eso causaría un "fantasma".
+  const { data, error } = await supabase.from('pedidos').delete().eq('id', id).select('id');
+  if (error) throw friendlyError(error);
+  if (!data || data.length === 0) {
+    throw new Error('No se pudo eliminar el pedido: no tenés permiso o ya no existe.');
+  }
   return getPedidos();
 }
 
@@ -582,11 +596,14 @@ function validarCobro(data) {
   if (String(data.descripcion).trim().length > 300) throw new Error('La descripción no puede superar los 300 caracteres');
   if (!data.fecha || !/^\d{4}-\d{2}-\d{2}$/.test(data.fecha)) throw new Error('La fecha no es válida');
   if (!data.metodo || !String(data.metodo).trim()) throw new Error('Elegí un método de cobro');
+  const clienteId = data.clienteId || null;
+  if (clienteId && !isUUID(clienteId)) throw new Error('El cliente seleccionado no es válido');
   return {
     fecha: data.fecha,
     monto,
     descripcion: String(data.descripcion).trim(),
     metodo: String(data.metodo).trim().toLowerCase(),
+    cliente_id: clienteId,
   };
 }
 
@@ -606,6 +623,7 @@ export async function getCobros() {
     monto: r.monto,
     descripcion: r.descripcion,
     metodo: r.metodo,
+    clienteId: r.cliente_id || null,
   }));
   lsSet('cobros', mapped);
   return mapped;
@@ -802,6 +820,16 @@ export async function renovarSuscripcion(suscripcionId) {
   const { error } = await supabase.rpc('admin_renovar_suscripcion', { p_id: suscripcionId });
   if (error) throw friendlyError(error);
   return getSuscripciones();
+}
+
+// Autoriza un email como dueño de un negocio nuevo (solo superadmin).
+// Devuelve la whitelist actualizada.
+export async function adminGrantOwner(email) {
+  const clean = String(email || '').toLowerCase().trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) throw new Error('Ingresá un email válido');
+  const { data, error } = await supabase.rpc('admin_grant_owner', { p_email: clean });
+  if (error) throw friendlyError(error);
+  return data || [];
 }
 
 // ── CUOTAS AUTOMÁTICAS ────────────────────────────────────

@@ -832,6 +832,15 @@ export async function adminGrantOwner(email) {
   return data || [];
 }
 
+// Quita un email de la whitelist y desactiva sus membresías (solo superadmin).
+// Devuelve la whitelist actualizada.
+export async function adminRevokeAccess(email) {
+  const clean = String(email || '').toLowerCase().trim();
+  const { data, error } = await supabase.rpc('admin_revoke_access', { p_email: clean });
+  if (error) throw friendlyError(error);
+  return data || [];
+}
+
 // ── CUOTAS AUTOMÁTICAS ────────────────────────────────────
 
 export async function procesarCuotasVencidas(pedidos) {

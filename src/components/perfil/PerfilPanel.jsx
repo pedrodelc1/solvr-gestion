@@ -6,7 +6,7 @@ import {
   getAllowedEmails, addAllowedEmail, removeAllowedEmail, updateMemberRol,
   getAlertasConfig, saveAlertasConfig,
   getSuscripciones, updateSuscripcion, renovarSuscripcion,
-  esSuperadmin, getAdminWhitelist, adminGrantOwner,
+  esSuperadmin, getAdminWhitelist, adminGrantOwner, adminRevokeAccess,
 } from '../../lib/db.js';
 
 const BRAND = 'var(--lime)';
@@ -387,6 +387,16 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
       setGrantingOwner(false);
       grantingOwnerRef.current = false;
     }
+  }
+
+  async function handleRevokeAccess(wlEmail) {
+    await runAction('revoke-' + wlEmail, async () => {
+      try {
+        const wl = await adminRevokeAccess(wlEmail);
+        setWhitelist(wl);
+        toast('Acceso revocado');
+      } catch (e) { toast(e.message, 'error'); }
+    });
   }
 
   async function handleRenovar(id) {
@@ -1422,6 +1432,25 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
                               )}
                             </span>
                             <RolBadge rol={w.is_owner ? 'admin' : (w.rol || 'vendedor')} />
+                            {!w.is_owner && (!email || w.email?.toLowerCase() !== email.toLowerCase()) && (
+                              <button
+                                onClick={() => handleRevokeAccess(w.email)}
+                                disabled={loadingMap['revoke-' + w.email]}
+                                aria-label={`Quitar acceso a ${w.email}`}
+                                title="Quitar acceso"
+                                style={{
+                                  flexShrink: 0, width: 30, height: 30, borderRadius: 8,
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.3)',
+                                  color: '#f87171', cursor: loadingMap['revoke-' + w.email] ? 'not-allowed' : 'pointer',
+                                  opacity: loadingMap['revoke-' + w.email] ? 0.5 : 1,
+                                }}
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M18 6L6 18"/><path d="M6 6l12 12"/>
+                                </svg>
+                              </button>
+                            )}
                           </div>
                         ))}
                       </div>

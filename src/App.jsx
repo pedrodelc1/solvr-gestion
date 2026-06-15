@@ -138,6 +138,7 @@ export default function App() {
 
   // Caja UI
   const [cobroFormOpen, setCobroFormOpen] = useState(false);
+  const [cobroPreClienteId, setCobroPreClienteId] = useState(null);
 
   // Productos UI
   const [productoFormOpen, setProductoFormOpen] = useState(false);
@@ -620,6 +621,7 @@ export default function App() {
                 setActiveTab('pedidos');
                 setTimeout(() => setShowPedidoForm(true), 60);
               }}
+              onRegistrarCobro={() => { setCobroPreClienteId(selectedClienteId); setCobroFormOpen(true); }}
               onRefresh={loadAll}
               toast={toast}
               userRole={userRole}
@@ -665,7 +667,7 @@ export default function App() {
             pedidos={pedidos}
             clientes={clientes}
             onNew={() => { setPreClienteId(null); setEditingPedido(null); setShowPedidoForm(true); }}
-            onRegistrarCobro={() => setCobroFormOpen(true)}
+            onRegistrarCobro={() => { setCobroPreClienteId(null); setCobroFormOpen(true); }}
             onUpdate={handleUpdatePedido}
             onDelete={handleDeletePedido}
             onEdit={p => { setEditingPedido(p); setShowPedidoForm(true); }}
@@ -806,9 +808,10 @@ export default function App() {
       <CobroForm
         open={cobroFormOpen}
         clientes={clientes}
+        preClienteId={cobroPreClienteId}
         metodos={(negocioConfig?.metodos_pago || 'Efectivo, Transferencia, Tarjeta').split(',').map(m => m.trim().toLowerCase()).filter(Boolean)}
         onSave={handleSaveCobro}
-        onClose={() => setCobroFormOpen(false)}
+        onClose={() => { setCobroFormOpen(false); setCobroPreClienteId(null); }}
       />
 
       <ProductoForm

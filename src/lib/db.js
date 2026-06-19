@@ -352,9 +352,11 @@ export async function savePedido(data) {
   const maxNro = maxData && maxData[0] ? (maxData[0].nro || 0) : 0;
   const nextNro = maxNro > 0 ? Math.max(maxNro + 1, numInicial) : numInicial;
 
+  const userId = await getUserId();
   const { data: inserted, error } = await supabase
     .from('pedidos')
     .insert({
+      user_id: userId,
       cliente_id: data.clienteId,
       fecha: data.fecha,
       total_calculado: data.totalCalculado,

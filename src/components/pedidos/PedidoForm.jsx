@@ -113,7 +113,7 @@ function NewProductInline({ onCreated, onCancel, toast }) {
 }
 
 // ── Item row ─────────────────────────────────────────────────────────────────
-function ItemRow({ item, idx, productos, tipoPrecio, onChangeProducto, onChangeCantidad, onDelete, canDelete, onNewProductCreated, onChangeManual, onToggleEntregado, onChangeFechaEntrega, toast }) {
+function ItemRow({ item, idx, productos, tipoPrecio, onChangeProducto, onChangeCantidad, onDelete, canDelete, onNewProductCreated, onChangeManual, onToggleEntregado, onChangeFechaEntrega, onToggleMode, toast }) {
   const isCatalog = item.mode === 'catalog';
   const prod = isCatalog ? productos.find(p => p.id === item.productoId) : null;
   const precioEfectivo = prod
@@ -133,6 +133,15 @@ function ItemRow({ item, idx, productos, tipoPrecio, onChangeProducto, onChangeC
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 2 }}>
+        <button
+          type="button"
+          onClick={() => onToggleMode(idx)}
+          style={{ fontSize: 11, color: 'var(--ink-3)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', textDecoration: 'underline' }}
+        >
+          {isCatalog ? 'Ingresar manualmente' : 'Elegir del catálogo'}
+        </button>
+      </div>
       {isCatalog ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
           <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
@@ -321,11 +330,19 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
     setItems(items.map((it, i) => i === idx ? { ...it, fechaEntrega: value } : it));
   }
 
+  function handleToggleMode(idx) {
+    setItems(items.map((it, i) => {
+      if (i !== idx) return it;
+      const newMode = it.mode === 'catalog' ? 'manual' : 'catalog';
+      return { ...it, mode: newMode, productoId: '', _creatingNew: false, manualNombre: '', manualPrecio: '' };
+    }));
+  }
+
   function handleAddItem() {
     setItems([{ mode: hasProducts ? 'catalog' : 'manual', productoId: '', cantidad: 1, _creatingNew: false, manualNombre: '', manualPrecio: '', entregado: false }, ...items]);
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (saving) return;
     if (!clienteId || !fecha) { toast('Completá fecha y cliente', 'error'); return; }
     const validItems = items.filter(item => {
@@ -357,19 +374,23 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
     });
 
     setSaving(true);
-    onSave({
-      id: existing?.id || uid(),
-      clienteId, fecha, items: pedidoItems,
-      totalCalculado, totalFinal, medioPago,
-      cuotas: esTarjeta ? cuotas : 1,
-      cobrado: tipo === 'presupuesto' ? false : efectivoCobrado,
-      montoAbonado: tipo === 'presupuesto' ? 0 : (efectivoCobrado ? totalFinal : (existing?.montoAbonado || 0)),
-      nota: nota.trim() || null, tipo,
-      descuentoTipo: descuentoHab ? descuentoTipo : null,
-      descuentoValor: descuentoHab ? (parseFloat(descuentoVal) || 0) : 0,
-      diasPlazo: tipo === 'pedido' && plazoHab ? (parseInt(diasPlazo) || 0) : 0,
-      tasaMora: tipo === 'pedido' && plazoHab ? (parseFloat(tasaMora) || 0) : 0,
-    });
+    try {
+      await onSave({
+        id: existing?.id || uid(),
+        clienteId, fecha, items: pedidoItems,
+        totalCalculado, totalFinal, medioPago,
+        cuotas: esTarjeta ? cuotas : 1,
+        cobrado: tipo === 'presupuesto' ? false : efectivoCobrado,
+        montoAbonado: tipo === 'presupuesto' ? 0 : (efectivoCobrado ? totalFinal : (existing?.montoAbonado || 0)),
+        nota: nota.trim() || null, tipo,
+        descuentoTipo: descuentoHab ? descuentoTipo : null,
+        descuentoValor: descuentoHab ? (parseFloat(descuentoVal) || 0) : 0,
+        diasPlazo: tipo === 'pedido' && plazoHab ? (parseInt(diasPlazo) || 0) : 0,
+        tasaMora: tipo === 'pedido' && plazoHab ? (parseFloat(tasaMora) || 0) : 0,
+      });
+    } catch (_) {
+      setSaving(false);
+    }
   }
 
   const clienteOptions = clientes.map(c => ({ value: c.id, label: c.nombre + (c.tipo_precio === 'mayorista' ? ' [may.]' : '') }));
@@ -468,6 +489,7 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
                 onChangeManual={handleChangeManual}
                 onToggleEntregado={handleToggleEntregado}
                 onChangeFechaEntrega={handleChangeFechaEntrega}
+                onToggleMode={handleToggleMode}
                 toast={toast}
               />
             ))}

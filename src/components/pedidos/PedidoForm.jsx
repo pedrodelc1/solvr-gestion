@@ -132,43 +132,121 @@ function ItemRow({ item, idx, productos, tipoPrecio, onChangeProducto, onChangeC
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 2 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+      {/* Mode toggle */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{
+          fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
+          color: isCatalog ? 'var(--lime)' : 'var(--ink-3)',
+          background: isCatalog ? 'var(--lime-bg)' : 'var(--bg-3)',
+          border: `1px solid ${isCatalog ? 'var(--lime-border)' : 'var(--border)'}`,
+          padding: '3px 8px', borderRadius: 6,
+        }}>
+          {isCatalog ? 'Catálogo' : 'Manual'}
+        </span>
         <button
           type="button"
           onClick={() => onToggleMode(idx)}
-          style={{ fontSize: 11, color: 'var(--ink-3)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', textDecoration: 'underline' }}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            fontSize: 12, fontWeight: 600, color: 'var(--ink-2)',
+            background: 'var(--bg-3)', border: '1px solid var(--border)',
+            borderRadius: 7, padding: '5px 10px', cursor: 'pointer',
+          }}
         >
-          {isCatalog ? 'Ingresar manualmente' : 'Elegir del catálogo'}
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M7 16V4m0 0L3 8m4-4l4 4"/><path d="M17 8v12m0 0l4-4m-4 4l-4-4"/>
+          </svg>
+          {isCatalog ? 'Ingresar manual' : 'Elegir del catálogo'}
         </button>
       </div>
+
       {isCatalog ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
-          <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
-            <div style={{ flex: 1 }}>
-              <SearchableSelect
-                value={item._creatingNew ? '' : (item.productoId || '')}
-                options={productoOptions}
-                onChange={v => onChangeProducto(idx, v)}
-                placeholder="Buscar producto..."
-              />
-            </div>
-            <input type="number" className="item-qty" min="1" value={item.cantidad} onChange={e => onChangeCantidad(idx, e.target.value)} />
-            <button className="btn-icon danger" type="button" onClick={() => onDelete(idx)} disabled={!canDelete} aria-label="Quitar" style={{ opacity: canDelete ? 1 : 0.3 }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
+        <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+          <div style={{ flex: 1 }}>
+            <SearchableSelect
+              value={item._creatingNew ? '' : (item.productoId || '')}
+              options={productoOptions}
+              onChange={v => onChangeProducto(idx, v)}
+              placeholder="Buscar producto..."
+            />
           </div>
+          <input type="number" className="item-qty" min="1" value={item.cantidad} onChange={e => onChangeCantidad(idx, e.target.value)} />
+          <button className="btn-icon danger" type="button" onClick={() => onDelete(idx)} disabled={!canDelete} aria-label="Quitar" style={{ opacity: canDelete ? 1 : 0.3 }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         </div>
       ) : (
-        <div className="item-row-manual">
-          <div className="item-row-manual-fields">
-            <input type="text" placeholder="Nombre del ítem" value={item.manualNombre || ''} onChange={e => onChangeManual(idx, { manualNombre: e.target.value })} style={{ minHeight: 40, fontSize: 'var(--text-sm)', padding: 'var(--space-2) var(--space-3)' }} />
-            <input type="number" placeholder="Precio" min="0" step="0.01" value={item.manualPrecio || ''} onChange={e => onChangeManual(idx, { manualPrecio: e.target.value })} style={{ minHeight: 40, fontSize: 'var(--text-sm)', padding: 'var(--space-2) var(--space-3)' }} />
-            <input type="number" className="item-qty" min="1" value={item.cantidad} onChange={e => onChangeCantidad(idx, e.target.value)} />
-            <button className="btn-icon danger" type="button" onClick={() => onDelete(idx)} disabled={!canDelete} aria-label="Quitar" style={{ opacity: canDelete ? 1 : 0.3 }}>
+        <div style={{
+          display: 'flex', flexDirection: 'column', gap: 'var(--space-2)',
+          background: 'var(--bg-3)', border: '1px solid var(--border)',
+          borderRadius: 10, padding: 'var(--space-3)',
+        }}>
+          <div className="form-group" style={{ margin: 0 }}>
+            <label style={{ fontSize: 11, color: 'var(--ink-3)', marginBottom: 4 }}>Nombre del ítem</label>
+            <input
+              type="text"
+              placeholder="Ej: Servicio de diseño, Envío, Reparación..."
+              value={item.manualNombre || ''}
+              onChange={e => onChangeManual(idx, { manualNombre: e.target.value })}
+              style={{ minHeight: 40, fontSize: 'var(--text-sm)' }}
+              autoFocus
+            />
+          </div>
+          <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end' }}>
+            <div className="form-group" style={{ margin: 0, flex: 1 }}>
+              <label style={{ fontSize: 11, color: 'var(--ink-3)', marginBottom: 4 }}>Precio de venta $</label>
+              <input
+                type="number"
+                placeholder="0"
+                min="0"
+                step="0.01"
+                inputMode="decimal"
+                value={item.manualPrecio || ''}
+                onChange={e => onChangeManual(idx, { manualPrecio: e.target.value })}
+                style={{ minHeight: 40, fontSize: 'var(--text-sm)' }}
+              />
+            </div>
+            <div className="form-group" style={{ margin: 0, flex: 1 }}>
+              <label style={{ fontSize: 11, color: 'var(--ink-3)', marginBottom: 4 }}>
+                Costo $ <span style={{ fontWeight: 400, color: 'var(--ink-3)', opacity: 0.7 }}>(opcional)</span>
+              </label>
+              <input
+                type="number"
+                placeholder="0"
+                min="0"
+                step="0.01"
+                inputMode="decimal"
+                value={item.manualCosto || ''}
+                onChange={e => onChangeManual(idx, { manualCosto: e.target.value })}
+                style={{ minHeight: 40, fontSize: 'var(--text-sm)' }}
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <label style={{ fontSize: 11, color: 'var(--ink-3)' }}>Cant.</label>
+              <input
+                type="number"
+                className="item-qty"
+                min="1"
+                value={item.cantidad}
+                onChange={e => onChangeCantidad(idx, e.target.value)}
+                style={{ minHeight: 40 }}
+              />
+            </div>
+            <button className="btn-icon danger" type="button" onClick={() => onDelete(idx)} disabled={!canDelete} aria-label="Quitar" style={{ opacity: canDelete ? 1 : 0.3, marginBottom: 2 }}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
+          {item.manualPrecio && item.manualCosto && parseFloat(item.manualPrecio) > 0 && parseFloat(item.manualCosto) > 0 && (
+            <div style={{ fontSize: 11, color: 'var(--ink-3)', display: 'flex', gap: 12 }}>
+              <span>Margen: <strong style={{ color: 'var(--lime)' }}>
+                {Math.round((1 - parseFloat(item.manualCosto) / parseFloat(item.manualPrecio)) * 100)}%
+              </strong></span>
+              <span>Ganancia x u.: <strong style={{ color: 'var(--lime)' }}>
+                {formatCurrency(parseFloat(item.manualPrecio) - parseFloat(item.manualCosto))}
+              </strong></span>
+            </div>
+          )}
         </div>
       )}
 
@@ -240,10 +318,11 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
           _creatingNew: false,
           manualNombre: i.productoId ? '' : i.nombre,
           manualPrecio: i.productoId ? '' : String(i.precioUnitario),
+          manualCosto: i.productoId ? '' : (i.costoUnitario > 0 ? String(i.costoUnitario) : ''),
           entregado: i.entregado || false,
           fechaEntrega: i.fechaEntrega || null,
         }))
-      : [{ mode: defaultMode, productoId: '', cantidad: 1, _creatingNew: false, manualNombre: '', manualPrecio: '', entregado: false }]
+      : [{ mode: defaultMode, productoId: '', cantidad: 1, _creatingNew: false, manualNombre: '', manualPrecio: '', manualCosto: '', entregado: false }]
   );
 
   if (!clientes.length) {
@@ -334,12 +413,12 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
     setItems(items.map((it, i) => {
       if (i !== idx) return it;
       const newMode = it.mode === 'catalog' ? 'manual' : 'catalog';
-      return { ...it, mode: newMode, productoId: '', _creatingNew: false, manualNombre: '', manualPrecio: '' };
+      return { ...it, mode: newMode, productoId: '', _creatingNew: false, manualNombre: '', manualPrecio: '', manualCosto: '' };
     }));
   }
 
   function handleAddItem() {
-    setItems([{ mode: hasProducts ? 'catalog' : 'manual', productoId: '', cantidad: 1, _creatingNew: false, manualNombre: '', manualPrecio: '', entregado: false }, ...items]);
+    setItems([{ mode: hasProducts ? 'catalog' : 'manual', productoId: '', cantidad: 1, _creatingNew: false, manualNombre: '', manualPrecio: '', manualCosto: '', entregado: false }, ...items]);
   }
 
   async function handleSave() {
@@ -370,7 +449,7 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
         const p = getProd(item.productoId);
         return { productoId: item.productoId, nombre: p.nombre, cantidad: item.cantidad, precioUnitario: getPrecioEfectivo(p), costoUnitario: p.costo || 0, entregado: item.entregado || false, fechaEntrega: item.fechaEntrega || null };
       }
-      return { productoId: null, nombre: item.manualNombre.trim(), cantidad: item.cantidad, precioUnitario: parseFloat(item.manualPrecio) || 0, costoUnitario: 0, entregado: item.entregado || false, fechaEntrega: item.fechaEntrega || null };
+      return { productoId: null, nombre: item.manualNombre.trim(), cantidad: item.cantidad, precioUnitario: parseFloat(item.manualPrecio) || 0, costoUnitario: parseFloat(item.manualCosto) || 0, entregado: item.entregado || false, fechaEntrega: item.fechaEntrega || null };
     });
 
     setSaving(true);

@@ -476,16 +476,25 @@ export async function marcarPedidoEntregado(pedidoId) {
   if (!useSupabase()) {
     const arr = lsGet('pedidos', []);
     const i = arr.findIndex(p => p.id === pedidoId);
-    if (i >= 0) arr[i].items = arr[i].items.map(it => ({ ...it, entregado: true, fechaEntrega: it.fechaEntrega || hoy }));
+    if (i >= 0) {
+      arr[i].items = arr[i].items.map(it => ({ ...it, entregado: true, fechaEntrega: it.fechaEntrega || hoy }));
+      arr[i].confirmado = true;
+    }
     lsSet('pedidos', arr);
     return arr;
   }
-  const { error } = await supabase
+  const { error: eItems } = await supabase
     .from('pedido_items')
     .update({ entregado: true, fecha_entrega: hoy })
     .eq('pedido_id', pedidoId)
     .eq('entregado', false);
-  if (error) throw error;
+  if (eItems) throw eItems;
+  // Al entregar, el pedido pasa a ser una venta real confirmada
+  const { error: ePedido } = await supabase
+    .from('pedidos')
+    .update({ confirmado: true })
+    .eq('id', pedidoId);
+  if (ePedido) throw ePedido;
   return getPedidos();
 }
 

@@ -5,7 +5,7 @@ import { generarRemito, compartirRemito } from '../../lib/generarRemito.js';
 import { CuentaCorriente } from './CuentaCorriente.jsx';
 import { DevolucionModal } from '../pedidos/DevolucionModal.jsx';
 import { MedioPill } from '../shared/MedioPill.jsx';
-import { saveCliente } from '../../lib/db.js';
+import { saveCliente, updatePedido } from '../../lib/db.js';
 
 const SvgPhone = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
@@ -34,6 +34,7 @@ export function ClienteDetail({ cliente, pedidos, devoluciones = [], cobros = []
 
   const [guardandoSaldo, setGuardandoSaldo] = useState(false);
   const guardandoSaldoRef = useRef(false);
+  const [confirmandoId, setConfirmandoId] = useState(null);
 
   async function handleGuardarSaldo() {
     if (guardandoSaldoRef.current) return;
@@ -365,64 +366,95 @@ export function ClienteDetail({ cliente, pedidos, devoluciones = [], cobros = []
         {clientePedidos.length === 0 ? (
           <p style={{ color: 'var(--ink-3)', padding: 'var(--space-4)' }}>Sin pedidos aún.</p>
         ) : (
-          clientePedidos.map(p => (
-            <div key={p.id} className="card">
-              <div className="card-row-three">
-                <span className="card-sub" style={{ textAlign: 'left' }}>{formatDate(p.fecha)}</span>
-                <div style={{ display: 'flex', justifyContent: 'center' }}>
-                  {p.tipo === 'presupuesto'
-                    ? <span className="badge badge-info">Presupuesto</span>
-                    : <MedioPill medio={p.medioPago} cuotas={p.cuotas} />
-                  }
+          clientePedidos.map(p => {
+            const esIntento = p.tipo !== 'presupuesto' && p.confirmado === false;
+            return (
+              <div key={p.id} className="card">
+                <div className="card-row-three">
+                  <span className="card-sub" style={{ textAlign: 'left' }}>{formatDate(p.fecha)}</span>
+                  <div style={{ display: 'flex', justifyContent: 'center' }}>
+                    {p.tipo === 'presupuesto'
+                      ? <span className="badge badge-info">Presupuesto</span>
+                      : <MedioPill medio={p.medioPago} cuotas={p.cuotas} />
+                    }
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    {p.tipo !== 'presupuesto' && (
+                      esIntento
+                        ? <span className="badge" style={{ background: 'rgba(251,191,36,0.1)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.25)' }}>Intención</span>
+                        : <span className={`badge ${p.cobrado ? 'badge-ok' : 'badge-warn'}`}>
+                            {p.cobrado ? 'Cobrado' : 'Pendiente'}
+                          </span>
+                    )}
+                  </div>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  {p.tipo !== 'presupuesto' && (
-                    <span className={`badge ${p.cobrado ? 'badge-ok' : 'badge-warn'}`}>
-                      {p.cobrado ? 'Cobrado' : 'Pendiente'}
-                    </span>
+                <div className="card-row">
+                  <span className="card-sub" style={{ flex: 1 }}>
+                    {p.items.map(i => `${i.nombre} x${i.cantidad}`).join(' · ')}
+                  </span>
+                  <span className={`card-amount ${p.tipo === 'presupuesto' || esIntento ? 'amount-neutral' : (p.cobrado ? 'amount-paid' : 'amount-debt')}`}>
+                    {formatCurrency(p.totalFinal)}
+                  </span>
+                </div>
+                {esIntento && (
+                  <div style={{ fontSize: 11, color: 'var(--ink-3)', marginBottom: 4 }}>
+                    Este pedido es una intención de compra — no suma al saldo hasta que lo confirmés.
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                  {esIntento && canCobrar && (
+                    <button
+                      className="btn btn-primary"
+                      style={{ flex: 1, minHeight: 36, fontSize: 'var(--text-sm)' }}
+                      disabled={confirmandoId === p.id}
+                      onClick={async () => {
+                        setConfirmandoId(p.id);
+                        try {
+                          await updatePedido(p.id, { confirmado: true });
+                          toast('Pedido confirmado — suma al saldo del cliente');
+                          onRefresh();
+                        } catch (e) {
+                          toast(e.message, 'error');
+                        } finally {
+                          setConfirmandoId(null);
+                        }
+                      }}
+                    >
+                      {confirmandoId === p.id ? 'Confirmando...' : '✓ Confirmar pedido'}
+                    </button>
+                  )}
+                  {p.tipo !== 'presupuesto' && !esIntento && (
+                    <button
+                      className="btn btn-secondary"
+                      style={{ flex: 1, minHeight: 36, fontSize: 'var(--text-sm)', gap: 'var(--space-2)' }}
+                      onClick={() => handleGenerarRemito(p)}
+                      disabled={generandoRemito === p.id}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+                        <polyline points="16 6 12 2 8 6" />
+                        <line x1="12" y1="2" x2="12" y2="15" />
+                      </svg>
+                      {generandoRemito === p.id ? 'Generando...' : 'Remito'}
+                    </button>
+                  )}
+                  {canCobrar && p.cobrado && p.tipo !== 'presupuesto' && (
+                    <button
+                      className="btn btn-secondary"
+                      style={{ minHeight: 36, fontSize: 'var(--text-sm)', gap: 'var(--space-2)' }}
+                      onClick={() => setDevolucionPedido(p)}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="1 4 1 10 7 10" />
+                        <path d="M3.51 15a9 9 0 1 0 .49-3.1" />
+                      </svg>
+                      Devolución
+                    </button>
                   )}
                 </div>
               </div>
-              <div className="card-row">
-                <span className="card-sub" style={{ flex: 1 }}>
-                  {p.items.map(i => `${i.nombre} x${i.cantidad}`).join(' · ')}
-                </span>
-                <span className={`card-amount ${p.tipo === 'presupuesto' ? 'amount-neutral' : (p.cobrado ? 'amount-paid' : 'amount-debt')}`}>
-                  {formatCurrency(p.totalFinal)}
-                </span>
-              </div>
-              <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-                {p.tipo !== 'presupuesto' && (
-                  <button
-                    className="btn btn-secondary"
-                    style={{ flex: 1, minHeight: 36, fontSize: 'var(--text-sm)', gap: 'var(--space-2)' }}
-                    onClick={() => handleGenerarRemito(p)}
-                    disabled={generandoRemito === p.id}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-                      <polyline points="16 6 12 2 8 6" />
-                      <line x1="12" y1="2" x2="12" y2="15" />
-                    </svg>
-                    {generandoRemito === p.id ? 'Generando...' : 'Remito'}
-                  </button>
-                )}
-                {canCobrar && p.cobrado && p.tipo !== 'presupuesto' && (
-                  <button
-                    className="btn btn-secondary"
-                    style={{ minHeight: 36, fontSize: 'var(--text-sm)', gap: 'var(--space-2)' }}
-                    onClick={() => setDevolucionPedido(p)}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polyline points="1 4 1 10 7 10" />
-                      <path d="M3.51 15a9 9 0 1 0 .49-3.1" />
-                    </svg>
-                    Devolución
-                  </button>
-                )}
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 

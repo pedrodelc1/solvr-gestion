@@ -13,6 +13,7 @@ const FILTERS = [
   { id: 'no-entregado', label: 'No entregado' },
   { id: 'entregado', label: 'Entregado' },
   { id: 'cobrado', label: 'Cobrados' },
+  { id: 'intento', label: 'Intención' },
   { id: 'presupuesto', label: 'Presupuestos' },
   { id: 'efectivo', label: 'Efectivo' },
   { id: 'transferencia', label: 'Transf.' },
@@ -60,9 +61,10 @@ export function PedidosList({ pedidos, clientes, onNew, onRegistrarCobro, onUpda
     .filter(p => {
       const items = p.items || [];
       const todoEntregado = items.length > 0 && items.every(it => it.entregado);
-      if (filter === 'no-entregado')  return p.tipo !== 'presupuesto' && !todoEntregado;
-      if (filter === 'entregado')     return p.tipo !== 'presupuesto' && todoEntregado;
+      if (filter === 'no-entregado')  return p.tipo !== 'presupuesto' && p.confirmado !== false && !todoEntregado;
+      if (filter === 'entregado')     return p.tipo !== 'presupuesto' && p.confirmado !== false && todoEntregado;
       if (filter === 'cobrado')       return p.cobrado;
+      if (filter === 'intento')       return p.tipo !== 'presupuesto' && p.confirmado === false;
       if (filter === 'presupuesto')   return p.tipo === 'presupuesto';
       if (filter === 'efectivo')      return p.medioPago === 'efectivo' && p.tipo !== 'presupuesto';
       if (filter === 'transferencia') return p.medioPago === 'transferencia' && p.tipo !== 'presupuesto';
@@ -171,11 +173,11 @@ export function PedidosList({ pedidos, clientes, onNew, onRegistrarCobro, onUpda
       </div>
 
       {canRegistrarCobro && onRegistrarCobro && (
-        <div style={{ padding: '0 var(--space-4) var(--space-3)' }}>
+        <div style={{ padding: '0 var(--space-4) var(--space-3)', marginTop: 'var(--space-3)' }}>
           <button
             className="btn btn-secondary btn-full"
             onClick={onRegistrarCobro}
-            style={{ gap: 'var(--space-2)', minHeight: 44, fontWeight: 700 }}
+            style={{ gap: 'var(--space-2)', minHeight: 48, fontWeight: 700, borderRadius: 16 }}
           >
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="12" y1="1" x2="12" y2="23" />
@@ -240,13 +242,16 @@ export function PedidosList({ pedidos, clientes, onNew, onRegistrarCobro, onUpda
             const hoy = new Date().toISOString().slice(0, 10);
             const diasRestantes = venc ? Math.round((new Date(venc) - new Date(hoy)) / (1000 * 60 * 60 * 24)) : null;
 
+            const esIntento = !esPresupuesto && p.confirmado === false;
             const estadoBadge = esPresupuesto
               ? <span className="badge badge-info">Presupuesto</span>
-              : todoEntregado
-                ? <span className="badge badge-ok">Entregado</span>
-                : <span className="badge badge-neutral">No entregado</span>;
+              : esIntento
+                ? <span className="badge" style={{ background: 'rgba(251,191,36,0.1)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.25)' }}>Intención</span>
+                : todoEntregado
+                  ? <span className="badge badge-ok">Entregado</span>
+                  : <span className="badge badge-neutral">No entregado</span>;
 
-            const estadoMonto = esPresupuesto
+            const estadoMonto = esPresupuesto || esIntento
               ? <span className="card-amount amount-neutral">{formatCurrency(total)}</span>
               : p.cobrado
                 ? <span className="card-amount amount-paid">{formatCurrency(total)}</span>
@@ -307,6 +312,20 @@ export function PedidosList({ pedidos, clientes, onNew, onRegistrarCobro, onUpda
                         disabled={loadingMap[p.id]}
                       >
                         {loadingMap[p.id] ? 'Procesando...' : 'Convertir a pedido'}
+                      </button>
+                    )
+                  ) : esIntento ? (
+                    canCobrar && (
+                      <button
+                        className="btn btn-primary"
+                        style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-sm)', opacity: loadingMap[p.id] ? 0.5 : 1 }}
+                        onClick={() => runAction(p.id, async () => {
+                          await onUpdate(p.id, { confirmado: true });
+                          toast('Pedido confirmado — suma al saldo del cliente');
+                        })}
+                        disabled={loadingMap[p.id]}
+                      >
+                        {loadingMap[p.id] ? 'Procesando...' : '✓ Confirmar pedido'}
                       </button>
                     )
                   ) : (

@@ -292,6 +292,7 @@ export async function getPedidos() {
     diasPlazo: r.dias_plazo || 0,
     tasaMora: r.tasa_mora || 0,
     tipo: r.tipo || 'pedido',
+    confirmado: r.confirmado ?? true,
     descuentoTipo: r.descuento_tipo || null,
     descuentoValor: r.descuento_valor || 0,
     items: (itemsByPedido[r.id] || []).map(i => ({
@@ -367,6 +368,7 @@ export async function savePedido(data) {
       monto_abonado: data.montoAbonado || 0,
       nota: data.nota || null,
       tipo: data.tipo || 'pedido',
+      confirmado: data.confirmado ?? true,
       descuento_tipo: data.descuentoTipo || null,
       descuento_valor: data.descuentoValor || 0,
       dias_plazo: data.diasPlazo || 0,
@@ -425,6 +427,7 @@ export async function updatePedido(id, data) {
   if ('descuentoValor' in data) update.descuento_valor = data.descuentoValor;
   if ('diasPlazo' in data) update.dias_plazo = data.diasPlazo;
   if ('tasaMora' in data) update.tasa_mora = data.tasaMora;
+  if ('confirmado' in data) update.confirmado = data.confirmado;
 
   const { error } = await supabase.from('pedidos').update(update).eq('id', id);
   if (error) throw friendlyError(error);

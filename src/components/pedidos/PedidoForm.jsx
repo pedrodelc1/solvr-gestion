@@ -306,6 +306,7 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
   const [plazoHab, setPlazoHab] = useState(!!(existing?.diasPlazo));
   const [diasPlazo, setDiasPlazo] = useState(existing?.diasPlazo ? String(existing.diasPlazo) : '30');
   const [tasaMora, setTasaMora] = useState(existing?.tasaMora ? String(existing.tasaMora) : '');
+  const [confirmado, setConfirmado] = useState(existing ? (existing.confirmado ?? true) : true);
   const [saving, setSaving] = useState(false);
 
   const tipoPrecio = clientes.find(c => c.id === clienteId)?.tipo_precio || 'minorista';
@@ -462,6 +463,7 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
         cobrado: tipo === 'presupuesto' ? false : efectivoCobrado,
         montoAbonado: tipo === 'presupuesto' ? 0 : (efectivoCobrado ? totalFinal : (existing?.montoAbonado || 0)),
         nota: nota.trim() || null, tipo,
+        confirmado: tipo === 'presupuesto' ? false : confirmado,
         descuentoTipo: descuentoHab ? descuentoTipo : null,
         descuentoValor: descuentoHab ? (parseFloat(descuentoVal) || 0) : 0,
         diasPlazo: tipo === 'pedido' && plazoHab ? (parseInt(diasPlazo) || 0) : 0,
@@ -577,22 +579,71 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
         </div>
 
         {tipo === 'pedido' && (
-          <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-            {!esTarjeta && (
-              <button type="button" className={`opt-chip${cobrado ? ' opt-chip--cobrado' : ''}`} onClick={() => setCobrado(v => !v)}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                Cobrado
+          <>
+            {/* ── Confirmación: afecta saldo del cliente ── */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              background: confirmado ? 'rgba(74,222,128,0.06)' : 'var(--bg-3)',
+              border: `1px solid ${confirmado ? 'rgba(74,222,128,0.25)' : 'var(--border)'}`,
+              borderRadius: 12, padding: '12px 14px',
+            }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>
+                  ¿Confirmar pedido?
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>
+                  {confirmado
+                    ? 'Sí — suma al saldo del cliente'
+                    : 'No — queda como intención de compra (no afecta saldo)'}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginLeft: 12 }}>
+                <button
+                  type="button"
+                  onClick={() => setConfirmado(true)}
+                  style={{
+                    padding: '6px 14px', borderRadius: 8, fontWeight: 700, fontSize: 13,
+                    border: confirmado ? 'none' : '1px solid var(--border)',
+                    background: confirmado ? '#4ade80' : 'var(--bg-4)',
+                    color: confirmado ? '#000' : 'var(--ink-3)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Sí
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmado(false)}
+                  style={{
+                    padding: '6px 14px', borderRadius: 8, fontWeight: 700, fontSize: 13,
+                    border: !confirmado ? 'none' : '1px solid var(--border)',
+                    background: !confirmado ? 'var(--ink-3)' : 'var(--bg-4)',
+                    color: !confirmado ? '#000' : 'var(--ink-3)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  No
+                </button>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+              {!esTarjeta && (
+                <button type="button" className={`opt-chip${cobrado ? ' opt-chip--cobrado' : ''}`} onClick={() => setCobrado(v => !v)}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                  Cobrado
+                </button>
+              )}
+              <button type="button" className={`opt-chip${plazoHab ? ' opt-chip--plazo' : ''}`} onClick={() => setPlazoHab(v => !v)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                A plazo
               </button>
-            )}
-            <button type="button" className={`opt-chip${plazoHab ? ' opt-chip--plazo' : ''}`} onClick={() => setPlazoHab(v => !v)}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-              A plazo
-            </button>
-            <button type="button" className={`opt-chip${descuentoHab ? ' opt-chip--descuento' : ''}`} onClick={() => setDescuentoHab(v => !v)}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
-              Descuento
-            </button>
-          </div>
+              <button type="button" className={`opt-chip${descuentoHab ? ' opt-chip--descuento' : ''}`} onClick={() => setDescuentoHab(v => !v)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
+                Descuento
+              </button>
+            </div>
+          </>
         )}
 
         {tipo === 'pedido' && plazoHab && (

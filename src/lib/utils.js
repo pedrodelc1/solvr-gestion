@@ -84,7 +84,7 @@ export function saldoCliente(clienteOrId, pedidos, devoluciones = [], cobros = [
   const clienteId = typeof clienteOrId === 'object' ? clienteOrId.id : clienteOrId;
   const saldoInicial = typeof clienteOrId === 'object' ? (clienteOrId.saldo_inicial || 0) : 0;
   const deuda = pedidos
-    .filter(p => p.clienteId === clienteId && !p.cobrado && p.tipo !== 'presupuesto')
+    .filter(p => p.clienteId === clienteId && !p.cobrado && p.tipo !== 'presupuesto' && p.confirmado !== false)
     .reduce((s, p) => s + (p.totalFinal ?? p.totalCalculado) - (p.montoAbonado || 0) + calcularMora(p), 0);
   const creditos = devoluciones
     .filter(d => d.clienteId === clienteId)

@@ -400,10 +400,13 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
   }
 
   function handleToggleEntregado(idx) {
-    setItems(items.map((it, i) => i === idx
+    const next = items.map((it, i) => i === idx
       ? { ...it, entregado: !it.entregado, fechaEntrega: !it.entregado ? today() : it.fechaEntrega }
       : it
-    ));
+    );
+    setItems(next);
+    if (next.some(it => it.entregado)) setConfirmado(true);
+    else setConfirmado(false);
   }
 
   function handleChangeFechaEntrega(idx, value) {

@@ -116,6 +116,58 @@ const inputStyle = {
   outline: 'none',
 };
 
+// Sección desplegable (acordeón) — mismo lenguaje visual que SectionHeader
+function Collapsible({ icon, title, subtitle, defaultOpen = false, badge = null, children }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      style={{
+        borderRadius: 14, background: 'var(--bg-2)',
+        border: `1px solid ${open ? 'var(--lime-border)' : 'var(--border)'}`,
+        overflow: 'hidden', transition: 'border-color 200ms',
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: 16, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+      >
+        <div style={{
+          width: 36, height: 36, borderRadius: 10,
+          background: BRAND_DIM, border: `1px solid var(--lime-border)`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: BRAND, flexShrink: 0,
+        }}>
+          {icon}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)', lineHeight: 1.2 }}>{title}</div>
+          {subtitle && <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2, lineHeight: 1.3 }}>{subtitle}</div>}
+        </div>
+        {badge}
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 200ms' }}>
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22, ease: 'easeInOut' }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div style={{ padding: '2px 18px 20px' }}>{children}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
 export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gastos, devoluciones = [], cobros = [], suscripcion, negocioConfig, onNegocioSave, toast, theme, onThemeChange }) {
   const email = session?.user?.email || null;
   const inicial = email ? email[0].toUpperCase() : '?';
@@ -772,21 +824,17 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
             Configuración del Sistema
           </div>
 
-          {/* Card: Datos de la Empresa */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            style={{ borderRadius: 14, background: 'var(--bg-2)', border: '1px solid var(--border)', padding: 20 }}
+          {/* Acordeón: Datos de tu Negocio */}
+          <Collapsible
+            defaultOpen
+            title="Datos de tu Negocio"
+            subtitle="Nombre e información fiscal"
+            icon={
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+              </svg>
+            }
           >
-            <SectionHeader
-              title="Datos de tu Negocio"
-              subtitle="Nombre e información fiscal"
-              icon={
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
-                </svg>
-              }
-            />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <Field label="Nombre del negocio *" hint="Este nombre aparece en tus PDFs y presupuestos">
                 <input
@@ -803,24 +851,18 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
                 />
               </Field>
             </div>
-          </motion.div>
+          </Collapsible>
 
-          {/* Card: Contacto para PDFs */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.05 }}
-            style={{ borderRadius: 14, background: 'var(--bg-2)', border: '1px solid var(--border)', padding: 20 }}
+          {/* Acordeón: Información de Contacto */}
+          <Collapsible
+            title="Información de Contacto"
+            subtitle="Aparece en los PDFs que generás"
+            icon={
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 014.69 12 19.79 19.79 0 011.61 3.4 2 2 0 013.6 1.22h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L7.91 8.78a16 16 0 006.29 6.29l.96-.96a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
+              </svg>
+            }
           >
-            <SectionHeader
-              title="Información de Contacto"
-              subtitle="Aparece en los PDFs que generás"
-              icon={
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 014.69 12 19.79 19.79 0 011.61 3.4 2 2 0 013.6 1.22h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L7.91 8.78a16 16 0 006.29 6.29l.96-.96a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
-                </svg>
-              }
-            />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <Field label="Teléfono / WhatsApp">
                 <input
@@ -844,24 +886,18 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
                 />
               </Field>
             </div>
-          </motion.div>
+          </Collapsible>
 
-          {/* Card: Documentos y Preferencias */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.08 }}
-            style={{ borderRadius: 14, background: 'var(--bg-2)', border: '1px solid var(--border)', padding: 20 }}
+          {/* Acordeón: Documentos y Preferencias */}
+          <Collapsible
+            title="Documentos y Preferencias"
+            subtitle="Moneda, numeración y métodos de pago"
+            icon={
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>
+              </svg>
+            }
           >
-            <SectionHeader
-              title="Documentos y Preferencias"
-              subtitle="Moneda, numeración y métodos de pago"
-              icon={
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>
-                </svg>
-              }
-            />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <Field label="Moneda">
@@ -902,24 +938,18 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
                 />
               </Field>
             </div>
-          </motion.div>
+          </Collapsible>
 
-          {/* Card: WhatsApp */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            style={{ borderRadius: 14, background: 'var(--bg-2)', border: '1px solid var(--border)', padding: 20 }}
+          {/* Acordeón: WhatsApp */}
+          <Collapsible
+            title="Mensaje de Cobro (WhatsApp)"
+            subtitle="Plantilla para recordar pagos pendientes"
+            icon={
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+              </svg>
+            }
           >
-            <SectionHeader
-              title="Mensaje de Cobro (WhatsApp)"
-              subtitle="Plantilla para recordar pagos pendientes"
-              icon={
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-                </svg>
-              }
-            />
             <Field label="Plantilla del mensaje" hint={`Variables: {cliente}, {saldo}, {fecha}. Dejar vacío para usar el mensaje por defecto.`}>
               <textarea
                 placeholder="Hola {cliente}, tenés un pago pendiente de {saldo} del pedido del {fecha}."
@@ -928,7 +958,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
                 autoComplete="off" autoCorrect="off"
               />
             </Field>
-          </motion.div>
+          </Collapsible>
 
           {/* GUARDAR */}
           <motion.button
@@ -961,22 +991,16 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
             )}
           </motion.button>
 
-          {/* Card: Alertas */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.12 }}
-            style={{ borderRadius: 14, background: 'var(--bg-2)', border: '1px solid var(--border)', padding: 20 }}
+          {/* Acordeón: Alertas */}
+          <Collapsible
+            title="Alerta de Cobro Tardío"
+            subtitle="Te avisamos cuando un cliente no paga hace mucho"
+            icon={
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/>
+              </svg>
+            }
           >
-            <SectionHeader
-              title="Alerta de Cobro Tardío"
-              subtitle="Te avisamos cuando un cliente no paga hace mucho"
-              icon={
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/>
-                </svg>
-              }
-            />
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
                 <input
@@ -1000,7 +1024,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
             <p style={{ fontSize: 12, color: 'var(--ink-3)', margin: '10px 0 0', lineHeight: 1.4 }}>
               Si un cliente tiene deuda de hace más de este tiempo, verás un aviso de mora en la lista de clientes.
             </p>
-          </motion.div>
+          </Collapsible>
         </div>
       )}
 
@@ -1011,22 +1035,24 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
             Tu Equipo
           </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            style={{ borderRadius: 14, background: 'var(--bg-2)', border: '1px solid var(--border)', padding: 20, display: 'flex', flexDirection: 'column', gap: 20 }}
+          <Collapsible
+            defaultOpen
+            title="Equipo y roles"
+            subtitle="Invitá personas y asigná permisos"
+            badge={
+              <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, color: 'var(--ink-2)', background: 'var(--bg-3)', border: '1px solid var(--border)', padding: '3px 9px', borderRadius: 7 }}>
+                {planInfo.usados}{planInfo.limite == null ? '' : `/${planInfo.limite}`}
+              </span>
+            }
+            icon={
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/>
+              </svg>
+            }
           >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {/* Invitar */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <SectionHeader
-                title="Agregar a tu equipo"
-                subtitle="Invitá a alguien a usar la app con tu cuenta"
-                icon={
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/>
-                  </svg>
-                }
-              />
 
               {/* Contador de asientos del plan */}
               {(() => {
@@ -1210,7 +1236,8 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
                 })}
               </div>
             )}
-          </motion.div>
+            </div>
+          </Collapsible>
         </div>
       )}
 
@@ -1553,20 +1580,15 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
           Seguridad y Preferencias
         </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          style={{ borderRadius: 14, background: 'var(--bg-2)', border: '1px solid var(--border)', padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}
+        <Collapsible
+          title="Contraseña de acceso"
+          subtitle="Para entrar desde tu celular sin link de email"
+          icon={
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+            </svg>
+          }
         >
-          <SectionHeader
-            title="Contraseña de acceso"
-            subtitle="Para entrar desde tu celular sin link de email"
-            icon={
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
-              </svg>
-            }
-          />
           <div style={{ display: 'flex', gap: 10 }}>
             <input
               type="password" placeholder="Nueva contraseña (mín. 6 caracteres)"
@@ -1583,7 +1605,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
               {updatingPassword ? '...' : 'Guardar'}
             </motion.button>
           </div>
-        </motion.div>
+        </Collapsible>
       </div>
 
       {/* ── TEMA ── */}

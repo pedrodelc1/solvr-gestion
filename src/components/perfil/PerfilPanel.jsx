@@ -294,7 +294,9 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
   const [newOwnerEmail, setNewOwnerEmail] = useState('');
   const [grantingOwner, setGrantingOwner] = useState(false);
   const grantingOwnerRef = useRef(false);
+  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [updatingPassword, setUpdatingPassword] = useState(false);
   const [loadingMap, setLoadingMap] = useState({});
   const [loggingOut, setLoggingOut] = useState(false);
@@ -321,21 +323,52 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
 
   async function handleUpdatePassword() {
     if (updatingPasswordRef.current) return;
+    // Validación frontend (1ª verificación)
+    if (!currentPassword.trim()) {
+      toast('Ingresá tu contraseña actual', 'error');
+      return;
+    }
     if (!newPassword.trim() || newPassword.trim().length < 6) {
-      toast('La contraseña debe tener al menos 6 caracteres', 'error');
+      toast('La nueva contraseña debe tener al menos 6 caracteres', 'error');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast('Las contraseñas nuevas no coinciden', 'error');
+      return;
+    }
+    if (newPassword.trim() === currentPassword.trim()) {
+      toast('La nueva contraseña debe ser distinta a la actual', 'error');
+      return;
+    }
+    if (!email) {
+      toast('No se pudo identificar tu cuenta', 'error');
       return;
     }
     updatingPasswordRef.current = true;
     setUpdatingPassword(true);
     try {
+      // 2ª verificación (backend): re-autenticar con la contraseña actual.
+      // Supabase valida el hash en el servidor; el frontend no puede saltearlo.
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password: currentPassword.trim(),
+      });
+      if (signInError) {
+        toast('La contraseña actual es incorrecta', 'error');
+        updatingPasswordRef.current = false;
+        setUpdatingPassword(false);
+        return;
+      }
       const { error } = await supabase.auth.updateUser({ password: newPassword.trim() });
       if (error) throw error;
-      toast('Contraseña establecida con éxito');
+      toast('Contraseña cambiada con éxito');
+      setCurrentPassword('');
       setNewPassword('');
+      setConfirmPassword('');
     } catch (e) {
       toast(e.message, 'error');
-      updatingPasswordRef.current = false;
     } finally {
+      updatingPasswordRef.current = false;
       setUpdatingPassword(false);
     }
   }
@@ -1582,27 +1615,50 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
 
         <Collapsible
           title="Contraseña de acceso"
-          subtitle="Para entrar desde tu celular sin link de email"
+          subtitle="Cambiala ingresando primero la actual"
           icon={
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
             </svg>
           }
         >
-          <div style={{ display: 'flex', gap: 10 }}>
-            <input
-              type="password" placeholder="Nueva contraseña (mín. 6 caracteres)"
-              value={newPassword} onChange={e => setNewPassword(e.target.value)}
-              style={{ ...inputStyle, flex: 1 }}
-            />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <Field label="Contraseña actual" hint="Por seguridad, confirmá que sos vos antes de cambiarla">
+              <input
+                type="password" placeholder="Tu contraseña actual" autoComplete="current-password"
+                value={currentPassword} onChange={e => setCurrentPassword(e.target.value)}
+                style={inputStyle}
+              />
+            </Field>
+            <Field label="Nueva contraseña">
+              <input
+                type="password" placeholder="Mín. 6 caracteres" autoComplete="new-password"
+                value={newPassword} onChange={e => setNewPassword(e.target.value)}
+                style={inputStyle}
+              />
+            </Field>
+            <Field label="Repetir nueva contraseña">
+              <input
+                type="password" placeholder="Repetí la nueva contraseña" autoComplete="new-password"
+                value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleUpdatePassword()}
+                style={{
+                  ...inputStyle,
+                  borderColor: confirmPassword && confirmPassword !== newPassword ? 'var(--danger)' : 'var(--border)',
+                }}
+              />
+              {confirmPassword && confirmPassword !== newPassword && (
+                <span style={{ fontSize: 11, color: 'var(--danger)' }}>Las contraseñas no coinciden</span>
+              )}
+            </Field>
             <motion.button
               whileTap={{ scale: 0.97 }}
-              className="btn btn-secondary"
+              className="btn btn-secondary btn-full"
               onClick={handleUpdatePassword}
-              disabled={updatingPassword || !newPassword.trim()}
-              style={{ minHeight: 48, padding: '0 16px', fontSize: 14, borderRadius: 10, whiteSpace: 'nowrap' }}
+              disabled={updatingPassword || !currentPassword.trim() || !newPassword.trim() || !confirmPassword.trim()}
+              style={{ minHeight: 48, fontSize: 14, borderRadius: 10 }}
             >
-              {updatingPassword ? '...' : 'Guardar'}
+              {updatingPassword ? 'Cambiando...' : 'Cambiar contraseña'}
             </motion.button>
           </div>
         </Collapsible>

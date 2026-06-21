@@ -4,20 +4,25 @@ import { formatCurrency, formatDate, saldoCliente } from '../../lib/utils.js';
 import { registrarComunicacion } from '../../lib/db.js';
 import { listItem } from '../../lib/animations.js';
 
-export function CobrosPanel({ clientes, pedidos, devoluciones, cobros = [], negocioConfig, onBack, userRole = 'owner' }) {
+export function CobrosPanel({ clientes, pedidos, devoluciones, cobros = [], negocioConfig, diasMora = 30, onBack, userRole = 'owner' }) {
   const canCobrar = ['owner', 'admin', 'vendedor'].includes(userRole);
   const [enviando, setEnviando] = useState({});
 
+  const hoy = new Date();
   const conSaldo = clientes
     .map(c => {
       const saldo = saldoCliente(c, pedidos, devoluciones, cobros);
-      const ultimoPedido = pedidos
-        .filter(p => p.clienteId === c.id && !p.cobrado && p.tipo !== 'presupuesto')
-        .sort((a, b) => b.fecha.localeCompare(a.fecha))[0];
-      return { ...c, saldo, ultimoPedido };
+      const pendientes = pedidos
+        .filter(p => p.clienteId === c.id && !p.cobrado && p.tipo !== 'presupuesto');
+      const ultimoPedido = [...pendientes].sort((a, b) => b.fecha.localeCompare(a.fecha))[0];
+      const enMora = saldo > 0 && pendientes.some(p => {
+        const dias = Math.floor((hoy - new Date(p.fecha)) / (1000 * 60 * 60 * 24));
+        return dias > diasMora;
+      });
+      return { ...c, saldo, ultimoPedido, enMora };
     })
     .filter(c => c.saldo > 0)
-    .sort((a, b) => b.saldo - a.saldo);
+    .sort((a, b) => (b.enMora - a.enMora) || (b.saldo - a.saldo));
 
   async function handleEnviar(cliente) {
     if (enviando[cliente.id]) return;
@@ -79,7 +84,14 @@ export function CobrosPanel({ clientes, pedidos, devoluciones, cobros = [], nego
                     )}
                   </div>
                   <div style={{ minWidth: 0 }}>
-                    <div className="card-name" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.nombre}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', minWidth: 0 }}>
+                      <span className="card-name" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.nombre}</span>
+                      {c.enMora && (
+                        <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: '#f87171', background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)', padding: '2px 7px', borderRadius: 6 }}>
+                          En mora
+                        </span>
+                      )}
+                    </div>
                     {c.ultimoPedido && (
                       <div className="card-sub">Último pedido: {formatDate(c.ultimoPedido.fecha)}</div>
                     )}

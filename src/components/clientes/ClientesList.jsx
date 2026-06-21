@@ -54,6 +54,7 @@ export function ClientesList({ clientes, pedidos, devoluciones, cobros = [], neg
         devoluciones={devoluciones}
         cobros={cobros}
         negocioConfig={negocioConfig}
+        diasMora={diasMora}
         onBack={() => setVerCobros(false)}
         userRole={userRole}
       />

@@ -7,6 +7,7 @@ import {
   getAlertasConfig, saveAlertasConfig,
   getSuscripciones, updateSuscripcion, renovarSuscripcion,
   esSuperadmin, getAdminWhitelist, adminGrantOwner, adminRevokeAccess,
+  getMiPlanAsientos, getAdminPlanes, adminSetPlan,
 } from '../../lib/db.js';
 
 const BRAND = 'var(--lime)';
@@ -234,6 +235,8 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
   const [savingAlerta, setSavingAlerta] = useState(false);
   const [suscripciones, setSuscripciones] = useState([]);
   const [whitelist, setWhitelist] = useState([]);
+  const [planes, setPlanes] = useState([]);
+  const [planInfo, setPlanInfo] = useState({ limite: null, usados: 0, plan: null });
   const [loadingSus, setLoadingSus] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [newOwnerEmail, setNewOwnerEmail] = useState('');
@@ -288,14 +291,16 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
   useEffect(() => {
     getAllowedEmails().then(setAllowedEmails);
     getAlertasConfig().then(cfg => setDiasAlerta(cfg.dias_sin_cobro));
+    getMiPlanAsientos().then(setPlanInfo);
   }, []);
 
   useEffect(() => {
     if (isOwner && showAdminPanel) {
       setLoadingSus(true);
-      Promise.all([getSuscripciones(), getAdminWhitelist()]).then(([sus, wl]) => {
+      Promise.all([getSuscripciones(), getAdminWhitelist(), getAdminPlanes()]).then(([sus, wl, pl]) => {
         setSuscripciones(sus);
         setWhitelist(wl);
+        setPlanes(pl);
         setLoadingSus(false);
       });
     }
@@ -313,6 +318,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
     try {
       const arr = await addAllowedEmail(newEmail.trim(), newRol);
       setAllowedEmails(arr); setNewEmail('');
+      getMiPlanAsientos().then(setPlanInfo);
       toast('Miembro agregado al equipo');
     } catch (e) {
       toast(e.message.includes('unique') ? 'Ese email ya está en el equipo' : e.message, 'error');
@@ -327,6 +333,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
       try {
         const arr = await updateMemberRol(id, rol);
         setAllowedEmails(arr); setEditingRolId(null);
+        getMiPlanAsientos().then(setPlanInfo);
         toast('Rol actualizado');
       } catch (e) { toast(e.message, 'error'); }
     });
@@ -336,7 +343,9 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
     await runAction(id, async () => {
       try {
         const arr = await removeAllowedEmail(id);
-        setAllowedEmails(arr); toast('Email eliminado');
+        setAllowedEmails(arr);
+        getMiPlanAsientos().then(setPlanInfo);
+        toast('Email eliminado');
       } catch (e) { toast(e.message, 'error'); }
     });
   }
@@ -395,6 +404,16 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
         const wl = await adminRevokeAccess(wlEmail);
         setWhitelist(wl);
         toast('Acceso revocado');
+      } catch (e) { toast(e.message, 'error'); }
+    });
+  }
+
+  async function handleSetPlan(id, planId) {
+    await runAction(id + '-plan', async () => {
+      try {
+        const arr = await adminSetPlan(id, planId);
+        setSuscripciones(arr);
+        toast('Plan actualizado');
       } catch (e) { toast(e.message, 'error'); }
     });
   }
@@ -1009,6 +1028,32 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
                 }
               />
 
+              {/* Contador de asientos del plan */}
+              {(() => {
+                const ilimitado = planInfo.limite == null;
+                const atLimit = !ilimitado && planInfo.usados >= planInfo.limite;
+                return (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+                    borderRadius: 10, padding: '10px 12px',
+                    background: atLimit ? 'rgba(248,113,113,0.08)' : 'var(--bg-3)',
+                    border: `1px solid ${atLimit ? 'rgba(248,113,113,0.3)' : 'var(--border)'}`,
+                  }}>
+                    <div style={{ fontSize: 12, color: 'var(--ink-2)' }}>
+                      <strong style={{ color: atLimit ? '#f87171' : 'var(--ink)' }}>{planInfo.usados}</strong>
+                      {ilimitado ? ' usuarios · plan ilimitado' : ` de ${planInfo.limite} usuarios`}
+                      {planInfo.plan && <span style={{ color: 'var(--ink-3)' }}> · {planInfo.plan}</span>}
+                      <div style={{ fontSize: 10, color: 'var(--ink-3)', marginTop: 1 }}>Los visualizadores no cuentan</div>
+                    </div>
+                    {atLimit && (
+                      <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: '#f87171', background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.3)', padding: '3px 8px', borderRadius: 6 }}>
+                        Límite alcanzado
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
+
               <input
                 type="email" placeholder="email@persona.com"
                 value={newEmail} onChange={e => setNewEmail(e.target.value)}
@@ -1051,18 +1096,31 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
                 </div>
               </div>
 
-              <motion.button
-                whileTap={{ scale: 0.97 }}
-                className="btn btn-primary btn-full"
-                onClick={handleAdd}
-                disabled={adding || !newEmail.trim()}
-                style={{ minHeight: 48, fontSize: 15, fontWeight: 700, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                </svg>
-                {adding ? 'Agregando...' : 'Agregar al equipo'}
-              </motion.button>
+              {(() => {
+                const ilimitado = planInfo.limite == null;
+                const bloqueado = !ilimitado && planInfo.usados >= planInfo.limite && newRol !== 'visualizador';
+                return (
+                  <>
+                    {bloqueado && (
+                      <div style={{ fontSize: 12, color: '#f87171', lineHeight: 1.4 }}>
+                        Llegaste al límite de usuarios de tu plan. Podés agregar un <strong>visualizador</strong> (no cuenta) o cambiar a un plan más grande.
+                      </div>
+                    )}
+                    <motion.button
+                      whileTap={{ scale: 0.97 }}
+                      className="btn btn-primary btn-full"
+                      onClick={handleAdd}
+                      disabled={adding || !newEmail.trim() || bloqueado}
+                      style={{ minHeight: 48, fontSize: 15, fontWeight: 700, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: bloqueado ? 0.5 : 1 }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                      </svg>
+                      {adding ? 'Agregando...' : 'Agregar al equipo'}
+                    </motion.button>
+                  </>
+                );
+              })()}
             </div>
 
             {/* Lista de miembros */}
@@ -1289,7 +1347,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
                               <div key={s.id} style={{
                                 padding: '14px 16px',
                                 borderBottom: i < arr.length - 1 ? '1px solid var(--border)' : 'none',
-                                display: 'flex', alignItems: 'center', gap: 12,
+                                display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
                                 opacity: isBaja ? 0.55 : 1,
                                 transition: 'opacity 200ms',
                               }}>
@@ -1363,6 +1421,32 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
                                       {loadingMap[s.id + '-bloqueada'] ? '...' : 'Dar de baja'}
                                     </button>
                                   )}
+                                </div>
+
+                                {/* Plan asignado + asientos usados */}
+                                <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 50 }}>
+                                  <span style={{ fontSize: 10, color: 'var(--ink-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Plan</span>
+                                  <select
+                                    value={s.plan_id || ''}
+                                    onChange={e => handleSetPlan(s.id, e.target.value || null)}
+                                    disabled={loadingMap[s.id + '-plan']}
+                                    style={{
+                                      flex: 1, minWidth: 0, height: 32, borderRadius: 8, padding: '0 8px',
+                                      background: 'var(--bg-3)', border: '1px solid var(--border)',
+                                      color: 'var(--ink)', fontSize: 12, fontWeight: 600,
+                                      cursor: loadingMap[s.id + '-plan'] ? 'wait' : 'pointer',
+                                    }}
+                                  >
+                                    <option value="">Sin plan (prueba)</option>
+                                    {planes.map(p => (
+                                      <option key={p.id} value={p.id}>
+                                        {p.nombre}{p.max_asientos == null ? ' · ilimitado' : ` · ${p.max_asientos} usuario${p.max_asientos === 1 ? '' : 's'}`}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <span style={{ fontSize: 11, color: 'var(--ink-3)', whiteSpace: 'nowrap' }}>
+                                    {s.asientos_usados} en uso
+                                  </span>
                                 </div>
                               </div>
                             );

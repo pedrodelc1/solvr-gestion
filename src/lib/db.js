@@ -758,6 +758,15 @@ export async function saveAlertasConfig(diasSinCobro) {
 
 // ── SUSCRIPCIONES ─────────────────────────────────────────
 
+// Límite de usuarios (asientos) del negocio actual.
+// { limite: number|null (null = ilimitado), usados: number, plan: string|null }
+export async function getMiPlanAsientos() {
+  if (!useSupabase()) return { limite: null, usados: 0, plan: null };
+  const { data, error } = await supabase.rpc('mi_plan_asientos');
+  if (error || !data) return { limite: null, usados: 0, plan: null };
+  return data;
+}
+
 export async function getSuscripcion() {
   if (!useSupabase()) return null;
   const { data } = await supabase
@@ -832,6 +841,21 @@ export async function updateSuscripcion(id, changes) {
 // Extiende la suscripción 30 días (solo superadmin)
 export async function renovarSuscripcion(suscripcionId) {
   const { error } = await supabase.rpc('admin_renovar_suscripcion', { p_id: suscripcionId });
+  if (error) throw friendlyError(error);
+  return getSuscripciones();
+}
+
+// Lista los planes activos (solo superadmin)
+export async function getAdminPlanes() {
+  if (!useSupabase()) return [];
+  const { data, error } = await supabase.rpc('admin_planes');
+  if (error) return [];
+  return data || [];
+}
+
+// Asigna (o quita, con planId null) un plan a una suscripción (solo superadmin)
+export async function adminSetPlan(suscripcionId, planId) {
+  const { error } = await supabase.rpc('admin_set_plan', { p_suscripcion_id: suscripcionId, p_plan_id: planId || null });
   if (error) throw friendlyError(error);
   return getSuscripciones();
 }

@@ -409,6 +409,17 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
     else setConfirmado(false);
   }
 
+  // Confirmar y Entregado van de la mano en ambos sentidos:
+  // confirmar Sí → todos los ítems entregados; confirmar No → ninguno.
+  function handleSetConfirmado(value) {
+    setConfirmado(value);
+    setItems(items.map(it => ({
+      ...it,
+      entregado: value,
+      fechaEntrega: value ? (it.fechaEntrega || today()) : it.fechaEntrega,
+    })));
+  }
+
   function handleChangeFechaEntrega(idx, value) {
     setItems(items.map((it, i) => i === idx ? { ...it, fechaEntrega: value } : it));
   }
@@ -603,7 +614,7 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
               <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginLeft: 12 }}>
                 <button
                   type="button"
-                  onClick={() => setConfirmado(true)}
+                  onClick={() => handleSetConfirmado(true)}
                   style={{
                     padding: '6px 14px', borderRadius: 8, fontWeight: 700, fontSize: 13,
                     border: confirmado ? 'none' : '1px solid var(--border)',
@@ -616,7 +627,7 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
                 </button>
                 <button
                   type="button"
-                  onClick={() => setConfirmado(false)}
+                  onClick={() => handleSetConfirmado(false)}
                   style={{
                     padding: '6px 14px', borderRadius: 8, fontWeight: 700, fontSize: 13,
                     border: !confirmado ? 'none' : '1px solid var(--border)',

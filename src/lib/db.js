@@ -35,14 +35,17 @@ function useSupabase() {
   );
 }
 
+// getSession() lee la sesión de localStorage (sin red); getUser() haría un
+// request a /auth/v1/user en cada llamada. Para obtener el id/email del usuario
+// (la autorización real la aplica RLS en el backend) la sesión local alcanza.
 async function getUserId() {
-  const { data } = await supabase.auth.getUser();
-  return data?.user?.id;
+  const { data } = await supabase.auth.getSession();
+  return data?.session?.user?.id;
 }
 
 async function getUserEmail() {
-  const { data } = await supabase.auth.getUser();
-  return data?.user?.email;
+  const { data } = await supabase.auth.getSession();
+  return data?.session?.user?.email;
 }
 
 // Traduce errores de Postgres (constraints/RLS) a mensajes claros para el usuario
@@ -329,7 +332,8 @@ export async function savePedido(data) {
     }
     return arr;
   }
-  if (!(await getUserId())) throw new Error('Not authenticated');
+  const userId = await getUserId();
+  if (!userId) throw new Error('Not authenticated');
   if (!isUUID(data.clienteId)) {
     throw new Error('Este cliente fue creado sin conexión. Eliminalo y volvé a crearlo para poder guardar pedidos.');
   }
@@ -353,7 +357,6 @@ export async function savePedido(data) {
   const maxNro = maxData && maxData[0] ? (maxData[0].nro || 0) : 0;
   const nextNro = maxNro > 0 ? Math.max(maxNro + 1, numInicial) : numInicial;
 
-  const userId = await getUserId();
   const { data: inserted, error } = await supabase
     .from('pedidos')
     .insert({
@@ -392,13 +395,17 @@ export async function savePedido(data) {
     const { error: eItems } = await supabase.from('pedido_items').insert(items);
     if (eItems) throw friendlyError(eItems);
   }
-  // Solo descuenta stock en pedidos reales (no presupuestos)
+  // Solo descuenta stock en pedidos reales (no presupuestos).
+  // Se agrupan los deltas por producto (un mismo producto en dos ítems no debe
+  // pisar la lectura-escritura del otro) y se ajustan en paralelo.
   if (data.tipo !== 'presupuesto' && data.items) {
+    const deltaPorProducto = new Map();
     for (const item of data.items) {
       if (item.productoId && isUUID(item.productoId)) {
-        await ajustarStock(item.productoId, -item.cantidad);
+        deltaPorProducto.set(item.productoId, (deltaPorProducto.get(item.productoId) || 0) - item.cantidad);
       }
     }
+    await Promise.all([...deltaPorProducto].map(([pid, delta]) => ajustarStock(pid, delta)));
   }
   return getPedidos();
 }
@@ -778,8 +785,9 @@ export async function getSuscripcion() {
 
 export async function crearSuscripcionTrial() {
   if (!useSupabase()) return null;
-  const userId = await getUserId();
-  const email = await getUserEmail();
+  const { data: sessData } = await supabase.auth.getSession();
+  const userId = sessData?.session?.user?.id;
+  const email = sessData?.session?.user?.email;
   if (!userId) return null;
 
   const hoy = new Date();

@@ -532,7 +532,7 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
           </div>
           <div className="form-group">
             <label htmlFor="pf-medio">Medio de pago</label>
-            <select id="pf-medio" value={medioPago} onChange={e => { setMedioPago(e.target.value); if (!e.target.value.toLowerCase().includes('tarjeta')) setCuotas(1); }}>
+            <select id="pf-medio" value={medioPago} onChange={e => { const v = e.target.value; setMedioPago(v); if (v.toLowerCase().includes('tarjeta')) setPlazoHab(false); else setCuotas(1); }}>
               {metodosArr.map(m => (
                 <option key={m} value={m.toLowerCase()}>{m}</option>
               ))}
@@ -574,10 +574,12 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
                 Cobrado
               </button>
             )}
-            <button type="button" className={`opt-chip${plazoHab ? ' opt-chip--plazo' : ''}`} onClick={() => setPlazoHab(v => !v)}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-              A plazo
-            </button>
+            {!esTarjeta && (
+              <button type="button" className={`opt-chip${plazoHab ? ' opt-chip--plazo' : ''}`} onClick={() => setPlazoHab(v => !v)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                A plazo
+              </button>
+            )}
             <button type="button" className={`opt-chip${descuentoHab ? ' opt-chip--descuento' : ''}`} onClick={() => setDescuentoHab(v => !v)}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
               Descuento
@@ -585,7 +587,7 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
           </div>
         )}
 
-        {tipo === 'pedido' && plazoHab && (
+        {tipo === 'pedido' && plazoHab && !esTarjeta && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
             <div className="form-group">
               <label style={{ fontSize: 'var(--text-sm)', fontWeight: 500, color: 'var(--ink-2)' }}>Días de plazo</label>

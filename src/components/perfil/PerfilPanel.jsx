@@ -993,36 +993,56 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
             </Field>
           </Collapsible>
 
-          {/* GUARDAR */}
-          <motion.button
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.98 }}
-            className="btn btn-primary btn-full"
-            onClick={handleSaveConfig}
-            disabled={savingNegocio || !negocioNombre.trim()}
-            style={{
-              minHeight: 52, fontSize: 16, fontWeight: 700,
-              borderRadius: 14,
-              boxShadow: savingNegocio ? 'none' : `0 4px 20px rgba(204,255,0,0.25)`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            }}
-          >
-            {savingNegocio ? (
-              <>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 1s linear infinite' }}>
-                  <line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/>
-                </svg>
-                Guardando...
-              </>
-            ) : (
-              <>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="20 6 9 17 4 12"/>
-                </svg>
-                Guardar Cambios
-              </>
-            )}
-          </motion.button>
+          {/* GUARDAR — solo aparece si hay cambios sin guardar */}
+          {(() => {
+            const negocioDirty =
+              negocioNombre !== (negocioConfig?.nombre || '') ||
+              moneda !== (negocioConfig?.moneda || '$') ||
+              telefono !== (negocioConfig?.telefono || '') ||
+              direccion !== (negocioConfig?.direccion || '') ||
+              negocioEmail !== (negocioConfig?.email || '') ||
+              cuit !== (negocioConfig?.cuit || '') ||
+              notaPdf !== (negocioConfig?.nota_pdf || '') ||
+              numInicial !== (negocioConfig?.num_inicial || 1) ||
+              metodosPago !== (negocioConfig?.metodos_pago || 'Efectivo, Transferencia, Tarjeta') ||
+              recordatorioPlantilla !== (negocioConfig?.recordatorio_plantilla || '');
+            if (!negocioDirty && !savingNegocio) return null;
+            return (
+              <motion.button
+                key="guardar-config"
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.18 }}
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.98 }}
+                className="btn btn-primary btn-full"
+                onClick={handleSaveConfig}
+                disabled={savingNegocio || !negocioNombre.trim()}
+                style={{
+                  minHeight: 52, fontSize: 16, fontWeight: 700,
+                  borderRadius: 14,
+                  boxShadow: savingNegocio ? 'none' : `0 4px 20px rgba(204,255,0,0.25)`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                }}
+              >
+                {savingNegocio ? (
+                  <>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: 'spin 1s linear infinite' }}>
+                      <line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/>
+                    </svg>
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    Guardar Cambios
+                  </>
+                )}
+              </motion.button>
+            );
+          })()}
 
           {/* Acordeón: Alertas */}
           <Collapsible

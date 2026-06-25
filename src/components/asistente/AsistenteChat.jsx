@@ -247,6 +247,8 @@ export function AsistenteChat() {
         aria-label="Abrir asistente"
         whileHover="hover"
         whileTap={{ scale: 0.94 }}
+        animate={{ opacity: open ? 0 : 1, pointerEvents: open ? 'none' : 'auto' }}
+        transition={{ duration: 0.15 }}
         variants={{
           hover: {
             boxShadow: '0 0 0 6px oklch(88% 0.22 130 / 0.15), 0 0 0 12px oklch(88% 0.22 130 / 0.07), 0 16px 40px rgba(0,0,0,0.5)',

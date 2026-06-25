@@ -328,10 +328,11 @@ export function AsistenteChat() {
               exit={{ opacity: 0, y: 12, scale: 0.98 }}
               transition={{ type: 'spring', stiffness: 400, damping: 32 }}
               style={{
-                position: 'fixed', right: 16,
-                bottom: 'calc(var(--nav-h, 58px) + 80px)',
-                width: 'min(380px, calc(100vw - 32px))',
-                height: 'min(580px, calc(100dvh - var(--nav-h, 58px) - 110px))',
+                position: 'fixed',
+                right: 'clamp(0px, 16px, 4vw)',
+                bottom: 'var(--nav-h, 58px)',
+                width: 'min(380px, 100vw)',
+                height: 'calc(100dvh - var(--nav-h, 58px) - 64px)',
                 background: 'var(--bg-2)',
                 border: '1px solid var(--border)',
                 borderRadius: 16,
@@ -540,11 +541,16 @@ export function AsistenteChat() {
                     ref={inputRef}
                     className="sg-input"
                     value={pregunta}
-                    onChange={(e) => setPregunta(e.target.value)}
+                    onChange={(e) => {
+                      setPregunta(e.target.value);
+                      e.target.style.height = 'auto';
+                      e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+                    }}
                     onKeyDown={onKeyDown}
                     placeholder="Preguntá lo que necesites…"
                     rows={1}
                     disabled={streaming}
+                    style={{ height: '24px' }}
                   />
                   {streaming ? (
                     <button className="sg-stop-btn" onClick={cancelar} aria-label="Parar">

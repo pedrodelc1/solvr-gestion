@@ -20,6 +20,7 @@ import {
 import { inRange, saldoCliente } from './lib/utils.js';
 
 import { LoginScreen } from './components/auth/LoginScreen.jsx';
+import { LandingScreen } from './components/auth/LandingScreen.jsx';
 import { SplashScreen } from './components/auth/SplashScreen.jsx';
 import { BottomNav } from './components/shared/BottomNav.jsx';
 import { ToastContainer } from './components/shared/Toast.jsx';
@@ -41,6 +42,7 @@ import { SuscripcionBlocker } from './components/suscripciones/SuscripcionBlocke
 import { TrialBanner } from './components/shared/TrialBanner.jsx';
 import { OnboardingWizard } from './components/onboarding/OnboardingWizard.jsx';
 import { TeamWelcomeScreen } from './components/onboarding/TeamWelcomeScreen.jsx';
+import { AsistenteChat } from './components/asistente/AsistenteChat.jsx';
 
 let _toastId = 0;
 
@@ -69,6 +71,7 @@ export default function App() {
   const [authChecked, setAuthChecked] = useState(false);
   const [showSplash, setShowSplash] = useState(() => !sessionStorage.getItem('sg_splash_done'));
   const [theme, setTheme] = useState(() => localStorage.getItem('sg_theme') || 'dark');
+  const [authView, setAuthView] = useState('landing'); // 'landing' | 'login'
 
   // Token verification intercepts (to prevent email client prefetch consuming links)
   const [verifyTokenHash, setVerifyTokenHash] = useState(() => {
@@ -364,13 +367,18 @@ export default function App() {
 
   async function handleSavePedido(data) {
     try {
-      let arr;
       if (data.id && pedidos.find(p => p.id === data.id)) {
-        arr = await updatePedido(data.id, data);
+        const arr = await updatePedido(data.id, data);
+        setPedidos(arr);
       } else {
-        arr = await savePedido(data);
+        // Calcular el nro en memoria para evitar un round-trip extra
+        const numInicial = parseInt(negocioConfig?.num_inicial) || 1;
+        const maxNro = pedidos.reduce((m, p) => Math.max(m, p.nro || 0), 0);
+        const nro = maxNro > 0 ? Math.max(maxNro + 1, numInicial) : numInicial;
+        const nuevo = await savePedido({ ...data, nro });
+        // Update optimista: prepend sin re-descargar todo (realtime reconcilia)
+        setPedidos(prev => [nuevo, ...prev]);
       }
-      setPedidos(arr);
       setShowPedidoForm(false);
       setPreClienteId(null);
       setEditingPedido(null);
@@ -571,7 +579,11 @@ export default function App() {
   if (!session) {
     return (
       <>
-        <LoginScreen />
+        {authView === 'landing' ? (
+          <LandingScreen onLogin={() => setAuthView('login')} />
+        ) : (
+          <LoginScreen onBack={() => setAuthView('landing')} />
+        )}
         <ToastContainer toasts={toasts} />
       </>
     );
@@ -790,6 +802,8 @@ export default function App() {
       </div>
 
       <BottomNav activeTab={activeTab} onTabChange={handleTabChange} alertCount={alertCount} allowedTabs={ALLOWED_TABS[userRole] || ALLOWED_TABS.owner} />
+
+      <AsistenteChat />
 
       <ClienteForm
         open={clienteFormOpen}

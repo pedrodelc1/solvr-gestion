@@ -234,14 +234,8 @@ export async function ajustarStock(productoId, delta) {
     }
     return;
   }
-  const { data, error } = await supabase
-    .from('productos')
-    .select('stock')
-    .eq('id', productoId)
-    .single();
-  if (error || !data) return;
-  const nuevoStock = Math.max(0, (data.stock || 0) + delta);
-  await supabase.from('productos').update({ stock: nuevoStock }).eq('id', productoId);
+  // Ajuste atómico en una sola ida (antes: SELECT + UPDATE)
+  await supabase.rpc('ajustar_stock', { p_producto_id: productoId, p_delta: delta });
 }
 
 // ── PEDIDOS ───────────────────────────────────────────────
@@ -282,6 +276,7 @@ export async function getPedidos() {
   const mapped = pedRows.map((r, idx) => ({
     id: r.id,
     fetchOrder: idx,
+    nro: r.nro,
     clienteId: r.cliente_id,
     fecha: r.fecha,
     totalCalculado: r.total_calculado,
@@ -348,14 +343,17 @@ export async function savePedido(data) {
     requireMontoValido(i.precioUnitario, 'precio unitario');
   }
 
-  // Calculate next sequential number for Supabase
-  const { data: maxData } = await supabase
-    .from('pedidos')
-    .select('nro')
-    .order('nro', { ascending: false })
-    .limit(1);
-  const maxNro = maxData && maxData[0] ? (maxData[0].nro || 0) : 0;
-  const nextNro = maxNro > 0 ? Math.max(maxNro + 1, numInicial) : numInicial;
+  // Número secuencial: si el caller ya lo calculó en memoria, evitamos el query.
+  let nextNro = data.nro;
+  if (!nextNro) {
+    const { data: maxData } = await supabase
+      .from('pedidos')
+      .select('nro')
+      .order('nro', { ascending: false })
+      .limit(1);
+    const maxNro = maxData && maxData[0] ? (maxData[0].nro || 0) : 0;
+    nextNro = maxNro > 0 ? Math.max(maxNro + 1, numInicial) : numInicial;
+  }
 
   const { data: inserted, error } = await supabase
     .from('pedidos')
@@ -376,11 +374,15 @@ export async function savePedido(data) {
       descuento_valor: data.descuentoValor || 0,
       dias_plazo: data.diasPlazo || 0,
       tasa_mora: data.tasaMora || 0,
-      nro: data.nro || nextNro,
+      nro: nextNro,
     })
     .select()
     .single();
   if (error) throw friendlyError(error);
+
+  // Insert de ítems y descuento de stock en paralelo (ambos ya tienen lo que
+  // necesitan: el id del pedido y los ids de producto).
+  const tareas = [];
   if (data.items && data.items.length) {
     const items = data.items.map(i => ({
       pedido_id: inserted.id,
@@ -392,12 +394,12 @@ export async function savePedido(data) {
       entregado: i.entregado || false,
       fecha_entrega: i.fechaEntrega || null,
     }));
-    const { error: eItems } = await supabase.from('pedido_items').insert(items);
-    if (eItems) throw friendlyError(eItems);
+    tareas.push(
+      supabase.from('pedido_items').insert(items).then(({ error: eItems }) => {
+        if (eItems) throw friendlyError(eItems);
+      })
+    );
   }
-  // Solo descuenta stock en pedidos reales (no presupuestos).
-  // Se agrupan los deltas por producto (un mismo producto en dos ítems no debe
-  // pisar la lectura-escritura del otro) y se ajustan en paralelo.
   if (data.tipo !== 'presupuesto' && data.items) {
     const deltaPorProducto = new Map();
     for (const item of data.items) {
@@ -405,9 +407,43 @@ export async function savePedido(data) {
         deltaPorProducto.set(item.productoId, (deltaPorProducto.get(item.productoId) || 0) - item.cantidad);
       }
     }
-    await Promise.all([...deltaPorProducto].map(([pid, delta]) => ajustarStock(pid, delta)));
+    for (const [pid, delta] of deltaPorProducto) tareas.push(ajustarStock(pid, delta));
   }
-  return getPedidos();
+  await Promise.all(tareas);
+
+  // Devolvemos el pedido recién creado (con su id real) en vez de re-descargar
+  // toda la lista. El realtime reconcilia el resto en segundo plano.
+  return {
+    id: inserted.id,
+    fetchOrder: -1,
+    clienteId: inserted.cliente_id,
+    fecha: inserted.fecha,
+    totalCalculado: inserted.total_calculado,
+    totalFinal: inserted.total_final,
+    medioPago: inserted.medio_pago,
+    cuotas: inserted.cuotas || 1,
+    cobrado: inserted.cobrado,
+    montoAbonado: inserted.monto_abonado || 0,
+    nota: inserted.nota || null,
+    createdAt: inserted.created_at || inserted.fecha,
+    diasPlazo: inserted.dias_plazo || 0,
+    tasaMora: inserted.tasa_mora || 0,
+    tipo: inserted.tipo || 'pedido',
+    confirmado: inserted.confirmado ?? true,
+    descuentoTipo: inserted.descuento_tipo || null,
+    descuentoValor: inserted.descuento_valor || 0,
+    nro: inserted.nro,
+    items: (data.items || []).map(i => ({
+      id: uid(),
+      productoId: i.productoId || null,
+      nombre: i.nombre,
+      cantidad: i.cantidad,
+      precioUnitario: i.precioUnitario,
+      costoUnitario: i.costoUnitario || 0,
+      entregado: i.entregado || false,
+      fechaEntrega: i.fechaEntrega || null,
+    })),
+  };
 }
 
 export async function updatePedido(id, data) {

@@ -426,9 +426,11 @@ export function AsistenteChat() {
               <div
                 ref={scrollRef}
                 style={{
-                  flex: 1, overflowY: 'auto',
+                  flex: mensajes.length > 0 ? 1 : '0 0 auto',
+                  overflowY: 'auto',
                   padding: '8px 16px 16px',
                   display: 'flex', flexDirection: 'column', gap: 14,
+                  minHeight: 0,
                 }}
               >
                 {mensajes.length === 0 && !streaming && (

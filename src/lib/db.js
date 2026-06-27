@@ -20,8 +20,32 @@ function lsGet(key, def) {
   }
 }
 
+// Snapshot síncrono de la caché en localStorage para hidratar la UI al toque
+// sin esperar a Supabase. La data fresca llega después y reconcilia.
+export function getCachedSnapshot() {
+  return {
+    clientes:   lsGet('clientes', []),
+    productos:  lsGet('productos', []),
+    pedidos:    lsGet('pedidos', []),
+    gastos:     lsGet('gastos', []),
+    cobros:     lsGet('cobros', []),
+    categorias: lsGet('categorias', DEFAULT_CATS),
+  };
+}
+
 function lsSet(key, val) {
   localStorage.setItem(LS_KEYS[key], JSON.stringify(val));
+}
+
+// negocio_id activo, cacheado al loguearse. Se manda explícito en cada INSERT
+// para no depender del trigger set_negocio_id_default + mi_negocio_id(), que
+// puede devolver null si la membresía recién se creó y el JWT no la refleja.
+const NEGOCIO_ID_KEY = 'sg_negocio_id';
+export function setCachedNegocioId(id) {
+  if (id) localStorage.setItem(NEGOCIO_ID_KEY, id);
+}
+export function getCachedNegocioId() {
+  return localStorage.getItem(NEGOCIO_ID_KEY) || null;
 }
 
 function isUUID(str) {
@@ -105,9 +129,10 @@ export async function saveCliente(data) {
       arr.push({ ...data, id: uid() });
     }
     lsSet('clientes', arr);
-    return arr;
+    return data.id ? data : arr[arr.length - 1];
   }
-  if (!(await getUserId())) throw new Error('Not authenticated');
+  const userIdCli = await getUserId();
+  if (!userIdCli) throw new Error('Not authenticated');
   if (!data.nombre || !String(data.nombre).trim()) throw new Error('El nombre del cliente es obligatorio');
   const fields = {
     nombre: String(data.nombre).trim(),
@@ -118,28 +143,46 @@ export async function saveCliente(data) {
     saldo_inicial: requireMontoValido(data.saldo_inicial || 0, 'saldo inicial'),
     foto_url: data.foto_url || null,
   };
+  const negocioIdC = getCachedNegocioId();
+  let row;
   if (data.id) {
-    const { error } = await supabase.from('clientes').update(fields).eq('id', data.id);
-    if (error) throw friendlyError(error);
+    const r = await supabase.from('clientes').update(fields).eq('id', data.id).select().single();
+    if (r.error) throw friendlyError(r.error);
+    row = r.data;
   } else {
+    const id = uid();
+    fields.id = id;
+    fields.user_id = userIdCli;
+    if (negocioIdC) fields.negocio_id = negocioIdC;
     const { error } = await supabase.from('clientes').insert(fields);
     if (error) throw friendlyError(error);
+    row = { id, ...fields };
   }
-  return getClientes();
+  return {
+    id: row.id,
+    nombre: row.nombre,
+    contacto: row.contacto || '',
+    email: row.email || '',
+    direccion: row.direccion || '',
+    tipo_precio: row.tipo_precio || 'minorista',
+    saldo_inicial: row.saldo_inicial || 0,
+    foto_url: row.foto_url || null,
+    created_at: row.created_at || null,
+  };
 }
 
 export async function deleteCliente(id) {
   if (!useSupabase()) {
     const arr = lsGet('clientes', []).filter(x => x.id !== id);
     lsSet('clientes', arr);
-    return arr;
+    return id;
   }
   const { data, error } = await supabase.from('clientes').delete().eq('id', id).select('id');
   if (error) throw friendlyError(error);
   if (!data || data.length === 0) {
     throw new Error('No se pudo eliminar el cliente: no tenés permiso o ya no existe.');
   }
-  return getClientes();
+  return id;
 }
 
 // ── PRODUCTOS ─────────────────────────────────────────────
@@ -179,9 +222,10 @@ export async function saveProducto(data) {
       arr.push({ ...data, id: uid() });
     }
     lsSet('productos', arr);
-    return arr;
+    return data.id ? data : arr[arr.length - 1];
   }
-  if (!(await getUserId())) throw new Error('Not authenticated');
+  const userIdProd = await getUserId();
+  if (!userIdProd) throw new Error('Not authenticated');
   if (!data.nombre || !String(data.nombre).trim()) throw new Error('El nombre del producto es obligatorio');
   const fields = {
     nombre: String(data.nombre).trim(),
@@ -193,34 +237,53 @@ export async function saveProducto(data) {
     stock_minimo: requireMontoValido(data.stock_minimo ?? 5, 'stock mínimo'),
   };
   if (data.id) {
-    // Guardar historial si cambiaron los precios
+    // El historial se inserta en paralelo solo si cambiaron los precios
     const { data: prev } = await supabase.from('productos').select('precio, costo, precio_mayorista').eq('id', data.id).single();
+    const tasks = [supabase.from('productos').update(fields).eq('id', data.id).select().single()];
     if (prev && (prev.precio !== data.precio || prev.costo !== data.costo || prev.precio_mayorista !== (data.precio_mayorista || 0))) {
-      await supabase.from('productos_precio_historial').insert({
+      tasks.push(supabase.from('productos_precio_historial').insert({
         producto_id: data.id,
         precio: prev.precio,
         costo: prev.costo,
         precio_mayorista: prev.precio_mayorista || 0,
-      });
+      }));
     }
-    const { error } = await supabase.from('productos').update(fields).eq('id', data.id);
+    const [{ data: row, error }] = await Promise.all(tasks);
     if (error) throw friendlyError(error);
-  } else {
-    const { error } = await supabase.from('productos').insert(fields);
-    if (error) throw friendlyError(error);
+    return mapProducto(row);
   }
-  return getProductos();
+  const negocioIdP = getCachedNegocioId();
+  const id = uid();
+  fields.id = id;
+  fields.user_id = userIdProd;
+  if (negocioIdP) fields.negocio_id = negocioIdP;
+  const { error } = await supabase.from('productos').insert(fields);
+  if (error) throw friendlyError(error);
+  return mapProducto({ id, ...fields });
+}
+
+function mapProducto(r) {
+  return {
+    id: r.id,
+    nombre: r.nombre,
+    marca: r.marca || null,
+    precio: r.precio,
+    costo: r.costo || 0,
+    precio_mayorista: r.precio_mayorista || 0,
+    stock: r.stock ?? 0,
+    stock_minimo: r.stock_minimo ?? 5,
+  };
 }
 
 export async function deleteProducto(id) {
   if (!useSupabase()) {
     const arr = lsGet('productos', []).filter(x => x.id !== id);
     lsSet('productos', arr);
-    return arr;
+    return id;
   }
   const { error } = await supabase.from('productos').delete().eq('id', id);
   if (error) throw error;
-  return getProductos();
+  return id;
 }
 
 // Ajusta el stock de un producto (delta negativo = descuento, nunca queda negativo)
@@ -355,9 +418,15 @@ export async function savePedido(data) {
     nextNro = maxNro > 0 ? Math.max(maxNro + 1, numInicial) : numInicial;
   }
 
-  const { data: inserted, error } = await supabase
+  const negocioIdPed = getCachedNegocioId();
+  // Id client-side: ahorra el .select().single() de vuelta y deja insertar
+  // los ítems en paralelo con el pedido (mismo patrón que gastos/cobros).
+  const pedidoId = (data.id && isUUID(data.id)) ? data.id : (crypto?.randomUUID?.() || uid());
+  const insertPedido = supabase
     .from('pedidos')
     .insert({
+      id: pedidoId,
+      ...(negocioIdPed ? { negocio_id: negocioIdPed } : {}),
       user_id: userId,
       cliente_id: data.clienteId,
       fecha: data.fecha,
@@ -376,16 +445,12 @@ export async function savePedido(data) {
       tasa_mora: data.tasaMora || 0,
       nro: nextNro,
     })
-    .select()
-    .single();
-  if (error) throw friendlyError(error);
+    .then(({ error }) => { if (error) throw friendlyError(error); });
 
-  // Insert de ítems y descuento de stock en paralelo (ambos ya tienen lo que
-  // necesitan: el id del pedido y los ids de producto).
-  const tareas = [];
+  const tareas = [insertPedido];
   if (data.items && data.items.length) {
     const items = data.items.map(i => ({
-      pedido_id: inserted.id,
+      pedido_id: pedidoId,
       producto_id: i.productoId || null,
       nombre: i.nombre,
       cantidad: i.cantidad,
@@ -411,28 +476,26 @@ export async function savePedido(data) {
   }
   await Promise.all(tareas);
 
-  // Devolvemos el pedido recién creado (con su id real) en vez de re-descargar
-  // toda la lista. El realtime reconcilia el resto en segundo plano.
   return {
-    id: inserted.id,
+    id: pedidoId,
     fetchOrder: -1,
-    clienteId: inserted.cliente_id,
-    fecha: inserted.fecha,
-    totalCalculado: inserted.total_calculado,
-    totalFinal: inserted.total_final,
-    medioPago: inserted.medio_pago,
-    cuotas: inserted.cuotas || 1,
-    cobrado: inserted.cobrado,
-    montoAbonado: inserted.monto_abonado || 0,
-    nota: inserted.nota || null,
-    createdAt: inserted.created_at || inserted.fecha,
-    diasPlazo: inserted.dias_plazo || 0,
-    tasaMora: inserted.tasa_mora || 0,
-    tipo: inserted.tipo || 'pedido',
-    confirmado: inserted.confirmado ?? true,
-    descuentoTipo: inserted.descuento_tipo || null,
-    descuentoValor: inserted.descuento_valor || 0,
-    nro: inserted.nro,
+    clienteId: data.clienteId,
+    fecha: data.fecha,
+    totalCalculado: data.totalCalculado,
+    totalFinal: data.totalFinal,
+    medioPago: data.medioPago,
+    cuotas: data.cuotas || 1,
+    cobrado: data.cobrado || false,
+    montoAbonado: data.montoAbonado || 0,
+    nota: data.nota || null,
+    createdAt: data.fecha,
+    diasPlazo: data.diasPlazo || 0,
+    tasaMora: data.tasaMora || 0,
+    tipo: data.tipo || 'pedido',
+    confirmado: data.confirmado ?? true,
+    descuentoTipo: data.descuentoTipo || null,
+    descuentoValor: data.descuentoValor || 0,
+    nro: nextNro,
     items: (data.items || []).map(i => ({
       id: uid(),
       productoId: i.productoId || null,
@@ -472,37 +535,40 @@ export async function updatePedido(id, data) {
   if ('tasaMora' in data) update.tasa_mora = data.tasaMora;
   if ('confirmado' in data) update.confirmado = data.confirmado;
 
-  const { error } = await supabase.from('pedidos').update(update).eq('id', id);
-  if (error) throw friendlyError(error);
-
-  // Re-sync items: delete old, insert new
+  // El UPDATE del pedido y el delete de items pueden ir en paralelo (ambos
+  // dependen solo del id, no entre sí). El insert va al final cuando el delete
+  // ya liberó la unique key, pero los hacemos secuenciales solo si hay items.
+  const tasks = [supabase.from('pedidos').update(update).eq('id', id)];
   if (data.items) {
-    const { error: eDel } = await supabase.from('pedido_items').delete().eq('pedido_id', id);
-    if (eDel) throw friendlyError(eDel);
-    if (data.items.length > 0) {
-      const newItems = data.items.map(i => ({
-        pedido_id: id,
-        producto_id: i.productoId || null,
-        nombre: i.nombre,
-        cantidad: i.cantidad,
-        precio_unitario: i.precioUnitario,
-        costo_unitario: i.costoUnitario || 0,
-        entregado: i.entregado || false,
-        fecha_entrega: i.fechaEntrega || null,
-      }));
-      const { error: eIns } = await supabase.from('pedido_items').insert(newItems);
-      if (eIns) throw friendlyError(eIns);
-    }
+    tasks.push(supabase.from('pedido_items').delete().eq('pedido_id', id));
+  }
+  const results = await Promise.all(tasks);
+  for (const r of results) if (r.error) throw friendlyError(r.error);
+
+  if (data.items && data.items.length > 0) {
+    const newItems = data.items.map(i => ({
+      pedido_id: id,
+      producto_id: i.productoId || null,
+      nombre: i.nombre,
+      cantidad: i.cantidad,
+      precio_unitario: i.precioUnitario,
+      costo_unitario: i.costoUnitario || 0,
+      entregado: i.entregado || false,
+      fecha_entrega: i.fechaEntrega || null,
+    }));
+    const { error: eIns } = await supabase.from('pedido_items').insert(newItems);
+    if (eIns) throw friendlyError(eIns);
   }
 
-  return getPedidos();
+  // Devolver el pedido actualizado en memoria (sin re-fetch completo)
+  return { id, ...data };
 }
 
 export async function deletePedido(id) {
   if (!useSupabase()) {
     const arr = lsGet('pedidos', []).filter(x => x.id !== id);
     lsSet('pedidos', arr);
-    return arr;
+    return id;
   }
   // .select() para verificar que realmente se borró una fila. Si RLS bloquea,
   // PostgREST no tira error pero borra 0 filas — eso causaría un "fantasma".
@@ -511,7 +577,7 @@ export async function deletePedido(id) {
   if (!data || data.length === 0) {
     throw new Error('No se pudo eliminar el pedido: no tenés permiso o ya no existe.');
   }
-  return getPedidos();
+  return id;
 }
 
 export async function marcarPedidoEntregado(pedidoId) {
@@ -524,21 +590,16 @@ export async function marcarPedidoEntregado(pedidoId) {
       arr[i].confirmado = true;
     }
     lsSet('pedidos', arr);
-    return arr;
+    return { id: pedidoId, fechaEntrega: hoy };
   }
-  const { error: eItems } = await supabase
-    .from('pedido_items')
-    .update({ entregado: true, fecha_entrega: hoy })
-    .eq('pedido_id', pedidoId)
-    .eq('entregado', false);
+  // Items + pedido en paralelo (ambos solo dependen del pedidoId)
+  const [{ error: eItems }, { error: ePedido }] = await Promise.all([
+    supabase.from('pedido_items').update({ entregado: true, fecha_entrega: hoy }).eq('pedido_id', pedidoId).eq('entregado', false),
+    supabase.from('pedidos').update({ confirmado: true }).eq('id', pedidoId),
+  ]);
   if (eItems) throw eItems;
-  // Al entregar, el pedido pasa a ser una venta real confirmada
-  const { error: ePedido } = await supabase
-    .from('pedidos')
-    .update({ confirmado: true })
-    .eq('id', pedidoId);
   if (ePedido) throw ePedido;
-  return getPedidos();
+  return { id: pedidoId, fechaEntrega: hoy };
 }
 
 export async function revertirPedidoEntregado(pedidoId) {
@@ -547,14 +608,14 @@ export async function revertirPedidoEntregado(pedidoId) {
     const i = arr.findIndex(p => p.id === pedidoId);
     if (i >= 0) arr[i].items = arr[i].items.map(it => ({ ...it, entregado: false, fechaEntrega: null }));
     lsSet('pedidos', arr);
-    return arr;
+    return pedidoId;
   }
   const { error } = await supabase
     .from('pedido_items')
     .update({ entregado: false, fecha_entrega: null })
     .eq('pedido_id', pedidoId);
   if (error) throw error;
-  return getPedidos();
+  return pedidoId;
 }
 
 
@@ -606,6 +667,7 @@ export async function getGastos() {
     descripcion: r.descripcion,
     monto: r.monto,
     categoria: r.categoria,
+    createdAt: r.created_at || null,
   }));
   lsSet('gastos', mapped);
   return mapped;
@@ -614,34 +676,45 @@ export async function getGastos() {
 export async function saveGasto(data) {
   if (!useSupabase()) {
     const arr = lsGet('gastos', []);
-    arr.push({ ...data, id: uid() });
+    const nuevo = { ...data, id: uid() };
+    arr.push(nuevo);
     lsSet('gastos', arr);
-    return arr;
+    return nuevo;
   }
-  if (!(await getUserId())) throw new Error('Not authenticated');
+  const userId = await getUserId();
+  if (!userId) throw new Error('Not authenticated');
   if (!data.descripcion || !String(data.descripcion).trim()) throw new Error('La descripción del gasto es obligatoria');
   if (!data.fecha || !/^\d{4}-\d{2}-\d{2}$/.test(data.fecha)) throw new Error('La fecha del gasto no es válida');
   const monto = Number(data.monto);
   if (!Number.isFinite(monto) || monto <= 0) throw new Error('El monto debe ser mayor a cero');
-  const { error } = await supabase.from('gastos').insert({
+  const negocioId = getCachedNegocioId();
+  // Generamos id en el cliente para evitar el .select() de vuelta (un round-trip
+  // menos). El INSERT viaja con Prefer: return=minimal — Supabase responde con
+  // 201 y nada en el body. Más rápido en redes con latencia alta.
+  const id = (crypto?.randomUUID?.() || uid());
+  const payload = {
+    id,
+    user_id: userId,
     fecha: data.fecha,
     descripcion: String(data.descripcion).trim(),
     monto,
     categoria: data.categoria,
-  });
+  };
+  if (negocioId) payload.negocio_id = negocioId;
+  const { error } = await supabase.from('gastos').insert(payload);
   if (error) throw friendlyError(error);
-  return getGastos();
+  return { id, fecha: data.fecha, descripcion: payload.descripcion, monto, categoria: data.categoria };
 }
 
 export async function deleteGasto(id) {
   if (!useSupabase()) {
     const arr = lsGet('gastos', []).filter(x => x.id !== id);
     lsSet('gastos', arr);
-    return arr;
+    return id;
   }
   const { error } = await supabase.from('gastos').delete().eq('id', id);
   if (error) throw error;
-  return getGastos();
+  return id;
 }
 
 // ── COBROS SUELTOS ────────────────────────────────────────
@@ -690,25 +763,30 @@ export async function saveCobro(data) {
   const fields = validarCobro(data);
   if (!useSupabase()) {
     const arr = lsGet('cobros', []);
-    arr.unshift({ ...fields, id: uid() });
+    const nuevo = { ...fields, id: uid() };
+    arr.unshift(nuevo);
     lsSet('cobros', arr);
-    return arr;
+    return nuevo;
   }
   if (!(await getUserId())) throw new Error('Not authenticated');
+  const negocioIdCo = getCachedNegocioId();
+  if (negocioIdCo) fields.negocio_id = negocioIdCo;
+  const id = uid();
+  fields.id = id;
   const { error } = await supabase.from('cobros').insert(fields);
   if (error) throw friendlyError(error);
-  return getCobros();
+  return { id, fecha: fields.fecha, monto: fields.monto, descripcion: fields.descripcion, metodo: fields.metodo, clienteId: fields.cliente_id || null };
 }
 
 export async function deleteCobro(id) {
   if (!useSupabase()) {
     const arr = lsGet('cobros', []).filter(x => x.id !== id);
     lsSet('cobros', arr);
-    return arr;
+    return id;
   }
   const { error } = await supabase.from('cobros').delete().eq('id', id);
   if (error) throw error;
-  return getCobros();
+  return id;
 }
 
 // ── CATEGORIAS ────────────────────────────────────────────
@@ -926,6 +1004,12 @@ export async function adminRevokeAccess(email) {
 // ── CUOTAS AUTOMÁTICAS ────────────────────────────────────
 
 export async function procesarCuotasVencidas(pedidos) {
+  // Solo correr 1 vez por día — el cálculo es determinístico por fecha de hoy.
+  // Antes corría en cada loadAll (incluso por cambios realtime irrelevantes).
+  const hoyStr = new Date().toISOString().slice(0, 10);
+  if (localStorage.getItem('sg_cuotas_last_run') === hoyStr) {
+    return { pedidos, procesados: [] };
+  }
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
 
@@ -949,7 +1033,10 @@ export async function procesarCuotasVencidas(pedidos) {
     return p;
   });
 
-  if (!procesados.length) return { pedidos, procesados: [] };
+  if (!procesados.length) {
+    localStorage.setItem('sg_cuotas_last_run', hoyStr);
+    return { pedidos, procesados: [] };
+  }
 
   if (!useSupabase()) {
     lsSet('pedidos', actualizados);
@@ -963,7 +1050,7 @@ export async function procesarCuotasVencidas(pedidos) {
     }));
     lsSet('pedidos', actualizados);
   }
-
+  localStorage.setItem('sg_cuotas_last_run', hoyStr);
   return { pedidos: actualizados, procesados };
 }
 

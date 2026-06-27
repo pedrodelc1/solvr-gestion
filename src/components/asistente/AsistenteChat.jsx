@@ -88,9 +88,9 @@ const styles = `
 .sg-stop-btn:hover { border-color: var(--warning); color: var(--warning); }
 .sg-icon-btn { width: 30px; height: 30px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; background: transparent; color: var(--ink-2); border: none; cursor: pointer; transition: background 0.15s ease, color 0.15s ease; }
 .sg-icon-btn:hover { background: var(--surface); color: var(--ink-1); }
-.sg-input { flex: 1; resize: none; background: transparent; border: none; outline: none; color: var(--ink-1); padding: 0; font-size: var(--text-sm); font-family: inherit; max-height: 120px; line-height: 1.4; }
+.sg-input { flex: 1; resize: none; background: transparent; border: none; outline: none; color: var(--ink-1); padding: 0; font-size: 13px; font-family: inherit; max-height: 96px; line-height: 1.35; }
 .sg-input::placeholder { color: var(--ink-2); opacity: 0.7; }
-.sg-input-wrap { display: flex; align-items: flex-end; gap: 8px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; transition: border-color 0.15s ease; }
+.sg-input-wrap { display: flex; align-items: flex-end; gap: 8px; padding: 6px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; transition: border-color 0.15s ease; }
 .sg-input-wrap:focus-within { border-color: color-mix(in oklab, var(--primary) 55%, var(--border)); }
 `;
 
@@ -270,46 +270,45 @@ export function AsistenteChat() {
         }}
       >
         <span style={{ position: 'relative', display: 'flex', alignItems: 'center', width: 20, height: 20 }}>
-          {/* Cara */}
+          {/* Brazo + mano — renderizado ANTES de la cara para quedar detrás */}
+          <motion.span
+            variants={{
+              hover: {
+                opacity: 1,
+                rotate: [0, -22, 18, -12, 8, 0],
+                transition: {
+                  opacity: { duration: 0.1 },
+                  rotate: { duration: 0.7, ease: 'easeInOut', delay: 0.05 },
+                }
+              }
+            }}
+            style={{
+              position: 'absolute', left: 15, top: -14,
+              opacity: 0,
+              transformOrigin: 'bottom left',
+            }}
+          >
+            <svg width="13" height="28" viewBox="0 0 13 28" fill="currentColor" stroke="none">
+              {/* Dedos */}
+              <rect x="0"    y="6"   width="2.2" height="5"   rx="1.1" />
+              <rect x="2.8"  y="3"   width="2.2" height="7"   rx="1.1" />
+              <rect x="5.4"  y="2"   width="2.2" height="7.5" rx="1.1" />
+              <rect x="8"    y="3.5" width="2.2" height="6.5" rx="1.1" />
+              <rect x="10.6" y="5"   width="2.2" height="5.5" rx="1.1" />
+              {/* Palma */}
+              <rect x="0" y="8.5" width="12.8" height="5.5" rx="2.5" />
+              {/* Brazo — se extiende hasta solapar con el borde del smiley */}
+              <rect x="2.5" y="13.5" width="4.5" height="14.5" rx="2.25" />
+            </svg>
+          </motion.span>
+
+          {/* Cara — encima del brazo, tapa la unión */}
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10" />
             <path d="M8 14s1.5 2 4 2 4-2 4-2" />
             <circle cx="9" cy="9" r="1" fill="currentColor" stroke="none" />
             <circle cx="15" cy="9" r="1" fill="currentColor" stroke="none" />
           </svg>
-
-          {/* Brazo + mano — sale del costado derecho de la cara */}
-          <motion.span
-            variants={{
-              hover: {
-                opacity: 1, x: 0,
-                rotate: [0, -28, 20, -14, 10, 0],
-                transition: {
-                  opacity: { duration: 0.12 },
-                  x: { duration: 0.12 },
-                  rotate: { duration: 0.65, ease: 'easeInOut', delay: 0.05 },
-                }
-              }
-            }}
-            style={{
-              position: 'absolute', left: 14, top: -8,
-              opacity: 0, x: -4,
-              transformOrigin: 'bottom left',
-            }}
-          >
-            <svg width="14" height="24" viewBox="0 0 14 24" fill="currentColor" stroke="none">
-              {/* Dedos */}
-              <rect x="0"   y="7"   width="2.2" height="5.5" rx="1.1" />
-              <rect x="2.8" y="4"   width="2.2" height="7"   rx="1.1" />
-              <rect x="5.6" y="3"   width="2.2" height="7.5" rx="1.1" />
-              <rect x="8.4" y="4.5" width="2.2" height="6.5" rx="1.1" />
-              <rect x="11"  y="6"   width="2.2" height="5.5" rx="1.1" />
-              {/* Palma */}
-              <rect x="0" y="9.5" width="13.2" height="6.5" rx="2.5" />
-              {/* Brazo */}
-              <rect x="4" y="15" width="5.5" height="9" rx="2.75" />
-            </svg>
-          </motion.span>
         </span>
 
         <motion.span
@@ -538,7 +537,7 @@ export function AsistenteChat() {
               </div>
 
               {/* Input */}
-              <div style={{ padding: '10px 12px 12px' }}>
+              <div style={{ padding: '8px 10px 10px' }}>
                 <div className="sg-input-wrap">
                   <textarea
                     ref={inputRef}

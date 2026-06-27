@@ -19,7 +19,7 @@ export function Modal({ open, title, onClose, children }) {
           initial={{ opacity: 0, backdropFilter: 'blur(0px)' }}
           animate={{ opacity: 1, backdropFilter: 'blur(8px)' }}
           exit={{ opacity: 0, backdropFilter: 'blur(0px)' }}
-          transition={{ duration: 0.2 }}
+          transition={{ duration: 0.06 }}
           style={{
             position: 'fixed',
             inset: 0,
@@ -35,10 +35,10 @@ export function Modal({ open, title, onClose, children }) {
           }}
         >
           <motion.div
-            initial={{ scale: 0.95, opacity: 0 }}
+            initial={{ scale: 0.97, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.95, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 420, damping: 30 }}
+            exit={{ scale: 0.97, opacity: 0 }}
+            transition={{ duration: 0.08, ease: 'easeOut' }}
             style={{
               background: 'var(--bg-2)',
               border: '1px solid var(--border)',

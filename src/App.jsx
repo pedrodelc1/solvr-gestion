@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from './lib/supabase.js';
 import {
@@ -13,9 +13,10 @@ import {
   getAlertasConfig,
   getDevoluciones,
   getNegocioConfig, saveNegocioConfig,
-  getComunicaciones,
   marcarPedidoEntregado,
   revertirPedidoEntregado,
+  getCachedSnapshot,
+  setCachedNegocioId,
 } from './lib/db.js';
 import { inRange, saldoCliente } from './lib/utils.js';
 
@@ -30,11 +31,8 @@ import { ClienteDetail } from './components/clientes/ClienteDetail.jsx';
 import { PedidosList } from './components/pedidos/PedidosList.jsx';
 import { PedidoForm } from './components/pedidos/PedidoForm.jsx';
 import { GastosList } from './components/gastos/GastosList.jsx';
-import { GastoForm } from './components/gastos/GastoForm.jsx';
-import { StatsPanel } from './components/stats/StatsPanel.jsx';
 import { ProductosList } from './components/productos/ProductosList.jsx';
 import { ProductoForm } from './components/productos/ProductoForm.jsx';
-import { PerfilPanel } from './components/perfil/PerfilPanel.jsx';
 import { CajaPanel } from './components/caja/CajaPanel.jsx';
 import { CobroForm } from './components/caja/CobroForm.jsx';
 import { SkeletonLoader } from './components/shared/SkeletonLoader.jsx';
@@ -42,7 +40,12 @@ import { SuscripcionBlocker } from './components/suscripciones/SuscripcionBlocke
 import { TrialBanner } from './components/shared/TrialBanner.jsx';
 import { OnboardingWizard } from './components/onboarding/OnboardingWizard.jsx';
 import { TeamWelcomeScreen } from './components/onboarding/TeamWelcomeScreen.jsx';
-import { AsistenteChat } from './components/asistente/AsistenteChat.jsx';
+
+// Lazy-loaded: solo cargan cuando el usuario abre el tab/feature. Reducen el
+// JS inicial sin afectar la experiencia, porque cada uno trae >500 líneas.
+const StatsPanel    = lazy(() => import('./components/stats/StatsPanel.jsx').then(m => ({ default: m.StatsPanel })));
+const PerfilPanel   = lazy(() => import('./components/perfil/PerfilPanel.jsx').then(m => ({ default: m.PerfilPanel })));
+const AsistenteChat = lazy(() => import('./components/asistente/AsistenteChat.jsx').then(m => ({ default: m.AsistenteChat })));
 
 let _toastId = 0;
 
@@ -90,22 +93,36 @@ export default function App() {
     localStorage.setItem('sg_theme', theme);
   }, [theme]);
 
-  const [clientes, setClientes] = useState([]);
-  const [productos, setProductos] = useState([]);
-  const [pedidos, setPedidos] = useState([]);
-  const [gastos, setGastos] = useState([]);
-  const [cobros, setCobros] = useState([]);
-  const [categorias, setCategorias] = useState([]);
+  // Hidratar desde localStorage en el primer render. Si hay caché, no mostramos
+  // skeleton: la UI aparece al toque con datos viejos y se reconcilia cuando
+  // llega la respuesta de Supabase.
+  const cached = useMemo(() => getCachedSnapshot(), []);
+  const hasCache = cached.clientes.length > 0 || cached.pedidos.length > 0;
+  const [clientes, setClientes] = useState(cached.clientes);
+  const [productos, setProductos] = useState(cached.productos);
+  const [pedidos, setPedidos] = useState(cached.pedidos);
+  const [gastos, setGastos] = useState(cached.gastos);
+  const [cobros, setCobros] = useState(cached.cobros);
+  const [categorias, setCategorias] = useState(cached.categorias);
   const [devoluciones, setDevoluciones] = useState([]);
-  const [comunicaciones, setComunicaciones] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const loadedOnceRef = useRef(false);
+  const [loading, setLoading] = useState(!hasCache);
+  const loadedOnceRef = useRef(hasCache);
   // Evita carreras: cada loadAll lleva un nº de secuencia; si llega una carga
   // más nueva, las respuestas viejas se descartan (no pisan el estado fresco).
   const loadSeqRef = useRef(0);
   // Debounce de los refreshes por realtime: una ráfaga de cambios (ej. el
   // cascade de un delete) colapsa en una sola recarga, ya con todo commiteado.
   const reloadTimerRef = useRef(null);
+  // Cuándo fue la última mutación local. Si llega un evento realtime dentro
+  // de los siguientes ~2s, lo ignoramos: la UI ya está actualizada localmente
+  // y un loadAll() ahora solo agregaría latencia y parpadeo.
+  const lastLocalMutationRef = useRef(0);
+  const markLocalMutation = useCallback(() => { lastLocalMutationRef.current = Date.now(); }, []);
+  // Guard de mutaciones: claim_team_access crea la membership que mi_negocio_id()
+  // necesita para llenar negocio_id en los INSERT. Si el usuario abre un form
+  // antes de que el claim resuelva (caso típico con caché hidratada), el
+  // trigger inserta NULL y Postgres tira 23502. Las mutaciones esperan acá.
+  const claimReadyRef = useRef(Promise.resolve());
   // Scroll del contenedor de tabs + memoria de posiciones por vista.
   const scrollRef = useRef(null);
   const scrollMem = useRef({});
@@ -137,7 +154,6 @@ export default function App() {
   const [editingPedido, setEditingPedido] = useState(null);
 
   // Gastos UI
-  const [gastoFormOpen, setGastoFormOpen] = useState(false);
 
   // Caja UI
   const [cobroFormOpen, setCobroFormOpen] = useState(false);
@@ -208,12 +224,14 @@ export default function App() {
     const seq = ++loadSeqRef.current;
     if (!loadedOnceRef.current) setLoading(true);
     try {
-      const [c, pr, pe, g, cob, cats, devs, coms] = await Promise.all([
+      // Primera tanda: lo crítico para pintar la UI (clientes + pedidos).
+      // El resto se trae en paralelo pero no bloquea el render inicial.
+      // Comunicaciones se eliminó del bootstrap: solo se necesitan en
+      // ClienteDetail, donde se cargan lazy con clienteId filtrado.
+      const [c, pr, pe, g, cob, cats, devs] = await Promise.all([
         getClientes(), getProductos(), getPedidos(), getGastos(), getCobros(), getCategorias(),
-        getDevoluciones(), getComunicaciones(),
+        getDevoluciones(),
       ]);
-      // Otra carga más nueva ya empezó: descartar esta respuesta para no pisar
-      // el estado fresco con datos viejos (causa del "fantasma" al borrar).
       if (seq !== loadSeqRef.current) return;
       setClientes(c);
       setProductos(pr);
@@ -221,7 +239,6 @@ export default function App() {
       setCobros(cob);
       setCategorias(cats);
       setDevoluciones(devs);
-      setComunicaciones(coms);
 
       if (c.length > 0 && pe.length === 0) {
         setToasts(t => {
@@ -254,16 +271,26 @@ export default function App() {
   useEffect(() => {
     if (authChecked && session) {
       const init = async () => {
-        // Resolver negocio activo; si no es miembro aún, busca en allowed_emails y crea la membresía
-        const { data: negocioId, error: claimError } = await supabase.rpc('claim_team_access');
+        // Disparar TODO en paralelo: claim de acceso + carga de datos +
+        // suscripción + config. RLS protege cada query, así que aunque el
+        // claim falle al final, no se filtra nada. Antes esto era secuencial
+        // (claim → member → loadAll → resto) y agregaba 1-2s al login.
+        const claimP = supabase.rpc('claim_team_access');
+        claimReadyRef.current = claimP;
+        const dataP = loadAll();
+        const susP = getSuscripcion();
+        const alertasP = getAlertasConfig();
+        const negocioP = getNegocioConfig();
+
+        const { data: negocioId, error: claimError } = await claimP;
         if (claimError) console.error('[claim_team_access] error:', claimError);
+        if (negocioId) setCachedNegocioId(negocioId);
         if (!negocioId) {
           toast("Acceso denegado: este email no está autorizado. Contactá al administrador.", "error");
           await supabase.auth.signOut();
           return;
         }
 
-        // Cargar rol desde negocio_members
         const { data: member } = await supabase
           .from('negocio_members')
           .select('rol')
@@ -281,8 +308,8 @@ export default function App() {
         setUserRole(member.rol);
         setIsOwner(member.rol === 'owner');
 
-        loadAll();
-        getSuscripcion().then(async sus => {
+        // Las promesas que arrancamos arriba ya están en vuelo; solo conectamos resultados.
+        susP.then(async sus => {
           if (!sus) {
             const nueva = await crearSuscripcionTrial();
             setSuscripcion(nueva);
@@ -290,36 +317,32 @@ export default function App() {
             setSuscripcion(sus);
           }
         });
-        getAlertasConfig().then(cfg => setDiasSinCobro(cfg.dias_sin_cobro));
-        getNegocioConfig().then(setNegocioConfig);
+        alertasP.then(cfg => setDiasSinCobro(cfg.dias_sin_cobro));
+        negocioP.then(setNegocioConfig);
+        await dataP;
       };
       init();
     }
   }, [authChecked, session, loadAll]);
 
   // ── Realtime Database Sync ────────────────────────────────
+  // Solo escuchamos las tablas que afectan la UI principal. Eventos de
+  // suscripciones, allowed_emails, comunicaciones, etc. no disparan reload.
+  // Además, si la mutación es nuestra (acabamos de hacerla local), ignoramos
+  // el eco del realtime: la UI ya está al día y un loadAll() solo agrega lag.
+  const RT_TABLES = ['clientes', 'productos', 'pedidos', 'pedido_items', 'gastos', 'cobros', 'devoluciones'];
   useEffect(() => {
     if (!session) return;
-
-    const channel = supabase
-      .channel('schema-db-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-        },
-        (payload) => {
-          // Background refresh debounceado: una ráfaga de cambios (ej. el
-          // cascade de un delete, que emite varios eventos) dispara una sola
-          // recarga ~400ms después, cuando ya está todo commiteado. Evita el
-          // "fantasma" de borrar y que vuelva a aparecer.
-          if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
-          reloadTimerRef.current = setTimeout(() => { loadAll(); }, 400);
-        }
-      )
-      .subscribe();
-
+    const channel = supabase.channel('schema-db-changes');
+    RT_TABLES.forEach(table => {
+      channel.on('postgres_changes', { event: '*', schema: 'public', table }, () => {
+        // Skip si veníamos de mutar local hace menos de 2.5s
+        if (Date.now() - lastLocalMutationRef.current < 2500) return;
+        if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
+        reloadTimerRef.current = setTimeout(() => { loadAll(); }, 1500);
+      });
+    });
+    channel.subscribe();
     return () => {
       if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
       supabase.removeChannel(channel);
@@ -334,140 +357,244 @@ export default function App() {
   }, []);
 
   const alertCount = useMemo(() => {
-    return clientes.filter(c => {
-      const clientePedidos = pedidos.filter(p => p.clienteId === c.id && !p.cobrado && p.tipo !== 'presupuesto');
-      if (!clientePedidos.length) return false;
-      if (saldoCliente(c, pedidos, devoluciones, cobros) <= 0) return false;
-      const oldest = clientePedidos.reduce((min, p) => p.fecha < min ? p.fecha : min, clientePedidos[0].fecha);
-      const daysDiff = Math.round((new Date() - new Date(oldest)) / (1000 * 60 * 60 * 24));
-      return daysDiff >= diasSinCobro;
-    }).length;
+    // Indexar pedidos/devs/cobros por clienteId una sola vez (O(n+m+k))
+    // en vez de filtrar todo dentro del loop de clientes (O(c·(n+m+k))).
+    const pedidosByCliente = new Map();
+    for (const p of pedidos) {
+      if (!pedidosByCliente.has(p.clienteId)) pedidosByCliente.set(p.clienteId, []);
+      pedidosByCliente.get(p.clienteId).push(p);
+    }
+    const now = Date.now();
+    const dayMs = 86400000;
+    let count = 0;
+    for (const c of clientes) {
+      const arr = pedidosByCliente.get(c.id);
+      if (!arr) continue;
+      let oldest = null;
+      let hasOpen = false;
+      for (const p of arr) {
+        if (p.cobrado || p.tipo === 'presupuesto') continue;
+        hasOpen = true;
+        if (oldest === null || p.fecha < oldest) oldest = p.fecha;
+      }
+      if (!hasOpen) continue;
+      if (saldoCliente(c, arr, devoluciones, cobros) <= 0) continue;
+      if (Math.round((now - new Date(oldest).getTime()) / dayMs) >= diasSinCobro) count++;
+    }
+    return count;
   }, [clientes, pedidos, devoluciones, cobros, diasSinCobro]);
 
   // ── Handlers ──────────────────────────────────────────────
 
+  // Todas las mutaciones aplican update optimista en memoria en vez de
+  // re-descargar la tabla entera. `markLocalMutation()` también silencia el
+  // eco del realtime durante ~2.5s para evitar un loadAll() redundante.
+
   async function handleSaveCliente(data) {
-    try {
-      const arr = await saveCliente(data);
-      setClientes(arr);
+    await claimReadyRef.current;
+    if (data.id) {
+      // Update: optimistic merge local + UPDATE en background.
+      const prevSnapshot = clientes;
+      markLocalMutation();
+      setClientes(prev => prev.map(c => c.id === data.id ? { ...c, ...data } : c));
       setClienteFormOpen(false);
       setEditingCliente(null);
-      toast(data.id ? 'Cliente actualizado' : 'Cliente agregado');
-    } catch (e) { toast(e.message, 'error'); }
+      toast('Cliente actualizado');
+      saveCliente(data)
+        .then(saved => setClientes(prev => prev.map(c => c.id === data.id ? { ...c, ...saved } : c)))
+        .catch(e => { setClientes(prevSnapshot); toast(e.message, 'error'); });
+      return;
+    }
+    const tempId = 'tmp-' + Date.now();
+    const optimistic = { id: tempId, ...data };
+    markLocalMutation();
+    setClientes(prev => [...prev, optimistic]);
+    setClienteFormOpen(false);
+    setEditingCliente(null);
+    toast('Cliente agregado');
+    saveCliente(data)
+      .then(saved => setClientes(prev => prev.map(c => c.id === tempId ? saved : c)))
+      .catch(e => {
+        setClientes(prev => prev.filter(c => c.id !== tempId));
+        toast(e.message, 'error');
+      });
   }
 
   async function handleDeleteCliente(id) {
     try {
-      const arr = await deleteCliente(id);
-      setClientes(arr);
+      await deleteCliente(id);
+      markLocalMutation();
+      setClientes(prev => prev.filter(c => c.id !== id));
       setSelectedClienteId(null);
       toast('Cliente eliminado');
     } catch (e) { toast(e.message, 'error'); }
   }
 
   async function handleSavePedido(data) {
-    try {
-      if (data.id && pedidos.find(p => p.id === data.id)) {
-        const arr = await updatePedido(data.id, data);
-        setPedidos(arr);
-      } else {
-        // Calcular el nro en memoria para evitar un round-trip extra
-        const numInicial = parseInt(negocioConfig?.num_inicial) || 1;
-        const maxNro = pedidos.reduce((m, p) => Math.max(m, p.nro || 0), 0);
-        const nro = maxNro > 0 ? Math.max(maxNro + 1, numInicial) : numInicial;
-        const nuevo = await savePedido({ ...data, nro });
-        // Update optimista: prepend sin re-descargar todo (realtime reconcilia)
-        setPedidos(prev => [nuevo, ...prev]);
-      }
+    await claimReadyRef.current;
+    const isEdit = data.id && pedidos.find(p => p.id === data.id);
+    if (isEdit) {
+      const prevSnapshot = pedidos;
+      markLocalMutation();
+      setPedidos(prev => prev.map(p => p.id === data.id ? { ...p, ...data } : p));
       setShowPedidoForm(false);
       setPreClienteId(null);
       setEditingPedido(null);
-      toast(data.id ? 'Pedido actualizado' : 'Pedido guardado');
-    } catch (e) { toast(e.message, 'error'); }
+      toast('Pedido actualizado');
+      updatePedido(data.id, data)
+        .then(updated => setPedidos(prev => prev.map(p => p.id === data.id ? { ...p, ...updated } : p)))
+        .catch(e => { setPedidos(prevSnapshot); toast(e.message, 'error'); });
+      return;
+    }
+    const numInicial = parseInt(negocioConfig?.num_inicial) || 1;
+    const maxNro = pedidos.reduce((m, p) => Math.max(m, p.nro || 0), 0);
+    const nro = maxNro > 0 ? Math.max(maxNro + 1, numInicial) : numInicial;
+    const optimistic = { ...data, nro, fetchOrder: -1, createdAt: data.fecha };
+    markLocalMutation();
+    setPedidos(prev => [optimistic, ...prev]);
+    setShowPedidoForm(false);
+    setPreClienteId(null);
+    setEditingPedido(null);
+    toast('Pedido guardado');
+    savePedido({ ...data, nro })
+      .then(nuevo => setPedidos(prev => prev.map(p => p.id === data.id ? nuevo : p)))
+      .catch(e => {
+        setPedidos(prev => prev.filter(p => p.id !== data.id));
+        toast(e.message, 'error');
+      });
   }
 
   async function handleUpdatePedido(id, data) {
     try {
-      const arr = await updatePedido(id, data);
-      setPedidos(arr);
+      const updated = await updatePedido(id, data);
+      markLocalMutation();
+      setPedidos(prev => prev.map(p => p.id === id ? { ...p, ...updated } : p));
     } catch (e) { toast(e.message, 'error'); }
   }
 
   async function handleDeletePedido(id) {
     try {
-      const arr = await deletePedido(id);
-      setPedidos(arr);
+      await deletePedido(id);
+      markLocalMutation();
+      setPedidos(prev => prev.filter(p => p.id !== id));
     } catch (e) { toast(e.message, 'error'); throw e; }
   }
 
   async function handleMarcarEntregado(id) {
     try {
-      const arr = await marcarPedidoEntregado(id);
-      setPedidos(arr);
+      const res = await marcarPedidoEntregado(id);
+      markLocalMutation();
+      setPedidos(prev => prev.map(p => p.id === id
+        ? { ...p, confirmado: true, items: (p.items || []).map(it => ({ ...it, entregado: true, fechaEntrega: it.fechaEntrega || res.fechaEntrega })) }
+        : p));
       toast('Marcado como entregado');
     } catch (e) { toast(e.message, 'error'); }
   }
 
   async function handleRevertirEntregado(id) {
     try {
-      const arr = await revertirPedidoEntregado(id);
-      setPedidos(arr);
+      await revertirPedidoEntregado(id);
+      markLocalMutation();
+      setPedidos(prev => prev.map(p => p.id === id
+        ? { ...p, items: (p.items || []).map(it => ({ ...it, entregado: false, fechaEntrega: null })) }
+        : p));
       toast('Entrega revertida');
     } catch (e) { toast(e.message, 'error'); }
   }
 
   async function handleProductoCreado(newProd) {
     try {
-      const arr = await saveProducto({ nombre: newProd.nombre, precio: newProd.precio, costo: newProd.costo || 0 });
-      setProductos(arr);
+      await claimReadyRef.current;
+      const saved = await saveProducto({ nombre: newProd.nombre, precio: newProd.precio, costo: newProd.costo || 0 });
+      markLocalMutation();
+      setProductos(prev => [...prev, saved]);
     } catch (_) {}
   }
 
   async function handleSaveGasto(data) {
-    try {
-      const arr = await saveGasto(data);
-      setGastos(arr);
-      setGastoFormOpen(false);
-      toast('Gasto registrado');
-    } catch (e) { toast(e.message, 'error'); }
+    await claimReadyRef.current;
+    // Optimistic: la UI responde al toque y el INSERT viaja en background.
+    // Si falla, revertimos la fila optimista y mostramos el error.
+    const tempId = 'tmp-' + Date.now();
+    const optimistic = { id: tempId, ...data };
+    markLocalMutation();
+    setGastos(prev => [optimistic, ...prev]);
+    toast('Gasto registrado');
+    saveGasto(data)
+      .then(saved => setGastos(prev => prev.map(g => g.id === tempId ? saved : g)))
+      .catch(e => {
+        setGastos(prev => prev.filter(g => g.id !== tempId));
+        toast(e.message, 'error');
+      });
   }
 
   async function handleDeleteGasto(id) {
     try {
-      const arr = await deleteGasto(id);
-      setGastos(arr);
+      await deleteGasto(id);
+      markLocalMutation();
+      setGastos(prev => prev.filter(g => g.id !== id));
     } catch (e) { toast(e.message, 'error'); }
   }
 
   async function handleSaveCobro(data) {
-    const arr = await saveCobro(data);
-    setCobros(arr);
+    await claimReadyRef.current;
+    const tempId = 'tmp-' + Date.now();
+    const optimistic = { id: tempId, ...data };
+    markLocalMutation();
+    setCobros(prev => [optimistic, ...prev]);
     setCobroFormOpen(false);
     toast('Cobro registrado');
+    saveCobro(data)
+      .then(saved => setCobros(prev => prev.map(c => c.id === tempId ? saved : c)))
+      .catch(e => {
+        setCobros(prev => prev.filter(c => c.id !== tempId));
+        toast(e.message, 'error');
+      });
   }
 
   async function handleDeleteCobro(id) {
     try {
-      const arr = await deleteCobro(id);
-      setCobros(arr);
+      await deleteCobro(id);
+      markLocalMutation();
+      setCobros(prev => prev.filter(c => c.id !== id));
       toast('Cobro eliminado');
     } catch (e) { toast(e.message, 'error'); }
   }
 
   async function handleSaveProducto(data) {
-    try {
-      const arr = await saveProducto(data);
-      setProductos(arr);
+    await claimReadyRef.current;
+    if (data.id) {
+      const prevSnapshot = productos;
+      markLocalMutation();
+      setProductos(prev => prev.map(p => p.id === data.id ? { ...p, ...data } : p));
       setProductoFormOpen(false);
       setEditingProducto(null);
-      toast(data.id ? 'Producto actualizado' : 'Producto agregado');
-    } catch (e) { toast(e.message, 'error'); }
+      toast('Producto actualizado');
+      saveProducto(data)
+        .then(saved => setProductos(prev => prev.map(p => p.id === data.id ? { ...p, ...saved } : p)))
+        .catch(e => { setProductos(prevSnapshot); toast(e.message, 'error'); });
+      return;
+    }
+    const tempId = 'tmp-' + Date.now();
+    const optimistic = { id: tempId, ...data };
+    markLocalMutation();
+    setProductos(prev => [...prev, optimistic]);
+    setProductoFormOpen(false);
+    setEditingProducto(null);
+    toast('Producto agregado');
+    saveProducto(data)
+      .then(saved => setProductos(prev => prev.map(p => p.id === tempId ? saved : p)))
+      .catch(e => {
+        setProductos(prev => prev.filter(p => p.id !== tempId));
+        toast(e.message, 'error');
+      });
   }
 
   async function handleDeleteProducto(id) {
     try {
-      const arr = await deleteProducto(id);
-      setProductos(arr);
+      await deleteProducto(id);
+      markLocalMutation();
+      setProductos(prev => prev.filter(p => p.id !== id));
     } catch (e) { toast(e.message, 'error'); }
   }
 
@@ -621,7 +748,6 @@ export default function App() {
               pedidos={pedidos}
               devoluciones={devoluciones}
               cobros={cobros}
-              comunicaciones={comunicaciones}
               negocio={negocioNombre}
               negocioConfig={negocioConfig}
               onBack={() => setSelectedClienteId(null)}
@@ -697,7 +823,7 @@ export default function App() {
             key="gastos-list"
             gastos={gastos}
             categorias={categorias}
-            onNew={() => setGastoFormOpen(true)}
+            onSave={handleSaveGasto}
             onDelete={handleDeleteGasto}
             toast={toast}
           />
@@ -705,16 +831,19 @@ export default function App() {
 
       case 'stats':
         return (
-          <StatsPanel
-            key="stats-panel"
-            pedidos={pedidos}
-            gastos={gastos}
-            clientes={clientes}
-            productos={productos}
-            devoluciones={devoluciones}
-            categorias={categorias}
-            onExportCSV={handleExportCSV}
-          />
+          <Suspense fallback={<SkeletonLoader />}>
+            <StatsPanel
+              key="stats-panel"
+              pedidos={pedidos}
+              gastos={gastos}
+              clientes={clientes}
+              productos={productos}
+              devoluciones={devoluciones}
+              cobros={cobros}
+              categorias={categorias}
+              onExportCSV={handleExportCSV}
+            />
+          </Suspense>
         );
 
       case 'productos':
@@ -745,23 +874,25 @@ export default function App() {
 
       case 'perfil':
         return (
-          <PerfilPanel
-            key="perfil-panel"
-            session={session}
-            isOwner={isOwner}
-            userRole={userRole}
-            clientes={clientes}
-            pedidos={pedidos}
-            gastos={gastos}
-            devoluciones={devoluciones}
-            cobros={cobros}
-            suscripcion={suscripcion}
-            negocioConfig={negocioConfig}
-            onNegocioSave={async (cfg) => { const saved = await saveNegocioConfig(cfg); setNegocioConfig(saved); }}
-            toast={toast}
-            theme={theme}
-            onThemeChange={setTheme}
-          />
+          <Suspense fallback={<SkeletonLoader />}>
+            <PerfilPanel
+              key="perfil-panel"
+              session={session}
+              isOwner={isOwner}
+              userRole={userRole}
+              clientes={clientes}
+              pedidos={pedidos}
+              gastos={gastos}
+              devoluciones={devoluciones}
+              cobros={cobros}
+              suscripcion={suscripcion}
+              negocioConfig={negocioConfig}
+              onNegocioSave={async (cfg) => { const saved = await saveNegocioConfig(cfg); setNegocioConfig(saved); }}
+              toast={toast}
+              theme={theme}
+              onThemeChange={setTheme}
+            />
+          </Suspense>
         );
 
       default:
@@ -803,20 +934,15 @@ export default function App() {
 
       <BottomNav activeTab={activeTab} onTabChange={handleTabChange} alertCount={alertCount} allowedTabs={ALLOWED_TABS[userRole] || ALLOWED_TABS.owner} />
 
-      <AsistenteChat />
+      <Suspense fallback={null}>
+        <AsistenteChat />
+      </Suspense>
 
       <ClienteForm
         open={clienteFormOpen}
         existing={editingCliente}
         onSave={handleSaveCliente}
         onClose={() => { setClienteFormOpen(false); setEditingCliente(null); }}
-      />
-
-      <GastoForm
-        open={gastoFormOpen}
-        categorias={categorias}
-        onSave={handleSaveGasto}
-        onClose={() => setGastoFormOpen(false)}
       />
 
       <CobroForm

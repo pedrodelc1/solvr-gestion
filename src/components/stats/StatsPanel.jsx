@@ -264,7 +264,7 @@ function Num({ value, color = 'var(--ink)', size = 'var(--text-2xl)', weight = 8
   return <span style={{ fontSize: size, fontWeight: weight, color, letterSpacing: '-0.03em', lineHeight: 1 }}>{formatCurrency(v)}</span>;
 }
 
-export function StatsPanel({ pedidos, gastos, clientes, productos, onExportCSV }) {
+export function StatsPanel({ pedidos, gastos, clientes, productos, cobros = [], onExportCSV }) {
   const [period, setPeriod] = useState('current');
   const [downloading, setDownloading] = useState(false);
 
@@ -284,12 +284,15 @@ export function StatsPanel({ pedidos, gastos, clientes, productos, onExportCSV }
 
   const filteredPedidos = noRange ? [] : pedidos.filter(p => inRange(p.fecha, from, to) && p.tipo !== 'presupuesto');
   const filteredGastos = noRange ? [] : gastos.filter(g => inRange(g.fecha, from, to));
+  const filteredCobros = noRange ? [] : cobros.filter(c => inRange(c.fecha, from, to));
 
   // Ventas totales (Facturación)
   const ventas = filteredPedidos.reduce((s, p) => s + p.totalFinal, 0);
 
-  // Cobrado
-  const cobrado = filteredPedidos.reduce((s, p) => p.cobrado ? s + p.totalFinal : s + (p.montoAbonado || 0), 0);
+  // Cobrado: lo cobrado en pedidos + cobros sueltos del período
+  const cobradoPedidos = filteredPedidos.reduce((s, p) => p.cobrado ? s + p.totalFinal : s + (p.montoAbonado || 0), 0);
+  const cobradoSueltos = filteredCobros.reduce((s, c) => s + (Number(c.monto) || 0), 0);
+  const cobrado = cobradoPedidos + cobradoSueltos;
 
   // Gastos
   const totalGastos = filteredGastos.reduce((s, g) => s + g.monto, 0);
@@ -306,7 +309,7 @@ export function StatsPanel({ pedidos, gastos, clientes, productos, onExportCSV }
       }, 0);
     }, 0);
 
-  const gananciaNeta = gananciaVentas - totalGastos;
+  const gananciaNeta = gananciaVentas + cobradoSueltos - totalGastos;
 
   // BI KPIs
   const ticketPromedio = filteredPedidos.length > 0 ? (ventas / filteredPedidos.length) : 0;
@@ -319,7 +322,7 @@ export function StatsPanel({ pedidos, gastos, clientes, productos, onExportCSV }
   }, 0);
   const margenPorcentaje = ventas > 0 ? ((ventas - costoTotalVendido) / ventas) * 100 : 0;
 
-  // Medios de pago (Breakdown de ventas por medio de pago)
+  // Medios de pago (Breakdown de ventas por medio de pago + cobros sueltos)
   const mediosBars = useMemo(() => {
     const map = {};
     filteredPedidos.forEach(p => {
@@ -328,11 +331,17 @@ export function StatsPanel({ pedidos, gastos, clientes, productos, onExportCSV }
       if (!map[label]) map[label] = 0;
       map[label] += p.totalFinal;
     });
+    filteredCobros.forEach(c => {
+      const medio = c.metodo || 'efectivo';
+      const label = medio.charAt(0).toUpperCase() + medio.slice(1);
+      if (!map[label]) map[label] = 0;
+      map[label] += Number(c.monto) || 0;
+    });
     return Object.entries(map)
       .map(([label, value]) => ({ label, value }))
       .filter(item => item.value > 0)
       .sort((a, b) => b.value - a.value);
-  }, [filteredPedidos]);
+  }, [filteredPedidos, filteredCobros]);
 
   // Top clientes por volumen de ventas
   const topClientes = useMemo(() => {
@@ -415,7 +424,33 @@ export function StatsPanel({ pedidos, gastos, clientes, productos, onExportCSV }
     const diffTime = Math.abs(toDate - fromDate);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-    if (diffDays <= 35) {
+    if (from === to) {
+      // Vista "Hoy": 4 franjas horarias del día.
+      const buckets = [
+        { label: '00-06 hs', from: 0,  to: 6,  revenue: 0, expenses: 0, sortKey: 0 },
+        { label: '06-12 hs', from: 6,  to: 12, revenue: 0, expenses: 0, sortKey: 1 },
+        { label: '12-18 hs', from: 12, to: 18, revenue: 0, expenses: 0, sortKey: 2 },
+        { label: '18-24 hs', from: 18, to: 24, revenue: 0, expenses: 0, sortKey: 3 },
+      ];
+      const hourOf = (timestamp, fallbackFecha) => {
+        if (timestamp) {
+          const d = new Date(timestamp);
+          if (!isNaN(d.getTime()) && d.toISOString().slice(0, 10) === fallbackFecha) return d.getHours();
+        }
+        return 12; // sin createdAt: caemos al mediodía
+      };
+      filteredPedidos.forEach(p => {
+        const h = hourOf(p.createdAt, p.fecha);
+        const b = buckets.find(x => h >= x.from && h < x.to) || buckets[buckets.length - 1];
+        b.revenue += p.totalFinal;
+      });
+      filteredGastos.forEach(g => {
+        const h = hourOf(g.createdAt, g.fecha);
+        const b = buckets.find(x => h >= x.from && h < x.to) || buckets[buckets.length - 1];
+        b.expenses += g.monto;
+      });
+      buckets.forEach(b => { groups[b.label] = b; });
+    } else if (diffDays <= 35) {
       // Group by Week (divide range into 4 equal segments)
       const step = Math.ceil(diffDays / 4);
       for (let i = 0; i < 4; i++) {

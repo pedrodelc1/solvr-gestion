@@ -138,16 +138,18 @@ serve(async (req) => {
 
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
   const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
+  const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return jsonResp({ error: "Supabase env vars faltantes" }, 500);
   if (!ANTHROPIC_API_KEY) return jsonResp({ error: "ANTHROPIC_API_KEY no configurada" }, 500);
 
-  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  // Cliente con JWT del usuario: solo para auth y claim_team_access
+  const supabaseUser = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     global: { headers: { Authorization: authHeader } },
     auth: { persistSession: false },
   });
 
-  const { data: userData, error: userError } = await supabase.auth.getUser();
+  const { data: userData, error: userError } = await supabaseUser.auth.getUser();
   if (userError || !userData?.user) return jsonResp({ error: "No autenticado" }, 401);
 
   let body: any;
@@ -167,28 +169,36 @@ serve(async (req) => {
   const totalChars = mensajes.reduce((a, m) => a + m.content.length, 0);
   if (totalChars > 20000) return jsonResp({ error: "Conversación demasiado larga" }, 400);
 
-  const { data: negocioId, error: rpcError } = await supabase.rpc("claim_team_access");
+  const { data: negocioId, error: rpcError } = await supabaseUser.rpc("claim_team_access");
   if (rpcError) return jsonResp({ error: "Error obteniendo negocio", detail: rpcError.message }, 500);
   if (!negocioId) return jsonResp({ error: "Sin acceso a ningún negocio" }, 403);
+
+  // Cliente service role: queries de datos sin RLS (negocio_id ya verificado arriba)
+  const adminKey = SUPABASE_SERVICE_ROLE_KEY ?? SUPABASE_ANON_KEY;
+  const supabaseAdmin = createClient(SUPABASE_URL, adminKey, {
+    auth: { persistSession: false },
+  });
 
   const desde = isoDaysAgo(90);
 
   const [
     clientesRes, pedidosRes, cobrosRes, gastosRes, productosRes, devolucionesRes, negocioRes,
   ] = await Promise.all([
-    supabase.from("clientes").select("*").eq("negocio_id", negocioId).order("created_at", { ascending: false }).limit(50),
-    supabase.from("pedidos").select("*").eq("negocio_id", negocioId).gte("created_at", desde).order("created_at", { ascending: false }),
-    supabase.from("cobros").select("*").eq("negocio_id", negocioId).gte("created_at", desde).order("created_at", { ascending: false }),
-    supabase.from("gastos").select("*").eq("negocio_id", negocioId).gte("created_at", desde).order("created_at", { ascending: false }),
-    supabase.from("productos").select("*").eq("negocio_id", negocioId).order("nombre", { ascending: true }).limit(100),
-    supabase.from("devoluciones").select("*").eq("negocio_id", negocioId).gte("created_at", desde).order("created_at", { ascending: false }),
-    supabase.from("negocio_config").select("*").eq("negocio_id", negocioId).maybeSingle(),
+    supabaseAdmin.from("clientes").select("*").eq("negocio_id", negocioId).order("created_at", { ascending: false }).limit(50),
+    supabaseAdmin.from("pedidos").select("*").eq("negocio_id", negocioId).gte("created_at", desde).order("created_at", { ascending: false }),
+    supabaseAdmin.from("cobros").select("*").eq("negocio_id", negocioId).gte("created_at", desde).order("created_at", { ascending: false }),
+    supabaseAdmin.from("gastos").select("*").eq("negocio_id", negocioId).gte("created_at", desde).order("created_at", { ascending: false }),
+    supabaseAdmin.from("productos").select("*").eq("negocio_id", negocioId).order("nombre", { ascending: true }).limit(100),
+    supabaseAdmin.from("devoluciones").select("*").eq("negocio_id", negocioId).gte("created_at", desde).order("created_at", { ascending: false }),
+    supabaseAdmin.from("negocio_config").select("*").eq("negocio_id", negocioId).maybeSingle(),
   ]);
 
   const firstError =
     clientesRes.error || pedidosRes.error || cobrosRes.error ||
     gastosRes.error || productosRes.error || devolucionesRes.error;
   if (firstError) return jsonResp({ error: "Error consultando datos", detail: firstError.message }, 500);
+
+  console.log(`[chat-asistente] negocio=${negocioId} clientes=${clientesRes.data?.length ?? 0} pedidos=${pedidosRes.data?.length ?? 0} cobros=${cobrosRes.data?.length ?? 0} gastos=${gastosRes.data?.length ?? 0} productos=${productosRes.data?.length ?? 0}`);
 
   const contexto = buildContexto({
     clientes: clientesRes.data ?? [],

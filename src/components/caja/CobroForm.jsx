@@ -161,6 +161,9 @@ export function CobroForm({ open, clientes = [], pedidos = [], devoluciones = []
   };
   const saldoSel = clienteId ? getSaldo(clienteId) : null;
 
+  const montoNum = parseFloat(monto);
+  const excedeSaldo = !!clienteId && saldoSel > 0 && !isNaN(montoNum) && montoNum > saldoSel + 0.01;
+
   function validar(finalDesc) {
     const m = parseFloat(monto);
     if (!finalDesc.trim()) return 'Ingresá un concepto o elegí un cliente';
@@ -261,7 +264,13 @@ export function CobroForm({ open, clientes = [], pedidos = [], devoluciones = []
                   onChange={e => setMonto(e.target.value)}
                   disabled={saving}
                   autoFocus
+                  style={excedeSaldo ? { borderColor: 'var(--color-danger, #f87171)' } : undefined}
                 />
+                {excedeSaldo && (
+                  <span style={{ fontSize: 12, color: 'var(--color-danger, #f87171)', marginTop: 4 }}>
+                    Supera el saldo pendiente ({formatCurrency(saldoSel)})
+                  </span>
+                )}
               </div>
               <div className="form-group">
                 <label htmlFor="fc-fecha">Fecha</label>
@@ -295,7 +304,7 @@ export function CobroForm({ open, clientes = [], pedidos = [], devoluciones = []
             {error && <p style={{ color: 'var(--danger)', fontSize: 'var(--text-sm)' }}>{error}</p>}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', padding: 'var(--space-4)', paddingTop: 0 }}>
-            <button className="btn btn-primary btn-full" onClick={handleSave} disabled={saving}>
+            <button className="btn btn-primary btn-full" onClick={handleSave} disabled={saving || excedeSaldo}>
               {saving ? 'Guardando...' : 'Registrar cobro'}
             </button>
             <button className="btn btn-secondary btn-full" onClick={handleClose} disabled={saving}>Cancelar</button>

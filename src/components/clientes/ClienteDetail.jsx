@@ -1,11 +1,11 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { formatCurrency, formatDate, saldoCliente } from '../../lib/utils.js';
 import { ConfirmModal, Modal } from '../shared/Modal.jsx';
 import { generarRemito, compartirRemito } from '../../lib/generarRemito.js';
 import { CuentaCorriente } from './CuentaCorriente.jsx';
 import { DevolucionModal } from '../pedidos/DevolucionModal.jsx';
 import { MedioPill } from '../shared/MedioPill.jsx';
-import { saveCliente, updatePedido } from '../../lib/db.js';
+import { saveCliente, updatePedido, getComunicaciones } from '../../lib/db.js';
 
 const SvgPhone = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
@@ -19,7 +19,16 @@ function TipoComBadge({ tipo }) {
   return <span className="badge badge-info" style={{ fontSize: 10 }}>{map[tipo] || tipo}</span>;
 }
 
-export function ClienteDetail({ cliente, pedidos, devoluciones = [], cobros = [], comunicaciones = [], onBack, onEdit, onDelete, onNuevoPedido, onRegistrarCobro, onRefresh, negocio, negocioConfig, toast, userRole = 'owner' }) {
+export function ClienteDetail({ cliente, pedidos, devoluciones = [], cobros = [], onBack, onEdit, onDelete, onNuevoPedido, onRegistrarCobro, onRefresh, negocio, negocioConfig, toast, userRole = 'owner' }) {
+  // Lazy-load: comunicaciones se traen solo cuando se abre el detalle de un
+  // cliente, filtradas por clienteId. Antes se cargaban todas al iniciar la app.
+  const [comunicaciones, setComunicaciones] = useState([]);
+  useEffect(() => {
+    if (!cliente?.id) return;
+    let cancel = false;
+    getComunicaciones(cliente.id).then(r => { if (!cancel) setComunicaciones(r); });
+    return () => { cancel = true; };
+  }, [cliente?.id]);
   const canWrite = ['owner', 'admin', 'vendedor'].includes(userRole);
   const canDelete = ['owner', 'admin'].includes(userRole);
   const canCobrar = ['owner', 'admin', 'vendedor'].includes(userRole);

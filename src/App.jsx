@@ -303,6 +303,9 @@ export default function App() {
 
   useEffect(() => {
     if (session && isOtpLogin) {
+      if (sessionStorage.getItem('sg_force_pw_change') !== '1') {
+        return;
+      }
       if (sessionStorage.getItem('sg_pw_reset_done') === '1') {
         return;
       }
@@ -310,8 +313,10 @@ export default function App() {
         try {
           const hasPw = await emailHasPassword(session.user.email);
           if (hasPw) {
-            sessionStorage.setItem('sg_force_pw_change', '1');
             setForcePasswordChange(true);
+          } else {
+            sessionStorage.removeItem('sg_force_pw_change');
+            setForcePasswordChange(false);
           }
         } catch (e) {
           console.error('Error checking password recovery status:', e);

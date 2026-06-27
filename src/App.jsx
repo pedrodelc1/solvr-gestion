@@ -303,26 +303,11 @@ export default function App() {
 
   useEffect(() => {
     if (session && isOtpLogin) {
-      if (sessionStorage.getItem('sg_force_pw_change') !== '1') {
-        return;
-      }
-      if (sessionStorage.getItem('sg_pw_reset_done') === '1') {
-        return;
-      }
-      const checkRecovery = async () => {
-        try {
-          const hasPw = await emailHasPassword(session.user.email);
-          if (hasPw) {
-            setForcePasswordChange(true);
-          } else {
-            sessionStorage.removeItem('sg_force_pw_change');
-            setForcePasswordChange(false);
-          }
-        } catch (e) {
-          console.error('Error checking password recovery status:', e);
+      if (sessionStorage.getItem('sg_force_pw_change') === '1') {
+        if (sessionStorage.getItem('sg_pw_reset_done') !== '1') {
+          setForcePasswordChange(true);
         }
-      };
-      checkRecovery();
+      }
     }
   }, [session, isOtpLogin]);
 

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../lib/supabase.js';
-import { isEmailAllowed, emailHasPassword } from '../../lib/db.js';
+import { isEmailAllowed } from '../../lib/db.js';
 import './LoginScreen.css';
 
 export function LoginScreen({ onBack }) {
@@ -11,7 +11,6 @@ export function LoginScreen({ onBack }) {
   const [error, setError] = useState('');
   const [method, setMethod] = useState('otp');
   const [password, setPassword] = useState('');
-  const [info, setInfo] = useState('');
 
   async function sendMagicLink(emailValue) {
     const { error: err } = await supabase.auth.signInWithOtp({
@@ -26,7 +25,6 @@ export function LoginScreen({ onBack }) {
     if (!email.trim()) return;
     setLoading(true);
     setError('');
-    setInfo('');
     const normalized = email.trim();
     const allowed = await isEmailAllowed(normalized);
     if (allowed === false) {
@@ -36,23 +34,6 @@ export function LoginScreen({ onBack }) {
     }
 
     if (method === 'password') {
-      // Primer ingreso: si nunca seteó password, vamos directo al magic link.
-      // El gate real es backend (Supabase Auth + RPC email_has_password) —
-      // este check evita el flash de "Credenciales incorrectas" engañoso.
-      const hasPw = await emailHasPassword(normalized);
-      if (hasPw === false) {
-        try {
-          await sendMagicLink(normalized);
-          setLoading(false);
-          setMethod('otp');
-          setSent(true);
-          setInfo('Es tu primer ingreso. Te mandamos un link para entrar — después podés crear tu contraseña en Perfil.');
-        } catch (err) {
-          setLoading(false);
-          setError(err.message);
-        }
-        return;
-      }
       const { error: err } = await supabase.auth.signInWithPassword({
         email: normalized,
         password,
@@ -228,11 +209,6 @@ export function LoginScreen({ onBack }) {
                   <strong>{email}</strong>.<br />
                   Tocá el link para entrar.
                 </p>
-                {info && (
-                  <p style={{ fontSize: 12.5, color: 'var(--ink-3)', marginTop: 8, maxWidth: 320, lineHeight: 1.5 }}>
-                    {info}
-                  </p>
-                )}
                 <button
                   className="login-back-btn login-back-btn-underline"
                   onClick={() => { setSent(false); setEmail(''); setPassword(''); }}

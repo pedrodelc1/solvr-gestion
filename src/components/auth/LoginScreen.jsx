@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../lib/supabase.js';
-import { isEmailAllowed } from '../../lib/db.js';
+import { isEmailAllowed, emailHasPassword } from '../../lib/db.js';
 import './LoginScreen.css';
 
 export function LoginScreen({ onBack }) {
@@ -11,13 +11,24 @@ export function LoginScreen({ onBack }) {
   const [error, setError] = useState('');
   const [method, setMethod] = useState('otp');
   const [password, setPassword] = useState('');
+  const [info, setInfo] = useState('');
+
+  async function sendMagicLink(emailValue) {
+    const { error: err } = await supabase.auth.signInWithOtp({
+      email: emailValue,
+      options: { emailRedirectTo: window.location.origin },
+    });
+    if (err) throw err;
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
     if (!email.trim()) return;
     setLoading(true);
     setError('');
-    const allowed = await isEmailAllowed(email.trim());
+    setInfo('');
+    const normalized = email.trim();
+    const allowed = await isEmailAllowed(normalized);
     if (allowed === false) {
       setLoading(false);
       setError('Este email no tiene acceso. Contactá al administrador.');
@@ -25,8 +36,25 @@ export function LoginScreen({ onBack }) {
     }
 
     if (method === 'password') {
+      // Primer ingreso: si nunca seteó password, vamos directo al magic link.
+      // El gate real es backend (Supabase Auth + RPC email_has_password) —
+      // este check evita el flash de "Credenciales incorrectas" engañoso.
+      const hasPw = await emailHasPassword(normalized);
+      if (hasPw === false) {
+        try {
+          await sendMagicLink(normalized);
+          setLoading(false);
+          setMethod('otp');
+          setSent(true);
+          setInfo('Es tu primer ingreso. Te mandamos un link para entrar — después podés crear tu contraseña en Perfil.');
+        } catch (err) {
+          setLoading(false);
+          setError(err.message);
+        }
+        return;
+      }
       const { error: err } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
+        email: normalized,
         password,
       });
       setLoading(false);
@@ -34,15 +62,13 @@ export function LoginScreen({ onBack }) {
         setError(err.message === 'Invalid login credentials' ? 'Credenciales incorrectas' : err.message);
       }
     } else {
-      const { error: err } = await supabase.auth.signInWithOtp({
-        email: email.trim(),
-        options: { emailRedirectTo: window.location.origin },
-      });
-      setLoading(false);
-      if (err) {
-        setError(err.message);
-      } else {
+      try {
+        await sendMagicLink(normalized);
+        setLoading(false);
         setSent(true);
+      } catch (err) {
+        setLoading(false);
+        setError(err.message);
       }
     }
   }
@@ -202,6 +228,11 @@ export function LoginScreen({ onBack }) {
                   <strong>{email}</strong>.<br />
                   Tocá el link para entrar.
                 </p>
+                {info && (
+                  <p style={{ fontSize: 12.5, color: 'var(--ink-3)', marginTop: 8, maxWidth: 320, lineHeight: 1.5 }}>
+                    {info}
+                  </p>
+                )}
                 <button
                   className="login-back-btn login-back-btn-underline"
                   onClick={() => { setSent(false); setEmail(''); setPassword(''); }}

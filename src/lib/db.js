@@ -805,6 +805,26 @@ export async function getCategorias() {
 
 // ── WHITELIST / OWNER ─────────────────────────────────────
 
+export async function emailHasPassword(email) {
+  if (!useSupabase()) return true;
+  const v = String(email || '').trim();
+  if (!v) return false;
+  const { data, error } = await supabase.rpc('email_has_password', { p_email: v });
+  if (error) return null;
+  return data === true;
+}
+
+export async function updateUserPassword(newPassword) {
+  // Validación cliente: el mínimo de longitud lo refuerza Supabase Auth
+  // (default 6 chars) — acá ponemos 8 para empujar passwords más fuertes.
+  const pw = String(newPassword || '');
+  if (pw.length < 8) throw new Error('La contraseña debe tener al menos 8 caracteres');
+  if (pw.length > 72) throw new Error('La contraseña no puede superar 72 caracteres');
+  const { error } = await supabase.auth.updateUser({ password: pw });
+  if (error) throw new Error(error.message || 'No se pudo actualizar la contraseña');
+  return true;
+}
+
 export async function isEmailAllowed(email) {
   if (!useSupabase()) return true;
   const superadmin = import.meta.env.VITE_SUPERADMIN_EMAIL;

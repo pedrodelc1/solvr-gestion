@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase.js';
 import { formatCurrency, formatDate, saldoCliente } from '../../lib/utils.js';
 import {
   getAllowedEmails, addAllowedEmail, removeAllowedEmail, updateMemberRol,
+  emailHasPassword, updateUserPassword,
   getAlertasConfig, saveAlertasConfig,
   getSuscripciones, updateSuscripcion, renovarSuscripcion,
   esSuperadmin, getAdminWhitelist, adminGrantOwner, adminRevokeAccess,
@@ -71,6 +72,31 @@ function RolBadge({ rol }) {
       {r.label}
     </span>
   );
+}
+
+function SoftwareOwnerBadge() {
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 4,
+      padding: '3px 10px', borderRadius: 999,
+      background: 'linear-gradient(135deg, rgba(204,255,0,0.18), rgba(186,85,255,0.18))',
+      border: `1px solid rgba(204,255,0,0.6)`,
+      color: BRAND, fontSize: 11, fontWeight: 800,
+      whiteSpace: 'nowrap', flexShrink: 0,
+      textShadow: '0 0 8px rgba(204,255,0,0.4)',
+    }}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 2l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z"/>
+      </svg>
+      Software Owner
+    </span>
+  );
+}
+
+function isSuperEmail(emailValue) {
+  const env = import.meta.env.VITE_SUPERADMIN_EMAIL;
+  if (!env || !emailValue) return false;
+  return String(emailValue).toLowerCase().trim() === String(env).toLowerCase().trim();
 }
 
 function SectionHeader({ icon, title, subtitle }) {
@@ -283,6 +309,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
   const [newRol, setNewRol] = useState('vendedor');
   const [adding, setAdding] = useState(false);
   const [editingRolId, setEditingRolId] = useState(null);
+  const [teamView, setTeamView] = useState('tree');
   const [diasAlerta, setDiasAlerta] = useState(7);
   const [savingAlerta, setSavingAlerta] = useState(false);
   const [suscripciones, setSuscripciones] = useState([]);
@@ -298,6 +325,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [updatingPassword, setUpdatingPassword] = useState(false);
+  const [hasPassword, setHasPassword] = useState(true);
   const [loadingMap, setLoadingMap] = useState({});
   const [loggingOut, setLoggingOut] = useState(false);
 
@@ -323,8 +351,9 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
 
   async function handleUpdatePassword() {
     if (updatingPasswordRef.current) return;
-    // Validación frontend (1ª verificación)
-    if (!currentPassword.trim()) {
+    // Validación frontend (1ª verificación). Si el usuario nunca seteó
+    // contraseña (primer ingreso por magic link), no pedimos la actual.
+    if (hasPassword && !currentPassword.trim()) {
       toast('Ingresá tu contraseña actual', 'error');
       return;
     }
@@ -336,7 +365,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
       toast('Las contraseñas nuevas no coinciden', 'error');
       return;
     }
-    if (newPassword.trim() === currentPassword.trim()) {
+    if (hasPassword && newPassword.trim() === currentPassword.trim()) {
       toast('La nueva contraseña debe ser distinta a la actual', 'error');
       return;
     }
@@ -347,21 +376,26 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
     updatingPasswordRef.current = true;
     setUpdatingPassword(true);
     try {
-      // 2ª verificación (backend): re-autenticar con la contraseña actual.
-      // Supabase valida el hash en el servidor; el frontend no puede saltearlo.
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password: currentPassword.trim(),
-      });
-      if (signInError) {
-        toast('La contraseña actual es incorrecta', 'error');
-        updatingPasswordRef.current = false;
-        setUpdatingPassword(false);
-        return;
+      // 2ª verificación (backend): si ya hay contraseña, re-autenticamos con
+      // la actual (Supabase valida el hash en server). Si no hay contraseña,
+      // confiamos en la sesión activa — Supabase Auth solo permite updateUser
+      // con un access_token válido del usuario, así que el backend igual
+      // protege la operación (no se puede setear password ajena desde el front).
+      if (hasPassword) {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password: currentPassword.trim(),
+        });
+        if (signInError) {
+          toast('La contraseña actual es incorrecta', 'error');
+          updatingPasswordRef.current = false;
+          setUpdatingPassword(false);
+          return;
+        }
       }
-      const { error } = await supabase.auth.updateUser({ password: newPassword.trim() });
-      if (error) throw error;
-      toast('Contraseña cambiada con éxito');
+      await updateUserPassword(newPassword.trim());
+      toast(hasPassword ? 'Contraseña cambiada con éxito' : 'Contraseña creada con éxito');
+      setHasPassword(true);
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
@@ -377,7 +411,8 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
     getAllowedEmails().then(setAllowedEmails);
     getAlertasConfig().then(cfg => setDiasAlerta(cfg.dias_sin_cobro));
     getMiPlanAsientos().then(setPlanInfo);
-  }, []);
+    if (email) emailHasPassword(email).then(v => { if (v !== null) setHasPassword(v); });
+  }, [email]);
 
   useEffect(() => {
     if (isOwner && showAdminPanel) {
@@ -566,16 +601,6 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
         </svg>
       ),
     },
-    {
-      label: 'Gastos',
-      value: formatCurrency(totalGastos),
-      color: 'var(--ink-2)',
-      icon: (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/>
-        </svg>
-      ),
-    },
   ];
 
   return (
@@ -688,17 +713,21 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--ink)', marginBottom: 6 }}>{email}</div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{
-                display: 'inline-flex', alignItems: 'center', gap: 5,
-                padding: '4px 12px', borderRadius: 999,
-                background: roleData.bg, border: `1px solid var(--lime-border)`,
-                color: roleData.color, fontSize: 12, fontWeight: 700,
-              }}>
-                {isOwner ? (
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                ) : roleData.icon}
-                {isOwner ? 'Dueño' : roleData.label}
-              </span>
+              {isSuperAdmin ? (
+                <SoftwareOwnerBadge />
+              ) : (
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  padding: '4px 12px', borderRadius: 999,
+                  background: roleData.bg, border: `1px solid var(--lime-border)`,
+                  color: roleData.color, fontSize: 12, fontWeight: 700,
+                }}>
+                  {isOwner ? (
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                  ) : roleData.icon}
+                  {isOwner ? 'Dueño' : roleData.label}
+                </span>
+              )}
               <span style={{
                 display: 'inline-flex', alignItems: 'center', gap: 5,
                 fontSize: 12, color: '#4ade80', fontWeight: 600,
@@ -821,7 +850,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
       })()}
 
       {/* ── STATS ── */}
-      <div style={{ padding: '20px 16px 0', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+      <div style={{ padding: '20px 16px 0', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
         {statItems.map((item, i) => (
           <motion.div
             key={item.label}
@@ -1202,13 +1231,160 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
               })()}
             </div>
 
-            {/* Lista de miembros */}
+            {/* Lista / Árbol de miembros */}
             {allowedEmails.length > 0 && (
               <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
-                  Miembros actuales · {allowedEmails.length}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, gap: 8 }}>
+                  <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    Miembros actuales · {allowedEmails.length}
+                  </div>
+                  <div style={{ display: 'flex', gap: 4, padding: 3, background: 'var(--bg-3)', borderRadius: 999, border: '1px solid var(--border)' }}>
+                    {[
+                      { id: 'tree', label: 'Árbol' },
+                      { id: 'list', label: 'Lista' },
+                    ].map(v => (
+                      <button
+                        key={v.id}
+                        type="button"
+                        onClick={() => setTeamView(v.id)}
+                        style={{
+                          padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                          border: 'none',
+                          background: teamView === v.id ? BRAND_DIM : 'transparent',
+                          color: teamView === v.id ? BRAND : 'var(--ink-3)',
+                        }}
+                      >
+                        {v.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                {allowedEmails.map(m => {
+                {teamView === 'tree' && (() => {
+                  const owner = allowedEmails.find(m => m.is_owner);
+                  const groups = [
+                    { rolId: 'admin',        label: 'Administradores',  members: allowedEmails.filter(m => !m.is_owner && m.rol === 'admin') },
+                    { rolId: 'vendedor',     label: 'Vendedores',       members: allowedEmails.filter(m => !m.is_owner && (m.rol === 'vendedor' || !m.rol)) },
+                    { rolId: 'visualizador', label: 'Solo lectura',     members: allowedEmails.filter(m => !m.is_owner && m.rol === 'visualizador') },
+                  ].filter(g => g.members.length > 0);
+                  const LINE = 'var(--border)';
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', padding: '4px 0 8px' }}>
+                      {/* Nodo raíz: dueño */}
+                      {owner && (
+                        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
+                          <div style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 10,
+                            padding: '10px 14px', borderRadius: 14,
+                            background: BRAND_DIM, border: `1.5px solid var(--lime-border)`,
+                            boxShadow: `0 0 0 4px rgba(204,255,0,0.06)`,
+                          }}>
+                            <div style={{
+                              width: 32, height: 32, borderRadius: '50%',
+                              background: 'var(--bg)', border: `1.5px solid ${BRAND}`,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: 13, fontWeight: 800, color: BRAND,
+                            }}>{owner.email[0].toUpperCase()}</div>
+                            <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                              <span style={{ fontSize: 10, color: BRAND, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Dueño</span>
+                              <span style={{ fontSize: 12, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220 }}>{owner.email}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      {groups.length === 0 ? (
+                        <div style={{ fontSize: 12, color: 'var(--ink-3)', textAlign: 'center', padding: '8px 0' }}>
+                          Aún no agregaste miembros al equipo.
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 18, position: 'relative', paddingTop: 4 }}>
+                          {/* Línea vertical central que une raíz con grupos */}
+                          {owner && <div style={{ position: 'absolute', top: -14, left: '50%', width: 1.5, height: 18, background: LINE }} />}
+                          {groups.map((g) => {
+                            const r = getRoleData(g.rolId);
+                            return (
+                              <div key={g.rolId} style={{ position: 'relative', paddingTop: 10 }}>
+                                {/* Línea que entra al header del grupo desde arriba */}
+                                <div style={{ position: 'absolute', top: 0, left: 18, width: 1.5, height: 10, background: LINE }} />
+                                {/* Header del grupo */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 10, background: 'var(--bg-3)', border: `1px solid var(--border)`, marginLeft: 0 }}>
+                                  <div style={{
+                                    width: 24, height: 24, borderRadius: 6,
+                                    background: r.bg, border: `1px solid var(--lime-border)`,
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', color: r.color,
+                                  }}>{r.icon}</div>
+                                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)' }}>{g.label}</span>
+                                  <span style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 600 }}>· {g.members.length}</span>
+                                </div>
+                                {/* Hijos del grupo: línea vertical a la izquierda + ramas horizontales */}
+                                <div style={{ marginLeft: 18, paddingLeft: 16, marginTop: 8, position: 'relative', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                  <div style={{ position: 'absolute', top: 0, left: 0, bottom: 16, width: 1.5, background: LINE }} />
+                                  {g.members.map((m, idx) => (
+                                    <div key={m.id} style={{ position: 'relative', paddingLeft: 14 }}>
+                                      <div style={{ position: 'absolute', top: 18, left: 0, width: 14, height: 1.5, background: LINE }} />
+                                      {idx === g.members.length - 1 && (
+                                        <div style={{ position: 'absolute', top: 18, left: -1.5, bottom: -8, width: 3, background: 'var(--bg-2)' }} />
+                                      )}
+                                      <div style={{
+                                        display: 'flex', alignItems: 'center', gap: 10,
+                                        padding: '8px 12px', borderRadius: 10,
+                                        background: 'var(--bg-3)', border: '1px solid var(--border)',
+                                      }}>
+                                        <div style={{
+                                          width: 28, height: 28, borderRadius: '50%',
+                                          background: r.bg, border: `1.5px solid var(--lime-border)`,
+                                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                          fontSize: 12, fontWeight: 800, color: r.color, flexShrink: 0,
+                                        }}>{m.email[0].toUpperCase()}</div>
+                                        <span style={{ fontSize: 12, color: 'var(--ink)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.email}</span>
+                                        {(isOwner || userRole === 'admin') && (
+                                          <div style={{ display: 'flex', gap: 8 }}>
+                                            <button
+                                              onClick={() => setEditingRolId(m.id)}
+                                              disabled={loadingMap[m.id]}
+                                              style={{ fontSize: 11, color: BRAND, background: 'none', border: 'none', cursor: loadingMap[m.id] ? 'not-allowed' : 'pointer', padding: 0, fontWeight: 700, opacity: loadingMap[m.id] ? 0.5 : 1 }}
+                                            >Rol</button>
+                                            <button
+                                              onClick={() => handleRemove(m.id)}
+                                              disabled={loadingMap[m.id]}
+                                              style={{ fontSize: 11, color: 'var(--danger)', background: 'none', border: 'none', cursor: loadingMap[m.id] ? 'not-allowed' : 'pointer', padding: 0, fontWeight: 700, opacity: loadingMap[m.id] ? 0.5 : 1 }}
+                                            >Quitar</button>
+                                          </div>
+                                        )}
+                                      </div>
+                                      {editingRolId === m.id && (
+                                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6, marginLeft: 14 }}>
+                                          {ROLES.map(rr => (
+                                            <button
+                                              key={rr.id}
+                                              type="button"
+                                              onClick={() => handleChangeRol(m.id, rr.id)}
+                                              disabled={loadingMap[m.id]}
+                                              style={{
+                                                padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700, cursor: loadingMap[m.id] ? 'not-allowed' : 'pointer',
+                                                border: `1px solid ${(m.rol || 'vendedor') === rr.id ? rr.color : 'var(--border)'}`,
+                                                background: (m.rol || 'vendedor') === rr.id ? rr.bg : 'none',
+                                                color: (m.rol || 'vendedor') === rr.id ? rr.color : 'var(--ink-3)',
+                                              }}
+                                            >{rr.label}</button>
+                                          ))}
+                                          <button
+                                            onClick={() => setEditingRolId(null)}
+                                            style={{ padding: '4px 10px', borderRadius: 999, fontSize: 11, background: 'none', border: '1px solid var(--border)', color: 'var(--ink-3)', cursor: 'pointer' }}
+                                          >Cancelar</button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+                {teamView === 'list' && allowedEmails.map(m => {
                   const mr = m.is_owner ? { label: 'Dueño', color: BRAND, bg: BRAND_DIM } : getRoleData(m.rol || 'vendedor');
                   return (
                     <motion.div
@@ -1233,7 +1409,9 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
                         <span style={{ fontSize: 13, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--ink)' }}>
                           {m.email}
                         </span>
-                        <RolBadge rol={m.is_owner ? 'admin' : (m.rol || 'vendedor')} />
+                        {isSuperEmail(m.email)
+                          ? <SoftwareOwnerBadge />
+                          : <RolBadge rol={m.is_owner ? 'admin' : (m.rol || 'vendedor')} />}
                       </div>
 
                       {!m.is_owner && (isOwner || userRole === 'admin') && (
@@ -1595,7 +1773,9 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
                                 <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 700, color: BRAND, background: BRAND_DIM, padding: '1px 6px', borderRadius: 999 }}>vos</span>
                               )}
                             </span>
-                            <RolBadge rol={w.is_owner ? 'admin' : (w.rol || 'vendedor')} />
+                            {isSuperEmail(w.email)
+                              ? <SoftwareOwnerBadge />
+                              : <RolBadge rol={w.is_owner ? 'admin' : (w.rol || 'vendedor')} />}
                             {!w.is_owner && (!email || w.email?.toLowerCase() !== email.toLowerCase()) && (
                               <button
                                 onClick={() => handleRevokeAccess(w.email)}
@@ -1634,8 +1814,10 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
         </div>
 
         <Collapsible
-          title="Contraseña de acceso"
-          subtitle="Cambiala ingresando primero la actual"
+          title={hasPassword ? 'Contraseña de acceso' : 'Crear contraseña'}
+          subtitle={hasPassword
+            ? 'Cambiala ingresando primero la actual'
+            : 'Hoy ingresás solo por magic link. Creá una contraseña para entrar más rápido.'}
           icon={
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
@@ -1643,13 +1825,15 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
           }
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <Field label="Contraseña actual" hint="Por seguridad, confirmá que sos vos antes de cambiarla">
-              <input
-                type="password" placeholder="Tu contraseña actual" autoComplete="current-password"
-                value={currentPassword} onChange={e => setCurrentPassword(e.target.value)}
-                style={inputStyle}
-              />
-            </Field>
+            {hasPassword && (
+              <Field label="Contraseña actual" hint="Por seguridad, confirmá que sos vos antes de cambiarla">
+                <input
+                  type="password" placeholder="Tu contraseña actual" autoComplete="current-password"
+                  value={currentPassword} onChange={e => setCurrentPassword(e.target.value)}
+                  style={inputStyle}
+                />
+              </Field>
+            )}
             <Field label="Nueva contraseña">
               <input
                 type="password" placeholder="Mín. 6 caracteres" autoComplete="new-password"
@@ -1675,10 +1859,10 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
               whileTap={{ scale: 0.97 }}
               className="btn btn-secondary btn-full"
               onClick={handleUpdatePassword}
-              disabled={updatingPassword || !currentPassword.trim() || !newPassword.trim() || !confirmPassword.trim()}
+              disabled={updatingPassword || (hasPassword && !currentPassword.trim()) || !newPassword.trim() || !confirmPassword.trim()}
               style={{ minHeight: 48, fontSize: 14, borderRadius: 10 }}
             >
-              {updatingPassword ? 'Cambiando...' : 'Cambiar contraseña'}
+              {updatingPassword ? (hasPassword ? 'Cambiando...' : 'Creando...') : (hasPassword ? 'Cambiar contraseña' : 'Crear contraseña')}
             </motion.button>
           </div>
         </Collapsible>

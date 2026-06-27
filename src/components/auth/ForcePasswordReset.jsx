@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { updateUserPassword } from '../../lib/db.js';
+import './LoginScreen.css';
 
 export function ForcePasswordReset({ onComplete, toast }) {
   const [newPassword, setNewPassword] = useState('');
@@ -8,20 +9,6 @@ export function ForcePasswordReset({ onComplete, toast }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const savingRef = useRef(false);
-
-  const inputStyle = {
-    background: 'var(--bg-3)',
-    border: '1px solid var(--border)',
-    borderRadius: 10,
-    padding: '12px 14px',
-    color: 'var(--ink)',
-    width: '100%',
-    boxSizing: 'border-box',
-    outline: 'none',
-    fontSize: 15,
-    marginTop: 6,
-    transition: 'border-color 150ms',
-  };
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -52,67 +39,82 @@ export function ForcePasswordReset({ onComplete, toast }) {
   }
 
   return (
-    <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-6)', background: 'var(--bg)', color: '#fff' }}>
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        style={{ width: '100%', maxWidth: 380, background: 'var(--bg-2)', border: '1px solid var(--border)', padding: 28, borderRadius: 'var(--radius-lg)', boxSizing: 'border-box' }}
-      >
-        <div style={{ fontSize: '2.5rem', fontWeight: 900, letterSpacing: '-0.04em', color: '#fff', textAlign: 'center', marginBottom: 12 }}>Solvnt.</div>
-        <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 700, textAlign: 'center', color: '#fff', margin: '0 0 8px' }}>Restablecer tu contraseña</h2>
-        <p style={{ color: 'var(--ink-2)', fontSize: 'var(--text-sm)', lineHeight: 1.5, textAlign: 'center', margin: '0 0 24px' }}>
-          Para ingresar de forma segura y proteger tu cuenta, ingresá una nueva contraseña.
-        </p>
+    <div className="login-screen">
+      <div className="login-card">
+        <div className="login-card-inner">
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div>
-            <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-2)' }}>Nueva contraseña</label>
-            <input
-              type="password"
-              placeholder="Mín. 6 caracteres"
-              value={newPassword}
-              onChange={e => setNewPassword(e.target.value)}
-              autoComplete="new-password"
-              style={inputStyle}
-              required
-              autoFocus
-            />
+          {/* Branding */}
+          <div className="login-mobile-brand" style={{ marginBottom: 12 }}>
+            <span className="login-side-mark">S</span>
+            <span className="login-side-name">Solvr Gestión</span>
           </div>
 
-          <div>
-            <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-2)' }}>Repetir nueva contraseña</label>
-            <input
-              type="password"
-              placeholder="Repetí tu nueva contraseña"
-              value={confirmPassword}
-              onChange={e => setConfirmPassword(e.target.value)}
-              autoComplete="new-password"
-              style={{
-                ...inputStyle,
-                borderColor: confirmPassword && confirmPassword !== newPassword ? 'var(--danger)' : 'var(--border)',
-              }}
-              required
-            />
-            {confirmPassword && confirmPassword !== newPassword && (
-              <span style={{ fontSize: 11, color: 'var(--danger)', marginTop: 4, display: 'block' }}>Las contraseñas no coinciden</span>
-            )}
-          </div>
-
-          {error && (
-            <p style={{ color: 'var(--danger)', fontSize: 'var(--text-sm)', margin: 0, lineHeight: 1.4 }}>{error}</p>
-          )}
-
-          <motion.button
-            whileTap={{ scale: 0.97 }}
-            type="submit"
-            className="btn btn-primary btn-full"
-            disabled={saving || !newPassword.trim() || newPassword !== confirmPassword}
-            style={{ minHeight: 48, fontSize: 'var(--text-base)', fontWeight: 700, marginTop: 8 }}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
+            style={{ display: 'flex', flexDirection: 'column', gap: 24 }}
           >
-            {saving ? 'Guardando...' : 'Establecer Contraseña e Ingresar'}
-          </motion.button>
-        </form>
-      </motion.div>
+            <div>
+              <h1 className="login-heading">Restablecer contraseña</h1>
+              <p className="login-subheading">
+                Para ingresar de forma segura y proteger tu cuenta, ingresá una nueva contraseña.
+              </p>
+            </div>
+
+            <form className="login-form" onSubmit={handleSubmit}>
+              <div>
+                <label className="login-label" htmlFor="reset-new-password">Nueva contraseña</label>
+                <input
+                  id="reset-new-password"
+                  type="password"
+                  placeholder="Mínimo 6 caracteres"
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  autoComplete="new-password"
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="login-label" htmlFor="reset-confirm-password">Repetir nueva contraseña</label>
+                <input
+                  id="reset-confirm-password"
+                  type="password"
+                  placeholder="Repetí la contraseña"
+                  value={confirmPassword}
+                  onChange={e => setConfirmPassword(e.target.value)}
+                  autoComplete="new-password"
+                  style={{
+                    borderColor: confirmPassword && confirmPassword !== newPassword ? '#f87171' : undefined,
+                  }}
+                  required
+                />
+                {confirmPassword && confirmPassword !== newPassword && (
+                  <span style={{ fontSize: 11.5, color: '#f87171', marginTop: 6, display: 'block' }}>
+                    Las contraseñas no coinciden
+                  </span>
+                )}
+              </div>
+
+              {error && (
+                <p style={{ fontSize: 12.5, color: '#f87171', margin: 0 }}>{error}</p>
+              )}
+
+              <button
+                type="submit"
+                className="btn-primary"
+                disabled={saving || !newPassword.trim() || newPassword !== confirmPassword || newPassword.length < 6}
+                style={{ marginTop: 8 }}
+              >
+                {saving ? 'Guardando...' : 'Establecer contraseña e ingresar'}
+              </button>
+            </form>
+          </motion.div>
+
+        </div>
+      </div>
     </div>
   );
 }

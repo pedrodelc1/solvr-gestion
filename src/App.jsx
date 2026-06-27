@@ -90,6 +90,20 @@ export default function App() {
   const [verifyingOtp, setVerifyingOtp] = useState(false);
   const [verifyOtpError, setVerifyOtpError] = useState('');
 
+  const isOtpLogin = useMemo(() => {
+    if (!session?.access_token) return false;
+    try {
+      const payload = JSON.parse(atob(session.access_token.split('.')[1]));
+      const amr = payload.amr;
+      if (Array.isArray(amr)) {
+        return amr.some(x => x.method === 'otp' || x.method === 'magiclink' || x.method === 'recovery' || x === 'otp' || x === 'magiclink' || x === 'recovery');
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }, [session]);
+
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('sg_theme', theme);
@@ -279,6 +293,33 @@ export default function App() {
       if (seq === loadSeqRef.current) setLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (!session) {
+      sessionStorage.removeItem('sg_pw_reset_done');
+      sessionStorage.removeItem('sg_force_pw_change');
+    }
+  }, [session]);
+
+  useEffect(() => {
+    if (session && isOtpLogin) {
+      if (sessionStorage.getItem('sg_pw_reset_done') === '1') {
+        return;
+      }
+      const checkRecovery = async () => {
+        try {
+          const hasPw = await emailHasPassword(session.user.email);
+          if (hasPw) {
+            sessionStorage.setItem('sg_force_pw_change', '1');
+            setForcePasswordChange(true);
+          }
+        } catch (e) {
+          console.error('Error checking password recovery status:', e);
+        }
+      };
+      checkRecovery();
+    }
+  }, [session, isOtpLogin]);
 
   useEffect(() => {
     if (authChecked && session) {
@@ -769,6 +810,7 @@ export default function App() {
         <ForcePasswordReset
           onComplete={() => {
             sessionStorage.removeItem('sg_force_pw_change');
+            sessionStorage.setItem('sg_pw_reset_done', '1');
             setForcePasswordChange(false);
           }}
           toast={toast}

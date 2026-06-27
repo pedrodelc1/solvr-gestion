@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../lib/supabase.js';
 import { formatCurrency, formatDate, saldoCliente } from '../../lib/utils.js';
@@ -145,6 +145,12 @@ const inputStyle = {
 // Sección desplegable (acordeón) — mismo lenguaje visual que SectionHeader
 function Collapsible({ icon, title, subtitle, defaultOpen = false, badge = null, children }) {
   const [open, setOpen] = useState(defaultOpen);
+
+  useEffect(() => {
+    if (defaultOpen) {
+      setOpen(true);
+    }
+  }, [defaultOpen]);
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -194,9 +200,24 @@ function Collapsible({ icon, title, subtitle, defaultOpen = false, badge = null,
   );
 }
 
-export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gastos, devoluciones = [], cobros = [], suscripcion, negocioConfig, onNegocioSave, toast, theme, onThemeChange }) {
+export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gastos, devoluciones = [], cobros = [], suscripcion, negocioConfig, onNegocioSave, toast, theme, onThemeChange, autoExpandPassword, onResetAutoExpand }) {
   const email = session?.user?.email || null;
   const inicial = email ? email[0].toUpperCase() : '?';
+
+  const isOtpLogin = useMemo(() => {
+    try {
+      if (!session?.access_token) return false;
+      const parts = session.access_token.split('.');
+      if (parts.length < 2) return false;
+      const payload = JSON.parse(atob(parts[1]));
+      const amr = payload?.amr || [];
+      const methods = amr.map(a => typeof a === 'object' ? a.method : String(a));
+      return methods.includes('otp') || methods.includes('magiclink') || methods.includes('recovery');
+    } catch (e) {
+      console.error('Error parsing token AMR:', e);
+      return false;
+    }
+  }, [session]);
 
   const [avatarUrl, setAvatarUrl] = useState(() => {
     return session?.user?.user_metadata?.avatar_url || localStorage.getItem('sg_avatar_' + (email || '')) || null;
@@ -335,6 +356,21 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
   const addingRef = useRef(false);
   const savingAlertaRef = useRef(false);
 
+  const securitySectionRef = useRef(null);
+
+  useEffect(() => {
+    if (autoExpandPassword) {
+      setTimeout(() => {
+        if (securitySectionRef.current) {
+          securitySectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 350);
+      if (onResetAutoExpand) {
+        onResetAutoExpand();
+      }
+    }
+  }, [autoExpandPassword, onResetAutoExpand]);
+
   async function runAction(id, actionFn) {
     if (loadingMapRef.current[id]) return;
     loadingMapRef.current[id] = true;
@@ -352,8 +388,8 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
   async function handleUpdatePassword() {
     if (updatingPasswordRef.current) return;
     // Validación frontend (1ª verificación). Si el usuario nunca seteó
-    // contraseña (primer ingreso por magic link), no pedimos la actual.
-    if (hasPassword && !currentPassword.trim()) {
+    // contraseña (primer ingreso por magic link) o entró con OTP, no pedimos la actual.
+    if (hasPassword && !isOtpLogin && !currentPassword.trim()) {
       toast('Ingresá tu contraseña actual', 'error');
       return;
     }
@@ -365,7 +401,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
       toast('Las contraseñas nuevas no coinciden', 'error');
       return;
     }
-    if (hasPassword && newPassword.trim() === currentPassword.trim()) {
+    if (hasPassword && !isOtpLogin && newPassword.trim() === currentPassword.trim()) {
       toast('La nueva contraseña debe ser distinta a la actual', 'error');
       return;
     }
@@ -376,12 +412,12 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
     updatingPasswordRef.current = true;
     setUpdatingPassword(true);
     try {
-      // 2ª verificación (backend): si ya hay contraseña, re-autenticamos con
-      // la actual (Supabase valida el hash en server). Si no hay contraseña,
+      // 2ª verificación (backend): si ya hay contraseña y no es login OTP, re-autenticamos con
+      // la actual (Supabase valida el hash en server). Si no hay contraseña o entramos con OTP,
       // confiamos en la sesión activa — Supabase Auth solo permite updateUser
       // con un access_token válido del usuario, así que el backend igual
       // protege la operación (no se puede setear password ajena desde el front).
-      if (hasPassword) {
+      if (hasPassword && !isOtpLogin) {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password: currentPassword.trim(),
@@ -1808,16 +1844,17 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
       )}
 
       {/* ── SEGURIDAD ── */}
-      <div style={{ padding: '24px 16px 0' }}>
+      <div ref={securitySectionRef} style={{ padding: '24px 16px 0' }}>
         <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', paddingLeft: 2, marginBottom: 12 }}>
           Seguridad y Preferencias
         </div>
 
         <Collapsible
-          title={hasPassword ? 'Contraseña de acceso' : 'Crear contraseña'}
+          title={hasPassword ? (isOtpLogin ? 'Restablecer contraseña' : 'Contraseña de acceso') : 'Crear contraseña'}
           subtitle={hasPassword
-            ? 'Cambiala ingresando primero la actual'
+            ? (isOtpLogin ? 'Ingresá una nueva contraseña directamente' : 'Cambiala ingresando primero la actual')
             : 'Hoy ingresás solo por magic link. Creá una contraseña para entrar más rápido.'}
+          defaultOpen={autoExpandPassword}
           icon={
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
@@ -1825,7 +1862,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
           }
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {hasPassword && (
+            {hasPassword && !isOtpLogin && (
               <Field label="Contraseña actual" hint="Por seguridad, confirmá que sos vos antes de cambiarla">
                 <input
                   type="password" placeholder="Tu contraseña actual" autoComplete="current-password"

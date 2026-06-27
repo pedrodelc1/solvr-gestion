@@ -1,21 +1,26 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../lib/supabase.js';
-import { isEmailAllowed } from '../../lib/db.js';
+import { isEmailAllowed, checkPrimerAcceso } from '../../lib/db.js';
 import './LoginScreen.css';
 
-export function LoginScreen({ onBack }) {
+export function LoginScreen({ onBack, initialMethod = 'otp', isFirstTime = false }) {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
-  const [method, setMethod] = useState('otp');
+  const [method, setMethod] = useState(initialMethod);
+  const [isFirstTimeState, setIsFirstTimeState] = useState(isFirstTime);
   const [password, setPassword] = useState('');
 
-  async function sendMagicLink(emailValue) {
+  async function sendMagicLink(emailValue, isRecovery = false) {
+    const redirectTo = isRecovery
+      ? `${window.location.origin}?flow=recovery`
+      : window.location.origin;
+
     const { error: err } = await supabase.auth.signInWithOtp({
       email: emailValue,
-      options: { emailRedirectTo: window.location.origin },
+      options: { emailRedirectTo: redirectTo },
     });
     if (err) throw err;
   }
@@ -33,6 +38,28 @@ export function LoginScreen({ onBack }) {
       return;
     }
 
+    if (method === 'otp' && isFirstTimeState) {
+      try {
+        const ok = await checkPrimerAcceso(normalized);
+        if (!ok) {
+          setLoading(false);
+          setError('Este email ya está registrado con una contraseña. Por favor, iniciá sesión usando tu contraseña.');
+          return;
+        }
+      } catch (err) {
+        setLoading(false);
+        const rawMsg = err.message || '';
+        if (rawMsg.includes('ya está registrado') || rawMsg.includes('contraseña') || rawMsg.includes('has password')) {
+          setError('Este email ya está registrado con una contraseña. Por favor, iniciá sesión usando tu contraseña.');
+        } else if (rawMsg.includes('no tiene acceso') || rawMsg.includes('whitelist')) {
+          setError('Este email no tiene acceso. Contactá al administrador.');
+        } else {
+          setError('Ocurrió un problema al verificar el acceso. Por favor, intentá de nuevo.');
+        }
+        return;
+      }
+    }
+
     if (method === 'password') {
       const { error: err } = await supabase.auth.signInWithPassword({
         email: normalized,
@@ -42,9 +69,18 @@ export function LoginScreen({ onBack }) {
       if (err) {
         setError(err.message === 'Invalid login credentials' ? 'Credenciales incorrectas' : err.message);
       }
+    } else if (method === 'recovery') {
+      try {
+        await sendMagicLink(normalized, true);
+        setLoading(false);
+        setSent(true);
+      } catch (err) {
+        setLoading(false);
+        setError(err.message);
+      }
     } else {
       try {
-        await sendMagicLink(normalized);
+        await sendMagicLink(normalized, false);
         setLoading(false);
         setSent(true);
       } catch (err) {
@@ -113,12 +149,12 @@ export function LoginScreen({ onBack }) {
               >
                 <div>
                   <h1 className="login-heading">
-                    {method === 'otp' ? 'Ingresá a tu cuenta' : 'Iniciá sesión'}
+                    {method === 'otp' ? 'Ingresá a tu cuenta' : (method === 'recovery' ? 'Recuperar contraseña' : 'Iniciá sesión')}
                   </h1>
                   <p className="login-subheading">
                     {method === 'otp'
                       ? 'Te mandamos un link directo a tu email.'
-                      : 'Usá tu email y contraseña.'}
+                      : (method === 'recovery' ? 'Te enviamos un enlace para restablecer tu clave.' : 'Usá tu email y contraseña.')}
                   </p>
                 </div>
 
@@ -138,7 +174,16 @@ export function LoginScreen({ onBack }) {
 
                   {method === 'password' && (
                     <div>
-                      <label className="login-label" htmlFor="login-password">Contraseña</label>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <label className="login-label" htmlFor="login-password" style={{ margin: 0 }}>Contraseña</label>
+                        <button
+                          type="button"
+                          onClick={() => { setMethod('recovery'); setError(''); }}
+                          style={{ fontSize: 12.5, textDecoration: 'underline', background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--ink-2)' }}
+                        >
+                          ¿Olvidaste tu contraseña?
+                        </button>
+                      </div>
                       <input
                         id="login-password"
                         type="password"
@@ -161,33 +206,24 @@ export function LoginScreen({ onBack }) {
                     disabled={loading || !email.trim() || (method === 'password' && !password)}
                   >
                     {loading
-                      ? 'Ingresando…'
+                      ? (method === 'recovery' ? 'Enviando...' : 'Ingresando…')
                       : method === 'password'
                         ? 'Iniciar sesión'
-                        : 'Enviar link de acceso'}
+                        : (method === 'recovery' ? 'Enviar enlace de recuperación' : 'Enviar link de acceso')}
                   </button>
                 </form>
 
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-                  <div className="login-divider">o</div>
-                  {method === 'otp' ? (
+                {method === 'recovery' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
                     <button
                       type="button"
                       className="login-back-btn login-back-btn-underline"
                       onClick={() => { setMethod('password'); setError(''); }}
                     >
-                      Ingresar con contraseña
+                      Volver al inicio de sesión
                     </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="login-back-btn login-back-btn-underline"
-                      onClick={() => { setMethod('otp'); setError(''); }}
-                    >
-                      Ingresar sin contraseña
-                    </button>
-                  )}
-                </div>
+                  </div>
+                )}
               </motion.div>
             ) : (
               <motion.div
@@ -203,11 +239,21 @@ export function LoginScreen({ onBack }) {
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
                 </div>
-                <h2>Revisá tu email</h2>
+                <h2>{method === 'recovery' ? 'Enlace enviado' : 'Revisá tu email'}</h2>
                 <p>
-                  Enviamos un link de acceso a<br />
-                  <strong>{email}</strong>.<br />
-                  Tocá el link para entrar.
+                  {method === 'recovery' ? (
+                    <>
+                      Enviamos un enlace para restablecer tu clave a<br />
+                      <strong>{email}</strong>.<br />
+                      Revisá tu bandeja y tocá el link.
+                    </>
+                  ) : (
+                    <>
+                      Enviamos un link de acceso a<br />
+                      <strong>{email}</strong>.<br />
+                      Tocá el link para entrar.
+                    </>
+                  )}
                 </p>
                 <button
                   className="login-back-btn login-back-btn-underline"

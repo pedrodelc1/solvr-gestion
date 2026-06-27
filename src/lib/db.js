@@ -835,6 +835,28 @@ export async function isEmailAllowed(email) {
   return data === true;
 }
 
+export async function checkPrimerAcceso(email) {
+  if (!useSupabase()) return true;
+  const v = String(email || '').trim();
+  if (!v) return false;
+  const { data, error } = await supabase.rpc('check_primer_acceso', { p_email: v });
+  if (error) {
+    if (error.message.includes('Could not find the function')) {
+      const allowed = await isEmailAllowed(v);
+      if (allowed === false) {
+        throw new Error('Este email no tiene acceso. Contactá al administrador.');
+      }
+      const hasPw = await emailHasPassword(v);
+      if (hasPw === true) {
+        throw new Error('Este email ya está registrado con una contraseña. Iniciá sesión con tu contraseña.');
+      }
+      return true;
+    }
+    throw new Error(error.message || 'Error al verificar el acceso inicial');
+  }
+  return data === true;
+}
+
 export async function getAllowedEmails() {
   if (!useSupabase()) return [];
   const { data, error } = await supabase

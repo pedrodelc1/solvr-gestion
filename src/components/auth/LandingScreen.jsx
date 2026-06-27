@@ -113,7 +113,7 @@ export function LandingScreen({ onLogin }) {
           <span className="lg-brand-mark">S</span>
           <span>Solvr Gestión</span>
         </div>
-        <button className="lg-nav-btn" onClick={onLogin}>
+        <button className="lg-nav-btn" onClick={() => onLogin('password')}>
           Iniciar sesión
         </button>
       </nav>
@@ -135,13 +135,13 @@ export function LandingScreen({ onLogin }) {
             Clientes, pedidos, cobros y stock en un solo lugar.
             Suma un asistente con IA que te responde sobre tus números reales.
           </p>
-          <div className="lg-cta-row">
-            <button className="lg-cta-primary" onClick={onLogin}>
-              Empezar prueba gratis
+          <div className="lg-cta-row" style={{ flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+            <button className="lg-cta-primary" style={{ padding: '14px 28px', fontSize: 15, width: '100%', maxWidth: 280 }} onClick={() => onLogin('otp')}>
+              Primer acceso / Tengo invitación
             </button>
-            <a className="lg-cta-secondary" href="#planes" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>
-              Ver planes
-            </a>
+            <button className="lg-cta-secondary" style={{ padding: '12px 24px', fontSize: 13.5, width: '100%', maxWidth: 280 }} onClick={() => onLogin('password')}>
+              ¿Ya tenés contraseña? Iniciar sesión
+            </button>
           </div>
         </motion.div>
       </header>
@@ -190,7 +190,7 @@ export function LandingScreen({ onLogin }) {
 
               <button
                 className={`lg-plan-cta ${p.destacado ? 'lg-plan-cta-primary' : 'lg-plan-cta-secondary'}`}
-                onClick={onLogin}
+                onClick={() => onLogin('otp')}
               >
                 {p.cta}
               </button>

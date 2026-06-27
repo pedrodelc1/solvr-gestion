@@ -11,6 +11,7 @@ import {
   procesarCuotasVencidas,
   getSuscripcion, crearSuscripcionTrial,
   getAlertasConfig,
+  emailHasPassword,
   getDevoluciones,
   getNegocioConfig, saveNegocioConfig,
   marcarPedidoEntregado,
@@ -21,6 +22,7 @@ import {
 import { inRange, saldoCliente } from './lib/utils.js';
 
 import { LoginScreen } from './components/auth/LoginScreen.jsx';
+import { ForcePasswordReset } from './components/auth/ForcePasswordReset.jsx';
 import { LandingScreen } from './components/auth/LandingScreen.jsx';
 import { SplashScreen } from './components/auth/SplashScreen.jsx';
 import { BottomNav } from './components/shared/BottomNav.jsx';
@@ -142,6 +144,16 @@ export default function App() {
   const [negocioConfig, setNegocioConfig] = useState(null);
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem('sg_tab') || 'clientes');
   const [toasts, setToasts] = useState([]);
+  const [loginMethod, setLoginMethod] = useState('otp');
+  const [autoExpandPassword, setAutoExpandPassword] = useState(false);
+  const [forcePasswordChange, setForcePasswordChange] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('flow') === 'recovery' || params.get('type') === 'recovery') {
+      sessionStorage.setItem('sg_force_pw_change', '1');
+      return true;
+    }
+    return sessionStorage.getItem('sg_force_pw_change') === '1';
+  });
 
   // Clientes UI
   const [selectedClienteId, setSelectedClienteId] = useState(null);
@@ -270,6 +282,17 @@ export default function App() {
 
   useEffect(() => {
     if (authChecked && session) {
+      // Check if they entered via recovery flow
+      const params = new URLSearchParams(window.location.search);
+      const isRecovery = params.get('flow') === 'recovery' || params.get('type') === 'recovery';
+      if (isRecovery) {
+        sessionStorage.setItem('sg_force_pw_change', '1');
+        setForcePasswordChange(true);
+        // Clear param from URL
+        const cleanUrl = window.location.origin + window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+      }
+
       const init = async () => {
         // Disparar TODO en paralelo: claim de acceso + carga de datos +
         // suscripción + config. RLS protege cada query, así que aunque el
@@ -636,6 +659,21 @@ export default function App() {
     setShowSplash(false);
   }
 
+  const checkAndRedirectToPassword = useCallback(async () => {
+    if (session?.user?.email) {
+      try {
+        const hasPw = await emailHasPassword(session.user.email);
+        if (!hasPw) {
+          setActiveTab('perfil');
+          localStorage.setItem('sg_tab', 'perfil');
+          setAutoExpandPassword(true);
+        }
+      } catch (err) {
+        console.error('Error checking password status:', err);
+      }
+    }
+  }, [session]);
+
   // ── Render ────────────────────────────────────────────────
 
   if (verifyTokenHash) {
@@ -657,11 +695,20 @@ export default function App() {
               setVerifyingOtp(true);
               setVerifyOtpError('');
               try {
+                const params = new URLSearchParams(window.location.search);
+                const isRecovery = params.get('flow') === 'recovery' || verifyType === 'recovery';
+
                 const { error } = await supabase.auth.verifyOtp({
                   token_hash: verifyTokenHash,
                   type: verifyType,
                 });
                 if (error) throw error;
+
+                if (isRecovery) {
+                  sessionStorage.setItem('sg_force_pw_change', '1');
+                  setForcePasswordChange(true);
+                }
+
                 // Success! Clear URL params
                 window.history.replaceState({}, document.title, window.location.pathname);
                 setVerifyTokenHash(null);
@@ -707,10 +754,25 @@ export default function App() {
     return (
       <>
         {authView === 'landing' ? (
-          <LandingScreen onLogin={() => setAuthView('login')} />
+          <LandingScreen onLogin={(method) => { setLoginMethod(method); setAuthView('login'); }} />
         ) : (
-          <LoginScreen onBack={() => setAuthView('landing')} />
+          <LoginScreen initialMethod={loginMethod} isFirstTime={loginMethod === 'otp'} onBack={() => setAuthView('landing')} />
         )}
+        <ToastContainer toasts={toasts} />
+      </>
+    );
+  }
+
+  if (forcePasswordChange) {
+    return (
+      <>
+        <ForcePasswordReset
+          onComplete={() => {
+            sessionStorage.removeItem('sg_force_pw_change');
+            setForcePasswordChange(false);
+          }}
+          toast={toast}
+        />
         <ToastContainer toasts={toasts} />
       </>
     );
@@ -891,6 +953,8 @@ export default function App() {
               toast={toast}
               theme={theme}
               onThemeChange={setTheme}
+              autoExpandPassword={autoExpandPassword}
+              onResetAutoExpand={() => setAutoExpandPassword(false)}
             />
           </Suspense>
         );
@@ -973,6 +1037,7 @@ export default function App() {
             const cfg = await getNegocioConfig();
             setNegocioConfig(cfg);
             await loadAll();
+            await checkAndRedirectToPassword();
           }}
           toast={toast}
         />
@@ -982,9 +1047,10 @@ export default function App() {
         <TeamWelcomeScreen
           userRole={userRole}
           negocioConfig={negocioConfig}
-          onDismiss={() => {
+          onDismiss={async () => {
             sessionStorage.setItem('sg_team_welcome', '1');
             setTeamWelcomeSeen(true);
+            await checkAndRedirectToPassword();
           }}
         />
       )}

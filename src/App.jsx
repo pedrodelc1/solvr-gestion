@@ -302,14 +302,14 @@ export default function App() {
   }, [session]);
 
   useEffect(() => {
-    if (session && isOtpLogin) {
+    if (session) {
       if (sessionStorage.getItem('sg_force_pw_change') === '1') {
         if (sessionStorage.getItem('sg_pw_reset_done') !== '1') {
           setForcePasswordChange(true);
         }
       }
     }
-  }, [session, isOtpLogin]);
+  }, [session]);
 
   useEffect(() => {
     if (authChecked && session) {

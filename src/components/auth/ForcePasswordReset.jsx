@@ -58,7 +58,7 @@ export function ForcePasswordReset({ onComplete, toast }) {
             <div>
               <h1 className="login-heading">Restablecer contraseña</h1>
               <p className="login-subheading">
-                Para ingresar de forma segura y proteger tu cuenta, ingresá una nueva contraseña.
+                Ingresá tu nueva contraseña para continuar.
               </p>
             </div>
 

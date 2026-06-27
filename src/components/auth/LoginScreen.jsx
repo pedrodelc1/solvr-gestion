@@ -239,21 +239,11 @@ export function LoginScreen({ onBack, initialMethod = 'otp', isFirstTime = false
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
                 </div>
-                <h2>{method === 'recovery' ? 'Enlace enviado' : 'Revisá tu email'}</h2>
+                <h2>¡Enlace enviado!</h2>
                 <p>
-                  {method === 'recovery' ? (
-                    <>
-                      Enviamos un enlace para restablecer tu clave a<br />
-                      <strong>{email}</strong>.<br />
-                      Revisá tu bandeja y tocá el link.
-                    </>
-                  ) : (
-                    <>
-                      Enviamos un link de acceso a<br />
-                      <strong>{email}</strong>.<br />
-                      Tocá el link para entrar.
-                    </>
-                  )}
+                  {method === 'recovery'
+                    ? 'Revisá tu email para restablecer tu contraseña.'
+                    : 'Revisá tu email para ingresar.'}
                 </p>
                 <button
                   className="login-back-btn login-back-btn-underline"

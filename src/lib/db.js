@@ -868,25 +868,19 @@ export async function getAllowedEmails() {
 }
 
 export async function addAllowedEmail(email, rol = 'vendedor') {
-  const ownerUserId = await getUserId();
-  const { error } = await supabase
-    .from('allowed_emails')
-    .insert({ email: email.toLowerCase().trim(), rol, owner_user_id: ownerUserId });
+  const { error } = await supabase.rpc('add_member_email', { p_email: email, p_rol: rol });
   if (error) throw error;
   return getAllowedEmails();
 }
 
 export async function updateMemberRol(id, rol) {
-  const { error } = await supabase
-    .from('allowed_emails')
-    .update({ rol })
-    .eq('id', id);
+  const { error } = await supabase.rpc('update_member_rol', { p_member_id: id, p_nuevo_rol: rol });
   if (error) throw error;
   return getAllowedEmails();
 }
 
 export async function removeAllowedEmail(id) {
-  const { error } = await supabase.from('allowed_emails').delete().eq('id', id);
+  const { error } = await supabase.rpc('remove_member_email', { p_member_id: id });
   if (error) throw error;
   return getAllowedEmails();
 }

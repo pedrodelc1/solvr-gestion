@@ -18,6 +18,7 @@ import {
   revertirPedidoEntregado,
   getCachedSnapshot,
   setCachedNegocioId,
+  clearLocalCache,
 } from './lib/db.js';
 import { inRange, saldoCliente } from './lib/utils.js';
 
@@ -341,6 +342,7 @@ export default function App() {
         if (negocioId) setCachedNegocioId(negocioId);
         if (!negocioId) {
           toast("Acceso denegado: este email no está autorizado. Contactá al administrador.", "error");
+          clearLocalCache();
           await supabase.auth.signOut();
           return;
         }
@@ -355,6 +357,7 @@ export default function App() {
 
         if (!member) {
           toast("Acceso denegado: no sos miembro activo de ningún negocio.", "error");
+          clearLocalCache();
           await supabase.auth.signOut();
           return;
         }

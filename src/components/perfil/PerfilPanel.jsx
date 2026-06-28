@@ -5,7 +5,7 @@ import { formatCurrency, formatDate, saldoCliente } from '../../lib/utils.js';
 import {
   emailHasPassword, updateUserPassword,
   getAlertasConfig, saveAlertasConfig,
-  getMiPlanAsientos,
+  getMiPlanAsientos, clearLocalCache,
 } from '../../lib/db.js';
 import {
   getMembers, addMember, removeMember, updateMemberRol,
@@ -593,6 +593,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
     loggingOutRef.current = true;
     setLoggingOut(true);
     try {
+      clearLocalCache();
       await supabase.auth.signOut();
       toast('Sesión cerrada');
       setTimeout(() => window.location.reload(), 500);

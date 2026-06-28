@@ -48,6 +48,15 @@ export function getCachedNegocioId() {
   return localStorage.getItem(NEGOCIO_ID_KEY) || null;
 }
 
+export function clearLocalCache() {
+  const keys = [
+    'sg_clientes', 'sg_productos', 'sg_pedidos', 'sg_gastos', 'sg_cobros',
+    'sg_categorias', 'sg_devoluciones', 'sg_negocio', 'sg_negocio_id',
+    'sg_cuotas_last_run',
+  ];
+  keys.forEach(k => { try { localStorage.removeItem(k); } catch {} });
+}
+
 function isUUID(str) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 }
@@ -177,7 +186,10 @@ export async function deleteCliente(id) {
     lsSet('clientes', arr);
     return id;
   }
-  const { data, error } = await supabase.from('clientes').delete().eq('id', id).select('id');
+  const negocioIdCli = getCachedNegocioId();
+  let q = supabase.from('clientes').delete().eq('id', id);
+  if (negocioIdCli) q = q.eq('negocio_id', negocioIdCli);
+  const { data, error } = await q.select('id');
   if (error) throw friendlyError(error);
   if (!data || data.length === 0) {
     throw new Error('No se pudo eliminar el cliente: no tenés permiso o ya no existe.');
@@ -281,8 +293,14 @@ export async function deleteProducto(id) {
     lsSet('productos', arr);
     return id;
   }
-  const { error } = await supabase.from('productos').delete().eq('id', id);
-  if (error) throw error;
+  const negocioIdProd = getCachedNegocioId();
+  let q = supabase.from('productos').delete().eq('id', id);
+  if (negocioIdProd) q = q.eq('negocio_id', negocioIdProd);
+  const { data, error } = await q.select('id');
+  if (error) throw friendlyError(error);
+  if (!data || data.length === 0) {
+    throw new Error('No se pudo eliminar el producto: no tenés permiso o ya no existe.');
+  }
   return id;
 }
 
@@ -398,6 +416,18 @@ export async function savePedido(data) {
   requireMontoValido(data.totalCalculado, 'total');
   requireMontoValido(data.totalFinal, 'total final');
   requireMontoValido(data.montoAbonado || 0, 'monto abonado');
+  if (Number(data.totalFinal) > Number(data.totalCalculado) + 0.01) {
+    throw new Error('El total final no puede ser mayor al subtotal');
+  }
+  if (Number(data.montoAbonado || 0) > Number(data.totalFinal) + 0.01) {
+    throw new Error('El monto abonado no puede ser mayor al total');
+  }
+  if (data.descuentoTipo === 'porcentaje' && Number(data.descuentoValor || 0) > 100) {
+    throw new Error('El descuento no puede superar el 100%');
+  }
+  if (data.descuentoTipo === 'monto_fijo' && Number(data.descuentoValor || 0) > Number(data.totalCalculado) + 0.01) {
+    throw new Error('El descuento no puede ser mayor al subtotal');
+  }
   if (!data.fecha || !/^\d{4}-\d{2}-\d{2}$/.test(data.fecha)) throw new Error('La fecha del pedido no es válida');
   if (!Array.isArray(data.items) || !data.items.length) throw new Error('El pedido necesita al menos un ítem');
   for (const i of data.items) {
@@ -572,7 +602,10 @@ export async function deletePedido(id) {
   }
   // .select() para verificar que realmente se borró una fila. Si RLS bloquea,
   // PostgREST no tira error pero borra 0 filas — eso causaría un "fantasma".
-  const { data, error } = await supabase.from('pedidos').delete().eq('id', id).select('id');
+  const negocioIdDel = getCachedNegocioId();
+  let q = supabase.from('pedidos').delete().eq('id', id);
+  if (negocioIdDel) q = q.eq('negocio_id', negocioIdDel);
+  const { data, error } = await q.select('id');
   if (error) throw friendlyError(error);
   if (!data || data.length === 0) {
     throw new Error('No se pudo eliminar el pedido: no tenés permiso o ya no existe.');
@@ -712,8 +745,14 @@ export async function deleteGasto(id) {
     lsSet('gastos', arr);
     return id;
   }
-  const { error } = await supabase.from('gastos').delete().eq('id', id);
-  if (error) throw error;
+  const negocioIdG = getCachedNegocioId();
+  let q = supabase.from('gastos').delete().eq('id', id);
+  if (negocioIdG) q = q.eq('negocio_id', negocioIdG);
+  const { data, error } = await q.select('id');
+  if (error) throw friendlyError(error);
+  if (!data || data.length === 0) {
+    throw new Error('No se pudo eliminar el gasto: no tenés permiso o ya no existe.');
+  }
   return id;
 }
 
@@ -784,8 +823,14 @@ export async function deleteCobro(id) {
     lsSet('cobros', arr);
     return id;
   }
-  const { error } = await supabase.from('cobros').delete().eq('id', id);
-  if (error) throw error;
+  const negocioIdDelCo = getCachedNegocioId();
+  let q = supabase.from('cobros').delete().eq('id', id);
+  if (negocioIdDelCo) q = q.eq('negocio_id', negocioIdDelCo);
+  const { data, error } = await q.select('id');
+  if (error) throw friendlyError(error);
+  if (!data || data.length === 0) {
+    throw new Error('No se pudo eliminar el cobro: no tenés permiso o ya no existe.');
+  }
   return id;
 }
 

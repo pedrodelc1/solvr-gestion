@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { renovarSuscripcion } from '../../services/suscripcionesService.js';
 import { supabase } from '../../lib/supabase.js';
+import { clearLocalCache } from '../../lib/db.js';
 import { formatCurrency } from '../../lib/utils.js';
 
 const PLANES = [
@@ -26,6 +27,7 @@ export function SuscripcionBlocker({ suscripcion, onRenovada }) {
     if (loggingOutRef.current) return;
     loggingOutRef.current = true;
     setLoggingOut(true);
+    clearLocalCache();
     await supabase.auth.signOut();
     window.location.reload();
   }

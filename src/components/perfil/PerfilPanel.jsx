@@ -3,13 +3,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../lib/supabase.js';
 import { formatCurrency, formatDate, saldoCliente } from '../../lib/utils.js';
 import {
-  getAllowedEmails, addAllowedEmail, removeAllowedEmail, updateMemberRol,
   emailHasPassword, updateUserPassword,
   getAlertasConfig, saveAlertasConfig,
-  getSuscripciones, updateSuscripcion, renovarSuscripcion,
-  esSuperadmin, getAdminWhitelist, adminGrantOwner, adminRevokeAccess,
-  getMiPlanAsientos, getAdminPlanes, adminSetPlan,
+  getMiPlanAsientos,
 } from '../../lib/db.js';
+import {
+  getMembers, addMember, removeMember, updateMemberRol,
+} from '../../services/membersService.js';
+import {
+  esSuperadmin, getSuscripciones, updateSuscripcion, renovarSuscripcion,
+  getAdminWhitelist, adminGrantOwner, adminRevokeAccess,
+  getAdminPlanes, adminSetPlan,
+} from '../../services/suscripcionesService.js';
 
 const BRAND = 'var(--lime)';
 const BRAND_DIM = 'var(--lime-bg)';
@@ -444,7 +449,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
   }
 
   useEffect(() => {
-    getAllowedEmails().then(setAllowedEmails);
+    getMembers().then(setAllowedEmails);
     getAlertasConfig().then(cfg => setDiasAlerta(cfg.dias_sin_cobro));
     getMiPlanAsientos().then(setPlanInfo);
     if (email) emailHasPassword(email).then(v => { if (v !== null) setHasPassword(v); });
@@ -472,7 +477,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
     addingRef.current = true;
     setAdding(true);
     try {
-      const arr = await addAllowedEmail(newEmail.trim(), newRol);
+      const arr = await addMember(newEmail.trim(), newRol);
       setAllowedEmails(arr); setNewEmail('');
       getMiPlanAsientos().then(setPlanInfo);
       toast('Miembro agregado al equipo');
@@ -498,7 +503,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
   async function handleRemove(id) {
     await runAction(id, async () => {
       try {
-        const arr = await removeAllowedEmail(id);
+        const arr = await removeMember(id);
         setAllowedEmails(arr);
         getMiPlanAsientos().then(setPlanInfo);
         toast('Email eliminado');

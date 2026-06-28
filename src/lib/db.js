@@ -73,7 +73,7 @@ async function getUserEmail() {
 }
 
 // Traduce errores de Postgres (constraints/RLS) a mensajes claros para el usuario
-function friendlyError(error) {
+export function friendlyError(error) {
   if (!error) return error;
   const map = {
     '23514': 'Los datos no pasaron la validación del servidor. Revisá montos y campos obligatorios.',

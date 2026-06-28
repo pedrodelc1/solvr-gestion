@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { renovarSuscripcion } from '../../lib/db.js';
+import { renovarSuscripcion } from '../../services/suscripcionesService.js';
 import { supabase } from '../../lib/supabase.js';
 import { formatCurrency } from '../../lib/utils.js';
 

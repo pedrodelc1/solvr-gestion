@@ -1,5 +1,14 @@
 import { formatCurrency, formatDate } from './utils.js';
 
+function esc(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
 export async function generarRemito({ pedido, cliente, negocio = 'Mi Negocio', logoUrl = null, isEntregado = false }) {
   const localNegocio = JSON.parse(localStorage.getItem('sg_negocio') || '{}');
   const negocioNombre = localNegocio.nombre || negocio || 'Mi Negocio';
@@ -24,16 +33,16 @@ export async function generarRemito({ pedido, cliente, negocio = 'Mi Negocio', l
 
   const itemsHtml = pedido.items.map(item => `
     <tr>
-      <td style="padding:6px 0;border-bottom:1px solid #f0f0f0">${item.nombre}</td>
-      <td style="padding:6px 0;border-bottom:1px solid #f0f0f0;text-align:center">${item.cantidad}</td>
+      <td style="padding:6px 0;border-bottom:1px solid #f0f0f0">${esc(item.nombre)}</td>
+      <td style="padding:6px 0;border-bottom:1px solid #f0f0f0;text-align:center">${esc(item.cantidad)}</td>
       <td style="padding:6px 0;border-bottom:1px solid #f0f0f0;text-align:right">${formatCurrency(item.precioUnitario)}</td>
       <td style="padding:6px 0;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:600">${formatCurrency(item.precioUnitario * item.cantidad)}</td>
     </tr>
   `).join('');
 
   const logoHtml = logoUrl
-    ? `<img src="${logoUrl}" style="height:40px;object-fit:contain;" />`
-    : `<span style="font-size:24px;font-weight:900;letter-spacing:-0.03em">${negocioNombre}</span>`;
+    ? `<img src="${esc(logoUrl)}" style="height:40px;object-fit:contain;" />`
+    : `<span style="font-size:24px;font-weight:900;letter-spacing:-0.03em">${esc(negocioNombre)}</span>`;
 
   const el = document.createElement('div');
   el.style.cssText = [
@@ -49,10 +58,10 @@ export async function generarRemito({ pedido, cliente, negocio = 'Mi Negocio', l
         ${logoHtml}
         <div style="font-size:11px;color:#888;letter-spacing:0.08em;text-transform:uppercase;margin-top:4px">Comprobante de venta ${pedido.nro ? `N° ${pedido.nro}` : ''}</div>
         <div style="font-size:11px;color:#555;margin-top:4px;line-height:1.4">
-          ${cuit ? `<div>CUIT: ${cuit}</div>` : ''}
-          ${telefono ? `<div>Tel: ${telefono}</div>` : ''}
-          ${direccion ? `<div>Dir: ${direccion}</div>` : ''}
-          ${email ? `<div>Email: ${email}</div>` : ''}
+          ${cuit ? `<div>CUIT: ${esc(cuit)}</div>` : ''}
+          ${telefono ? `<div>Tel: ${esc(telefono)}</div>` : ''}
+          ${direccion ? `<div>Dir: ${esc(direccion)}</div>` : ''}
+          ${email ? `<div>Email: ${esc(email)}</div>` : ''}
         </div>
       </div>
       <div style="text-align:right">
@@ -63,8 +72,8 @@ export async function generarRemito({ pedido, cliente, negocio = 'Mi Negocio', l
 
     <div style="margin-bottom:24px;padding:14px;background:#f7f7f7;border-radius:6px">
       <div style="font-size:10px;color:#999;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px">Cliente</div>
-      <div style="font-size:20px;font-weight:700">${cliente.nombre}</div>
-      ${cliente.contacto ? `<div style="font-size:13px;color:#666;margin-top:2px">${cliente.contacto}</div>` : ''}
+      <div style="font-size:20px;font-weight:700">${esc(cliente.nombre)}</div>
+      ${cliente.contacto ? `<div style="font-size:13px;color:#666;margin-top:2px">${esc(cliente.contacto)}</div>` : ''}
     </div>
 
     <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px">
@@ -93,8 +102,8 @@ export async function generarRemito({ pedido, cliente, negocio = 'Mi Negocio', l
       ${abonado > 0 ? `<div style="display:flex;justify-content:space-between;font-size:14px;color:#16a34a;margin-bottom:4px"><span>Abonado</span><span>− ${formatCurrency(abonado)}</span></div>` : ''}
       ${saldo > 0 ? `<div style="display:flex;justify-content:space-between;font-size:16px;font-weight:700;color:#dc2626;padding-top:6px;border-top:1px solid #eee"><span>Saldo pendiente</span><span>${formatCurrency(saldo)}</span></div>` : ''}
       <div style="margin-top:12px;font-size:12px;color:#888">Medio de pago: ${medioPagoLabel}</div>
-      ${pedido.nota ? `<div style="margin-top:6px;font-size:12px;color:#888;font-style:italic">Nota: ${pedido.nota}</div>` : ''}
-      ${notaPdf ? `<div style="margin-top:16px;padding:10px;background:#f9f9f9;border:1px dashed #ddd;border-radius:4px;font-size:11px;color:#444;line-height:1.4">${notaPdf.replace(/\n/g, '<br/>')}</div>` : ''}
+      ${pedido.nota ? `<div style="margin-top:6px;font-size:12px;color:#888;font-style:italic">Nota: ${esc(pedido.nota)}</div>` : ''}
+      ${notaPdf ? `<div style="margin-top:16px;padding:10px;background:#f9f9f9;border:1px dashed #ddd;border-radius:4px;font-size:11px;color:#444;line-height:1.4">${esc(notaPdf).replace(/\n/g, '<br/>')}</div>` : ''}
     </div>
 
     <div style="margin-top:28px;padding-top:14px;border-top:1px solid #eee;text-align:center;font-size:10px;color:#bbb">

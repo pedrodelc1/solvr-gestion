@@ -53,11 +53,16 @@ Todas aplicadas en producción (001–011) y el registro remoto está sincroniza
 src/
   App.jsx                  — root, maneja estado global y routing por tab
   lib/
-    db.js                  — CRUD sobre Supabase + validaciones + friendlyError
+    db.js                  — CRUD genérico (clientes, pedidos, productos, gastos)
     utils.js               — formatCurrency, formatDate, saldoCliente, calcularMora
     supabase.js            — cliente Supabase
     generarRemito.js / presupuestoPDF.js — PDFs
     animations.js
+  services/                — mutaciones sensibles (roles, suscripciones, billing)
+    membersService.js      — getMembers, addMember, updateMemberRol, removeMember
+    suscripcionesService.js — getSuscripciones, renovar, ops superadmin
+    authzService.js        — helpers de rol para UI (canEdit, canDelete, etc.)
+    index.js               — re-exports de todo services/
   components/
     auth/
       LoginScreen.jsx      — login con magic link o contraseña
@@ -90,6 +95,22 @@ src/
     perfil/
       PerfilPanel.jsx      — config negocio, equipo/roles, suscripciones, tema
 ```
+
+## Capa de servicios (`src/services/`)
+
+**Regla de oro**: cualquier mutación que toque **roles, suscripciones, miembros o billing** va en `src/services/` y llama a una RPC `SECURITY DEFINER`. Nunca toca la tabla directo con `.from().update()`.
+
+- `db.js` → CRUD genérico (clientes, pedidos, productos, gastos) — protegido por RLS multitenant.
+- `services/` → operaciones sensibles — protegidas por RLS + RPC con validación de autorización server-side.
+
+Si creás una feature nueva que modifique roles o accesos: agregá la función en `services/`, creá la RPC en una migration nueva, y nunca expongas UPDATE/INSERT/DELETE directo sobre tablas de control de acceso.
+
+## Seguridad (2026-06-28)
+
+- `allowed_emails` tiene RLS habilitado — migration `021_secure_allowed_emails.sql`.
+- Toda mutación de miembros pasa por RPCs: `update_member_rol`, `add_member_email`, `remove_member_email`.
+- Cambios de rol quedan logueados en `audit_role_changes` (visible solo para superadmin).
+- La `anon key` de Supabase es pública por diseño — la seguridad la dan las RLS policies, no ocultar la key.
 
 ## Principio de doble verificación (Frontend + Backend)
 

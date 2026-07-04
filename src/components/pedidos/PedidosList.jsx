@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { formatCurrency, formatDate, calcularMora, fechaVencimiento } from '../../lib/utils.js';
+import { formatCurrency, formatDate, calcularMora, fechaVencimiento, cuotasVencidas } from '../../lib/utils.js';
 import { ConfirmModal, Modal } from '../shared/Modal.jsx';
 import { listItem } from '../../lib/animations.js';
 import { convertirPresupuesto } from '../../lib/db.js';
@@ -238,6 +238,7 @@ export function PedidosList({ pedidos, clientes, onNew, onRegistrarCobro, onUpda
             const items = p.items || [];
             const todoEntregado = items.length > 0 && items.every(it => it.entregado);
 
+            const cv = esPresupuesto ? null : cuotasVencidas(p);
             const venc = !esPresupuesto && !p.cobrado && p.diasPlazo ? fechaVencimiento(p) : null;
             const hoy = new Date().toISOString().slice(0, 10);
             const diasRestantes = venc ? Math.round((new Date(venc) - new Date(hoy)) / (1000 * 60 * 60 * 24)) : null;
@@ -278,6 +279,13 @@ export function PedidosList({ pedidos, clientes, onNew, onRegistrarCobro, onUpda
                     {estadoBadge}
                   </div>
                 </div>
+                {cv && (
+                  <div className="card-row" style={{ marginTop: -4 }}>
+                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--danger)', fontWeight: 600 }}>
+                      Cuota {cv.cuotasDue}/{cv.cuotas} vencida · Falta {formatCurrency(cv.pendiente)}
+                    </span>
+                  </div>
+                )}
                 {venc && (
                   <div className="card-row" style={{ marginTop: -4 }}>
                     {diasRestantes > 0
@@ -330,7 +338,7 @@ export function PedidosList({ pedidos, clientes, onNew, onRegistrarCobro, onUpda
                     )
                   ) : (
                     <>
-                      {canCobrar && !p.cobrado && !(p.medioPago === 'tarjeta' && p.cuotas > 1) && (
+                      {canCobrar && !p.cobrado && (
                         <button
                           className="btn btn-secondary"
                           style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-sm)', opacity: loadingMap[p.id] ? 0.5 : 1 }}
@@ -340,7 +348,7 @@ export function PedidosList({ pedidos, clientes, onNew, onRegistrarCobro, onUpda
                           + Pago parcial
                         </button>
                       )}
-                      {canCobrar && !(p.medioPago === 'tarjeta' && p.cuotas > 1 && !p.cobrado) && (
+                      {canCobrar && (
                         <button
                           className={`btn ${p.cobrado ? 'btn-secondary' : 'btn-primary'}`}
                           style={{ flex: 1, minHeight: 40, fontSize: 'var(--text-sm)', opacity: loadingMap[p.id] ? 0.5 : 1 }}

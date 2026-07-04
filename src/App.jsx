@@ -8,7 +8,7 @@ import {
   getGastos, saveGasto, deleteGasto,
   getCobros, saveCobro, deleteCobro,
   getCategorias,
-  procesarCuotasVencidas,
+  debeAvisarCuotasHoy,
   getSuscripcion, crearSuscripcionTrial,
   getAlertasConfig,
   emailHasPassword,
@@ -20,7 +20,7 @@ import {
   setCachedNegocioId,
   clearLocalCache,
 } from './lib/db.js';
-import { inRange, saldoCliente, today } from './lib/utils.js';
+import { inRange, saldoCliente, today, cuotasVencidas, formatCurrency } from './lib/utils.js';
 
 import { LoginScreen } from './components/auth/LoginScreen.jsx';
 import { ForcePasswordReset } from './components/auth/ForcePasswordReset.jsx';
@@ -275,18 +275,16 @@ export default function App() {
         });
       }
 
-      const { pedidos: peActualizados, procesados } = await procesarCuotasVencidas(pe);
-      if (seq !== loadSeqRef.current) return;
-      setPedidos(peActualizados);
-      if (procesados.length) {
-        procesados.forEach(proc => {
-          const ped = peActualizados.find(p => p.id === proc.id);
-          const nombre = c.find(cl => cl.id === ped?.clienteId)?.nombre || 'Cliente';
-          setToasts(t => {
-            const id = ++_toastId;
-            setTimeout(() => setToasts(prev => prev.filter(x => x.id !== id)), 3500);
-            return [...t, { id, msg: `Cuota ${proc.cuotasDue}/${proc.cuotas} registrada — ${nombre}`, type: 'success' }];
-          });
+      setPedidos(pe);
+      // Cuotas vencidas: solo avisamos (una vez por día). El cobro se registra
+      // a mano desde el pedido — antes se marcaban cobradas solas e inflaban caja.
+      const vencidas = pe.map(p => cuotasVencidas(p)).filter(Boolean);
+      if (vencidas.length && debeAvisarCuotasHoy()) {
+        const totalPend = vencidas.reduce((s, v) => s + v.pendiente, 0);
+        setToasts(t => {
+          const id = ++_toastId;
+          setTimeout(() => setToasts(prev => prev.filter(x => x.id !== id)), 8000);
+          return [...t, { id, msg: `${vencidas.length} pedido${vencidas.length !== 1 ? 's' : ''} con cuotas vencidas sin cobrar — ${formatCurrency(totalPend)}`, type: 'error' }];
         });
       }
     } finally {

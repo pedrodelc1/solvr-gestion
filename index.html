@@ -13,6 +13,21 @@
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#080808" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <script>
+    // Solo para tests automatizados (?e2e=1): en navegadores headless/background
+    // requestAnimationFrame no dispara y las transiciones quedan colgadas.
+    if (new URLSearchParams(location.search).has('e2e')) {
+      // MessageChannel no sufre el clamp de timers de pestañas en background
+      var rafQ = [], rafId = 1, rafCancel = {};
+      var rafCh = new MessageChannel();
+      rafCh.port1.onmessage = function () {
+        var q = rafQ; rafQ = [];
+        for (var i = 0; i < q.length; i++) if (!rafCancel[q[i].id]) q[i].cb(performance.now());
+      };
+      window.requestAnimationFrame = function (cb) { var id = rafId++; rafQ.push({ id: id, cb: cb }); rafCh.port2.postMessage(0); return id; };
+      window.cancelAnimationFrame = function (id) { rafCancel[id] = true; };
+    }
+  </script>
 </head>
 <body>
   <div id="root"></div>

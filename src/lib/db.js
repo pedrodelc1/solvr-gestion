@@ -1,5 +1,5 @@
 import { supabase } from './supabase.js';
-import { uid, parseFechaLocal } from './utils.js';
+import { uid } from './utils.js';
 
 const LS_KEYS = {
   clientes: 'sg_clientes',
@@ -449,10 +449,10 @@ export async function savePedido(data) {
   }
 
   const negocioIdPed = getCachedNegocioId();
-  // Id client-side: ahorra el .select().single() de vuelta y deja insertar
-  // los ítems en paralelo con el pedido (mismo patrón que gastos/cobros).
+  // Id client-side: ahorra el .select().single() de vuelta (mismo patrón que
+  // gastos/cobros).
   const pedidoId = (data.id && isUUID(data.id)) ? data.id : (crypto?.randomUUID?.() || uid());
-  const insertPedido = supabase
+  const insertRow = (nro) => supabase
     .from('pedidos')
     .insert({
       id: pedidoId,
@@ -473,11 +473,27 @@ export async function savePedido(data) {
       descuento_valor: data.descuentoValor || 0,
       dias_plazo: data.diasPlazo || 0,
       tasa_mora: data.tasaMora || 0,
-      nro: nextNro,
-    })
-    .then(({ error }) => { if (error) throw friendlyError(error); });
+      nro,
+    });
 
-  const tareas = [insertPedido];
+  // El pedido va primero (los items dependen del FK). Si otro dispositivo usó
+  // el mismo nro, el índice único (migration 024) responde 23505: recalculamos
+  // desde la DB y reintentamos.
+  let { error: ePed } = await insertRow(nextNro);
+  let intentos = 0;
+  while (ePed && ePed.code === '23505' && intentos < 3) {
+    const { data: maxData } = await supabase
+      .from('pedidos')
+      .select('nro')
+      .order('nro', { ascending: false })
+      .limit(1);
+    nextNro = Math.max(((maxData && maxData[0] && maxData[0].nro) || 0) + 1, numInicial);
+    ({ error: ePed } = await insertRow(nextNro));
+    intentos++;
+  }
+  if (ePed) throw friendlyError(ePed);
+
+  const tareas = [];
   if (data.items && data.items.length) {
     const items = data.items.map(i => ({
       pedido_id: pedidoId,
@@ -591,29 +607,38 @@ export async function updatePedido(id, data) {
     stockDeltas = deltas;
   }
 
-  // El UPDATE del pedido y el delete de items pueden ir en paralelo (ambos
-  // dependen solo del id, no entre sí). El insert va al final cuando el delete
-  // ya liberó la unique key, pero los hacemos secuenciales solo si hay items.
+  // El UPDATE del pedido y el reemplazo de items van en paralelo. El reemplazo
+  // es una RPC transaccional (migration 024): si algo falla, el pedido no
+  // queda sin items como pasaba con el DELETE + INSERT en requests separados.
+  const itemsPayload = data.items
+    ? data.items.map(i => ({
+        producto_id: (i.productoId && isUUID(i.productoId)) ? i.productoId : null,
+        nombre: i.nombre,
+        cantidad: i.cantidad,
+        precio_unitario: i.precioUnitario,
+        costo_unitario: i.costoUnitario || 0,
+        entregado: i.entregado || false,
+        fecha_entrega: i.fechaEntrega || null,
+      }))
+    : null;
   const tasks = [supabase.from('pedidos').update(update).eq('id', id)];
-  if (data.items) {
-    tasks.push(supabase.from('pedido_items').delete().eq('pedido_id', id));
+  if (itemsPayload) {
+    tasks.push(supabase.rpc('reemplazar_pedido_items', { p_pedido_id: id, p_items: itemsPayload }));
   }
-  const results = await Promise.all(tasks);
-  for (const r of results) if (r.error) throw friendlyError(r.error);
-
-  if (data.items && data.items.length > 0) {
-    const newItems = data.items.map(i => ({
-      pedido_id: id,
-      producto_id: i.productoId || null,
-      nombre: i.nombre,
-      cantidad: i.cantidad,
-      precio_unitario: i.precioUnitario,
-      costo_unitario: i.costoUnitario || 0,
-      entregado: i.entregado || false,
-      fecha_entrega: i.fechaEntrega || null,
-    }));
-    const { error: eIns } = await supabase.from('pedido_items').insert(newItems);
-    if (eIns) throw friendlyError(eIns);
+  const [updRes, rpcRes] = await Promise.all(tasks);
+  if (updRes.error) throw friendlyError(updRes.error);
+  if (rpcRes?.error) {
+    // Fallback si la migration 024 todavía no está aplicada en este entorno.
+    if (/could not find the function/i.test(rpcRes.error.message || '')) {
+      const del = await supabase.from('pedido_items').delete().eq('pedido_id', id);
+      if (del.error) throw friendlyError(del.error);
+      if (itemsPayload.length) {
+        const ins = await supabase.from('pedido_items').insert(itemsPayload.map(i => ({ ...i, pedido_id: id })));
+        if (ins.error) throw friendlyError(ins.error);
+      }
+    } else {
+      throw friendlyError(rpcRes.error);
+    }
   }
 
   if (stockDeltas) {
@@ -1127,56 +1152,17 @@ export async function adminRevokeAccess(email) {
   return data || [];
 }
 
-// ── CUOTAS AUTOMÁTICAS ────────────────────────────────────
+// ── CUOTAS VENCIDAS ───────────────────────────────────────
+// Antes las cuotas vencidas se marcaban como COBRADAS automáticamente, lo que
+// inflaba caja y estadísticas sin que hubiera un pago real. Ahora solo se
+// detectan: la UI avisa y el cobro se registra a mano (Cobrar / Pago parcial).
 
-export async function procesarCuotasVencidas(pedidos) {
-  // Solo correr 1 vez por día — el cálculo es determinístico por fecha de hoy.
-  // Antes corría en cada loadAll (incluso por cambios realtime irrelevantes).
+// Aviso una vez por día (el cálculo es determinístico por fecha).
+export function debeAvisarCuotasHoy() {
   const hoyStr = new Date().toISOString().slice(0, 10);
-  if (localStorage.getItem('sg_cuotas_last_run') === hoyStr) {
-    return { pedidos, procesados: [] };
-  }
-  const hoy = new Date();
-  hoy.setHours(0, 0, 0, 0);
-
-  const procesados = [];
-  const actualizados = pedidos.map(p => {
-    if (p.cuotas <= 1 || p.cobrado) return p;
-
-    const fechaPedido = parseFechaLocal(p.fecha);
-    const diasDesde = Math.round((hoy - fechaPedido) / (1000 * 60 * 60 * 24));
-
-    const montoPorCuota = Math.round((p.totalFinal / p.cuotas) * 100) / 100;
-    const cuotasDue = Math.min(p.cuotas, Math.floor(diasDesde / 30) + 1);
-    const montoDue  = Math.round(cuotasDue * montoPorCuota * 100) / 100;
-
-    if (montoDue > (p.montoAbonado || 0) + 0.01) {
-      const cobrado = cuotasDue >= p.cuotas;
-      procesados.push({ id: p.id, cuotasDue, cuotas: p.cuotas, montoPorCuota, cobrado });
-      return { ...p, montoAbonado: montoDue, cobrado };
-    }
-    return p;
-  });
-
-  if (!procesados.length) {
-    localStorage.setItem('sg_cuotas_last_run', hoyStr);
-    return { pedidos, procesados: [] };
-  }
-
-  if (!useSupabase()) {
-    lsSet('pedidos', actualizados);
-  } else {
-    await Promise.all(procesados.map(proc => {
-      const upd = actualizados.find(p => p.id === proc.id);
-      return supabase.from('pedidos').update({
-        monto_abonado: upd.montoAbonado,
-        cobrado: upd.cobrado,
-      }).eq('id', proc.id);
-    }));
-    lsSet('pedidos', actualizados);
-  }
+  if (localStorage.getItem('sg_cuotas_last_run') === hoyStr) return false;
   localStorage.setItem('sg_cuotas_last_run', hoyStr);
-  return { pedidos: actualizados, procesados };
+  return true;
 }
 
 // ── NEGOCIO CONFIG ────────────────────────────────────────

@@ -104,6 +104,24 @@ export function saldoCliente(clienteOrId, pedidos, devoluciones = [], cobros = [
   return Math.max(0, deuda + saldoInicial - creditos - cobrosCliente);
 }
 
+// Cuotas mensuales vencidas de un pedido en cuotas no cobrado. El calendario es
+// una cuota cada 30 días desde la fecha del pedido (la 1ª al momento de la venta).
+// Devuelve null si no hay nada vencido pendiente de cobro.
+export function cuotasVencidas(pedido) {
+  if (!pedido || pedido.cobrado || !(pedido.cuotas > 1) || pedido.tipo === 'presupuesto') return null;
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  const inicio = parseFechaLocal(pedido.fecha);
+  const diasDesde = Math.round((hoy - inicio) / 86400000);
+  if (diasDesde < 0) return null;
+  const total = pedido.totalFinal ?? pedido.totalCalculado;
+  const montoPorCuota = Math.round((total / pedido.cuotas) * 100) / 100;
+  const cuotasDue = Math.min(pedido.cuotas, Math.floor(diasDesde / 30) + 1);
+  const montoDue = Math.min(total, Math.round(cuotasDue * montoPorCuota * 100) / 100);
+  const pendiente = Math.round((montoDue - (pedido.montoAbonado || 0)) * 100) / 100;
+  if (pendiente <= 0.01) return null;
+  return { cuotasDue, cuotas: pedido.cuotas, montoPorCuota, montoDue, pendiente };
+}
+
 export function saldoPedido(pedido) {
   return (pedido.totalFinal ?? pedido.totalCalculado) - (pedido.montoAbonado || 0) + calcularMora(pedido);
 }

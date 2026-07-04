@@ -20,7 +20,7 @@ import {
   setCachedNegocioId,
   clearLocalCache,
 } from './lib/db.js';
-import { inRange, saldoCliente } from './lib/utils.js';
+import { inRange, saldoCliente, today } from './lib/utils.js';
 
 import { LoginScreen } from './components/auth/LoginScreen.jsx';
 import { ForcePasswordReset } from './components/auth/ForcePasswordReset.jsx';
@@ -396,7 +396,7 @@ export default function App() {
         // Skip si veníamos de mutar local hace menos de 2.5s
         if (Date.now() - lastLocalMutationRef.current < 2500) return;
         if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
-        reloadTimerRef.current = setTimeout(() => { loadAll(); }, 1500);
+        reloadTimerRef.current = setTimeout(() => { loadAll(); }, 800);
       });
     });
     channel.subscribe();
@@ -506,17 +506,21 @@ export default function App() {
     const numInicial = parseInt(negocioConfig?.num_inicial) || 1;
     const maxNro = pedidos.reduce((m, p) => Math.max(m, p.nro || 0), 0);
     const nro = maxNro > 0 ? Math.max(maxNro + 1, numInicial) : numInicial;
-    const optimistic = { ...data, nro, fetchOrder: -1, createdAt: data.fecha };
+    // Id definitivo generado acá: la fila optimista y la de la DB comparten id,
+    // así la reconciliación es exacta y el pedido ya es operable (cobrar,
+    // editar) antes de que termine el INSERT.
+    const newId = crypto?.randomUUID?.() || `tmp-${Date.now()}`;
+    const optimistic = { ...data, id: newId, nro, fetchOrder: -1, createdAt: data.fecha };
     markLocalMutation();
     setPedidos(prev => [optimistic, ...prev]);
     setShowPedidoForm(false);
     setPreClienteId(null);
     setEditingPedido(null);
     toast('Pedido guardado');
-    savePedido({ ...data, nro })
-      .then(nuevo => setPedidos(prev => prev.map(p => p.id === data.id ? nuevo : p)))
+    savePedido({ ...data, id: newId, nro })
+      .then(nuevo => setPedidos(prev => prev.map(p => p.id === newId ? nuevo : p)))
       .catch(e => {
-        setPedidos(prev => prev.filter(p => p.id !== data.id));
+        setPedidos(prev => prev.filter(p => p.id !== newId));
         toast(e.message, 'error');
       });
   }
@@ -660,13 +664,21 @@ export default function App() {
     const filtGastos  = gastos.filter(g => inRange(g.fecha, from, to));
     const cn = id => clientes.find(c => c.id === id)?.nombre || '';
 
+    // Escapa comillas y neutraliza inyección de fórmulas (=, +, -, @) al abrir
+    // el CSV en Excel/Sheets con datos cargados por el usuario.
+    const cell = v => {
+      let s = String(v ?? '');
+      if (/^[=+\-@]/.test(s)) s = `'${s}`;
+      return `"${s.replace(/"/g, '""')}"`;
+    };
+
     let csv = 'VENTAS\r\nFecha,Cliente,Items,Total,Medio de pago,Cobrado\r\n';
     filtPedidos.forEach(p => {
-      csv += `"${p.fecha}","${cn(p.clienteId)}","${p.items.map(i => `${i.nombre} x${i.cantidad}`).join('; ')}","${p.totalFinal}","${p.medioPago}","${p.cobrado ? 'Sí' : 'No'}"\r\n`;
+      csv += [cell(p.fecha), cell(cn(p.clienteId)), cell(p.items.map(i => `${i.nombre} x${i.cantidad}`).join('; ')), cell(p.totalFinal), cell(p.medioPago), cell(p.cobrado ? 'Sí' : 'No')].join(',') + '\r\n';
     });
     csv += '\r\nGASTOS\r\nFecha,Descripción,Monto,Categoría\r\n';
     filtGastos.forEach(g => {
-      csv += `"${g.fecha}","${g.descripcion}","${g.monto}","${g.categoria}"\r\n`;
+      csv += [cell(g.fecha), cell(g.descripcion), cell(g.monto), cell(g.categoria)].join(',') + '\r\n';
     });
 
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -906,6 +918,21 @@ export default function App() {
             onUpdate={handleUpdatePedido}
             onDelete={handleDeletePedido}
             onEdit={p => { setEditingPedido(p); setShowPedidoForm(true); }}
+            onDuplicate={p => {
+              // Copia sin id: el form lo trata como pedido nuevo con los mismos
+              // items del original, fecha de hoy y sin cobros ni entregas.
+              setEditingPedido({
+                ...p,
+                id: null,
+                nro: null,
+                fecha: today(),
+                cobrado: false,
+                montoAbonado: 0,
+                confirmado: true,
+                items: (p.items || []).map(it => ({ ...it, id: undefined, entregado: false, fechaEntrega: null })),
+              });
+              setShowPedidoForm(true);
+            }}
             onMarcarEntregado={handleMarcarEntregado}
             onRevertirEntregado={handleRevertirEntregado}
             onRefresh={loadAll}

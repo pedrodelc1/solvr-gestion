@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { formatCurrency, getRange, inRange } from '../../lib/utils.js';
 
-function useCountUp(target, duration = 800) {
+function useCountUp(target, duration = 500) {
   const [value, setValue] = useState(0);
   const prevTarget = useRef(target);
   useEffect(() => {
@@ -50,7 +50,7 @@ function BarChart({ items, colorVar = '--primary' }) {
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${pct}%` }}
-                transition={{ duration: 0.6, delay: i * 0.05, ease: [0.16, 1, 0.3, 1] }}
+                transition={{ duration: 0.45, delay: Math.min(i, 8) * 0.04, ease: [0.16, 1, 0.3, 1] }}
                 style={{ height: '100%', background: `var(${colorVar})`, borderRadius: 99 }}
               />
             </div>

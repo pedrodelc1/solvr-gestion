@@ -7,6 +7,7 @@ import {
   getAlertasConfig, saveAlertasConfig,
   getMiPlanAsientos, clearLocalCache,
 } from '../../lib/db.js';
+import { ConfirmModal } from '../shared/Modal.jsx';
 import {
   getMembers, addMember, removeMember, updateMemberRol,
 } from '../../services/membersService.js';
@@ -321,7 +322,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
         recordatorio_plantilla: recordatorioPlantilla.trim(),
       });
       toast('Configuración guardada');
-      if (isMonedaChanged) setTimeout(() => window.location.reload(), 300);
+      if (isMonedaChanged) setTimeout(() => window.location.reload(), 150);
     } catch (e) {
       toast(e.message, 'error');
       savingNegocioRef.current = false;
@@ -354,6 +355,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
   const [hasPassword, setHasPassword] = useState(true);
   const [loadingMap, setLoadingMap] = useState({});
   const [loggingOut, setLoggingOut] = useState(false);
+  const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false);
 
   const updatingPasswordRef = useRef(false);
   const loadingMapRef = useRef({});
@@ -592,11 +594,12 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
     if (loggingOutRef.current) return;
     loggingOutRef.current = true;
     setLoggingOut(true);
+    setConfirmLogoutOpen(false);
     try {
       clearLocalCache();
       await supabase.auth.signOut();
       toast('Sesión cerrada');
-      setTimeout(() => window.location.reload(), 500);
+      setTimeout(() => window.location.reload(), 150);
     } catch (e) {
       toast(e.message, 'error');
       loggingOutRef.current = false;
@@ -1963,7 +1966,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
           whileHover={loggingOut ? undefined : { scale: 1.01 }}
           whileTap={loggingOut ? undefined : { scale: 0.97 }}
           className="btn btn-secondary btn-full"
-          onClick={handleLogout}
+          onClick={() => setConfirmLogoutOpen(true)}
           disabled={loggingOut}
           style={{
             minHeight: 52, fontSize: 15, fontWeight: 700,
@@ -1982,6 +1985,14 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
           Solvnt Gestión · v1.0
         </div>
       </div>
+
+      <ConfirmModal
+        open={confirmLogoutOpen}
+        title="Cerrar sesión"
+        message="¿Estás seguro que deseas cerrar sesión?"
+        onConfirm={handleLogout}
+        onCancel={() => setConfirmLogoutOpen(false)}
+      />
 
       <style>{`
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }

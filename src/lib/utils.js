@@ -59,15 +59,21 @@ export function uid() {
   return crypto.randomUUID();
 }
 
+// Parsea 'YYYY-MM-DD' como medianoche LOCAL. new Date('YYYY-MM-DD') interpreta
+// UTC, que en UTC-3 cae a las 21:00 del día anterior y corre vencimientos.
+export function parseFechaLocal(s) {
+  const [y, m, d] = String(s).split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
 export function calcularMora(pedido) {
   if (!pedido.diasPlazo || pedido.diasPlazo <= 0) return 0;
   if (!pedido.tasaMora || pedido.tasaMora <= 0) return 0;
   if (pedido.cobrado) return 0;
   const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
-  const venc = new Date(pedido.fecha);
-  venc.setUTCDate(venc.getUTCDate() + pedido.diasPlazo);
-  venc.setHours(0, 0, 0, 0);
-  const diasMora = Math.floor((hoy - venc) / (1000 * 60 * 60 * 24));
+  const venc = parseFechaLocal(pedido.fecha);
+  venc.setDate(venc.getDate() + pedido.diasPlazo);
+  const diasMora = Math.round((hoy - venc) / (1000 * 60 * 60 * 24));
   if (diasMora <= 0) return 0;
   const total = pedido.totalFinal ?? pedido.totalCalculado;
   return Math.round(total * (pedido.tasaMora / 100 / 30) * diasMora * 100) / 100;
@@ -75,9 +81,10 @@ export function calcularMora(pedido) {
 
 export function fechaVencimiento(pedido) {
   if (!pedido.diasPlazo) return null;
-  const d = new Date(pedido.fecha);
-  d.setUTCDate(d.getUTCDate() + pedido.diasPlazo);
-  return d.toISOString().slice(0, 10);
+  const d = parseFechaLocal(pedido.fecha);
+  d.setDate(d.getDate() + pedido.diasPlazo);
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 export function saldoCliente(clienteOrId, pedidos, devoluciones = [], cobros = []) {

@@ -1,5 +1,5 @@
 import { supabase } from './supabase.js';
-import { uid } from './utils.js';
+import { uid, parseFechaLocal } from './utils.js';
 
 const LS_KEYS = {
   clientes: 'sg_clientes',
@@ -51,7 +51,7 @@ export function getCachedNegocioId() {
 export function clearLocalCache() {
   const keys = [
     'sg_clientes', 'sg_productos', 'sg_pedidos', 'sg_gastos', 'sg_cobros',
-    'sg_categorias', 'sg_devoluciones', 'sg_negocio', 'sg_negocio_id',
+    'sg_cats', 'sg_devoluciones', 'sg_negocio', 'sg_negocio_id',
     'sg_cuotas_last_run',
   ];
   keys.forEach(k => { try { localStorage.removeItem(k); } catch {} });
@@ -565,6 +565,32 @@ export async function updatePedido(id, data) {
   if ('tasaMora' in data) update.tasa_mora = data.tasaMora;
   if ('confirmado' in data) update.confirmado = data.confirmado;
 
+  // Si cambian los items, el stock debe reflejar la diferencia: devolvemos el
+  // stock de los items viejos y descontamos el de los nuevos (neto por producto).
+  let stockDeltas = null;
+  if (data.items) {
+    const [{ data: oldItems }, { data: pedRow }] = await Promise.all([
+      supabase.from('pedido_items').select('producto_id, cantidad').eq('pedido_id', id),
+      supabase.from('pedidos').select('tipo').eq('id', id).maybeSingle(),
+    ]);
+    const tipoPrevio = pedRow?.tipo || 'pedido';
+    const tipoFinal = 'tipo' in data ? (data.tipo || 'pedido') : tipoPrevio;
+    const deltas = new Map();
+    if (tipoPrevio !== 'presupuesto') {
+      for (const it of oldItems || []) {
+        if (it.producto_id) deltas.set(it.producto_id, (deltas.get(it.producto_id) || 0) + Number(it.cantidad));
+      }
+    }
+    if (tipoFinal !== 'presupuesto') {
+      for (const it of data.items) {
+        if (it.productoId && isUUID(it.productoId)) {
+          deltas.set(it.productoId, (deltas.get(it.productoId) || 0) - Number(it.cantidad));
+        }
+      }
+    }
+    stockDeltas = deltas;
+  }
+
   // El UPDATE del pedido y el delete de items pueden ir en paralelo (ambos
   // dependen solo del id, no entre sí). El insert va al final cuando el delete
   // ya liberó la unique key, pero los hacemos secuenciales solo si hay items.
@@ -590,6 +616,12 @@ export async function updatePedido(id, data) {
     if (eIns) throw friendlyError(eIns);
   }
 
+  if (stockDeltas) {
+    await Promise.all(
+      [...stockDeltas].filter(([, d]) => d !== 0).map(([pid, d]) => ajustarStock(pid, d))
+    );
+  }
+
   // Devolver el pedido actualizado en memoria (sin re-fetch completo)
   return { id, ...data };
 }
@@ -600,6 +632,12 @@ export async function deletePedido(id) {
     lsSet('pedidos', arr);
     return id;
   }
+  // Antes de borrar, capturamos tipo e items para devolver el stock que el
+  // pedido había descontado (eliminar = la venta nunca ocurrió).
+  const [{ data: pedRow }, { data: items }] = await Promise.all([
+    supabase.from('pedidos').select('tipo').eq('id', id).maybeSingle(),
+    supabase.from('pedido_items').select('producto_id, cantidad').eq('pedido_id', id),
+  ]);
   // .select() para verificar que realmente se borró una fila. Si RLS bloquea,
   // PostgREST no tira error pero borra 0 filas — eso causaría un "fantasma".
   const negocioIdDel = getCachedNegocioId();
@@ -609,6 +647,13 @@ export async function deletePedido(id) {
   if (error) throw friendlyError(error);
   if (!data || data.length === 0) {
     throw new Error('No se pudo eliminar el pedido: no tenés permiso o ya no existe.');
+  }
+  if (pedRow && pedRow.tipo !== 'presupuesto') {
+    const deltas = new Map();
+    for (const it of items || []) {
+      if (it.producto_id) deltas.set(it.producto_id, (deltas.get(it.producto_id) || 0) + Number(it.cantidad));
+    }
+    await Promise.all([...deltas].map(([pid, d]) => ajustarStock(pid, d)));
   }
   return id;
 }
@@ -1098,9 +1143,8 @@ export async function procesarCuotasVencidas(pedidos) {
   const actualizados = pedidos.map(p => {
     if (p.cuotas <= 1 || p.cobrado) return p;
 
-    const fechaPedido = new Date(p.fecha);
-    fechaPedido.setHours(0, 0, 0, 0);
-    const diasDesde = Math.floor((hoy - fechaPedido) / (1000 * 60 * 60 * 24));
+    const fechaPedido = parseFechaLocal(p.fecha);
+    const diasDesde = Math.round((hoy - fechaPedido) / (1000 * 60 * 60 * 24));
 
     const montoPorCuota = Math.round((p.totalFinal / p.cuotas) * 100) / 100;
     const cuotasDue = Math.min(p.cuotas, Math.floor(diasDesde / 30) + 1);

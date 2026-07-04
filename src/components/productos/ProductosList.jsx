@@ -201,7 +201,7 @@ export function ProductosList({ productos, onNew, onEdit, onDelete, onStockChang
                 className="card"
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.03, duration: 0.2 }}
+                transition={{ delay: Math.min(i, 8) * 0.025, duration: 0.15 }}
                 style={stockBajo ? { borderColor: p.stock === 0 ? 'var(--danger)' : 'rgba(239,68,68,0.3)' } : {}}
               >
                 <div className="card-row">

@@ -4,6 +4,7 @@ import { renovarSuscripcion } from '../../services/suscripcionesService.js';
 import { supabase } from '../../lib/supabase.js';
 import { clearLocalCache } from '../../lib/db.js';
 import { formatCurrency } from '../../lib/utils.js';
+import { ConfirmModal } from '../shared/Modal.jsx';
 
 const PLANES = [
   { id: 'basico', nombre: 'Básico', precio: 4990, features: ['Clientes ilimitados', 'Pedidos ilimitados', 'Estadísticas', 'Exportar CSV', 'Stock y catálogo'] },
@@ -20,6 +21,7 @@ export function SuscripcionBlocker({ suscripcion, onRenovada }) {
   const diasDiff = vencimiento ? Math.round((vencimiento - hoy) / (1000 * 60 * 60 * 24)) : 0;
 
   const [loggingOut, setLoggingOut] = useState(false);
+  const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false);
   const loggingOutRef = useRef(false);
   const loadingRef = useRef(false);
 
@@ -27,6 +29,7 @@ export function SuscripcionBlocker({ suscripcion, onRenovada }) {
     if (loggingOutRef.current) return;
     loggingOutRef.current = true;
     setLoggingOut(true);
+    setConfirmLogoutOpen(false);
     clearLocalCache();
     await supabase.auth.signOut();
     window.location.reload();
@@ -95,8 +98,16 @@ export function SuscripcionBlocker({ suscripcion, onRenovada }) {
       }}
     >
       <div style={{ width: '100%', maxWidth: 380, textAlign: 'center' }}>
-        <div style={{ fontSize: 56, lineHeight: 1, marginBottom: 'var(--space-4)' }}>
-          {bloqueada ? '🔒' : '⏰'}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 'var(--space-4)', color: 'var(--warning)' }}>
+          {bloqueada ? (
+            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
+            </svg>
+          ) : (
+            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+            </svg>
+          )}
         </div>
 
         <h1 style={{ fontSize: 'var(--text-xl)', fontWeight: 800, marginBottom: 'var(--space-2)' }}>
@@ -156,7 +167,7 @@ export function SuscripcionBlocker({ suscripcion, onRenovada }) {
 
         <button
           className="btn btn-secondary"
-          onClick={handleLogout}
+          onClick={() => setConfirmLogoutOpen(true)}
           disabled={loading || loggingOut}
           style={{ minHeight: 44, fontSize: 'var(--text-sm)', width: '100%', marginBottom: 'var(--space-4)', opacity: (loading || loggingOut) ? 0.5 : 1 }}
         >
@@ -164,6 +175,14 @@ export function SuscripcionBlocker({ suscripcion, onRenovada }) {
         </button>
         <p style={{ fontSize: 'var(--text-xs)', color: 'var(--ink-3)' }}>¿Problemas? Contactá al administrador.</p>
       </div>
+
+      <ConfirmModal
+        open={confirmLogoutOpen}
+        title="Cerrar sesión"
+        message="¿Estás seguro que deseas cerrar sesión?"
+        onConfirm={handleLogout}
+        onCancel={() => setConfirmLogoutOpen(false)}
+      />
     </motion.div>
   );
 }

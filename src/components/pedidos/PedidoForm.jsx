@@ -496,11 +496,11 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
         <button className="btn-icon" onClick={saving ? undefined : onBack} aria-label="Volver" style={{ opacity: saving ? 0.5 : 1, cursor: saving ? 'not-allowed' : 'pointer' }}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
-        <h2>{existing ? 'Editar pedido' : 'Nuevo pedido'}</h2>
+        <h2>{existing?.id ? 'Editar pedido' : existing ? 'Repetir pedido' : 'Nuevo pedido'}</h2>
       </div>
 
       <div className="form-wrap" style={{ paddingBottom: 'var(--space-8)' }}>
-        {!existing && (
+        {!existing?.id && (
           <>
             <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
               <button type="button" className={`filter-chip${tipo === 'pedido' ? ' active' : ''}`} style={{ flex: 1, minHeight: 44 }} onClick={() => setTipo('pedido')}>Pedido</button>
@@ -735,7 +735,7 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
         </div>
 
         <button className="btn btn-primary btn-full" type="button" onClick={handleSave} disabled={saving}>
-          {saving ? 'Guardando...' : existing ? 'Actualizar pedido' : 'Guardar pedido'}
+          {saving ? 'Guardando...' : existing?.id ? 'Actualizar pedido' : 'Guardar pedido'}
         </button>
       </div>
     </div>

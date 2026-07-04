@@ -202,7 +202,7 @@ export function ClientesList({ clientes, pedidos, devoluciones, cobros = [], neg
                 animate={{ opacity: 1, y: 0 }}
                 whileHover={{ y: -2 }}
                 whileTap={{ scale: 0.985 }}
-                transition={{ delay: i * 0.035, duration: 0.2 }}
+                transition={{ delay: Math.min(i, 8) * 0.025, duration: 0.15 }}
                 onClick={() => onSelect(c.id)}
                 role="button"
                 tabIndex={0}

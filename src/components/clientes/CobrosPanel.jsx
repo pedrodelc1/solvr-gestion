@@ -48,7 +48,7 @@ export function CobrosPanel({ clientes, pedidos, devoluciones, cobros = [], nego
     } finally {
       setTimeout(() => {
         setEnviando(prev => ({ ...prev, [cliente.id]: false }));
-      }, 2000);
+      }, 1000);
     }
   }
 
@@ -62,6 +62,27 @@ export function CobrosPanel({ clientes, pedidos, devoluciones, cobros = [], nego
         </button>
         <h2>Cobros pendientes</h2>
       </div>
+
+      {conSaldo.length > 0 && (
+        <div style={{
+          margin: '0 var(--space-4) var(--space-3)',
+          padding: 'var(--space-3) var(--space-4)',
+          borderRadius: 'var(--radius-md)',
+          background: 'var(--bg-2)',
+          border: '1px solid var(--border)',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+        }}>
+          <span style={{ fontSize: 'var(--text-sm)', color: 'var(--ink-2)' }}>
+            Total a cobrar · {conSaldo.length} cliente{conSaldo.length !== 1 ? 's' : ''}
+            {conSaldo.some(c => c.enMora) && (
+              <span style={{ color: 'var(--danger)', fontWeight: 600 }}> · {conSaldo.filter(c => c.enMora).length} en mora</span>
+            )}
+          </span>
+          <span style={{ fontSize: 'var(--text-lg)', fontWeight: 800 }}>
+            {formatCurrency(conSaldo.reduce((s, c) => s + c.saldo, 0))}
+          </span>
+        </div>
+      )}
 
       {conSaldo.length === 0 ? (
         <div className="empty-state">

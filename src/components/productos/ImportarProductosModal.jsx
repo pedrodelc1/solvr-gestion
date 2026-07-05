@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Modal } from '../shared/Modal.jsx';
-import { saveProducto } from '../../lib/db.js';
+import { saveProductosBulk } from '../../lib/db.js';
 import { formatCurrency } from '../../lib/utils.js';
 
 export function ImportarProductosModal({ open, productos, onClose, onImportada, toast }) {
@@ -89,12 +89,9 @@ export function ImportarProductosModal({ open, productos, onClose, onImportada, 
     setImporting(true);
     const nuevos = preview.filter(r => !r.duplicado && r.precio > 0);
     let importados = 0;
-    for (const r of nuevos) {
-      try {
-        await saveProducto(r);
-        importados++;
-      } catch (_) {}
-    }
+    try {
+      importados = await saveProductosBulk(nuevos);
+    } catch (_) {}
     const ignorados = preview.length - nuevos.length;
     toast(`${importados} productos importados${ignorados > 0 ? `, ${ignorados} ignorados` : ''}`);
     onImportada?.();

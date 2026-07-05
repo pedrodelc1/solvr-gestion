@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Modal } from '../shared/Modal.jsx';
-import { saveCliente } from '../../lib/db.js';
+import { saveClientesBulk } from '../../lib/db.js';
 import { formatCurrency } from '../../lib/utils.js';
 
 export function ImportarClientesModal({ open, clientes, onClose, onImportada, toast }) {
@@ -89,12 +89,14 @@ export function ImportarClientesModal({ open, clientes, onClose, onImportada, to
     setImporting(true);
     const nuevos = preview.filter(r => !r.duplicado);
     let importados = 0;
-    for (const r of nuevos) {
-      try {
-        await saveCliente({ nombre: r.nombre, contacto: r.contacto, tipo_precio: r.tipo_precio, saldo_inicial: r.saldo_inicial });
-        importados++;
-      } catch (_) {}
-    }
+    try {
+      importados = await saveClientesBulk(nuevos.map(r => ({
+        nombre: r.nombre,
+        contacto: r.contacto,
+        tipo_precio: r.tipo_precio,
+        saldo_inicial: r.saldo_inicial,
+      })));
+    } catch (_) {}
     toast(`${importados} clientes importados${preview.length - nuevos.length > 0 ? `, ${preview.length - nuevos.length} duplicados ignorados` : ''}`);
     onImportada?.();
     setPreview(null);

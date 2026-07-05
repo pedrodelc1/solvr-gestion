@@ -33,8 +33,12 @@ export function getCachedSnapshot() {
   };
 }
 
+// try/catch: si el snapshot supera la quota de localStorage, el cache se
+// saltea pero la data fetcheada se devuelve igual.
 function lsSet(key, val) {
-  localStorage.setItem(LS_KEYS[key], JSON.stringify(val));
+  try {
+    localStorage.setItem(LS_KEYS[key], JSON.stringify(val));
+  } catch {}
 }
 
 // negocio_id activo, cacheado al loguearse. Se manda explícito en cada INSERT
@@ -103,14 +107,30 @@ function requireMontoValido(monto, label = 'monto') {
   return n;
 }
 
+// PostgREST corta toda respuesta en 1000 filas (db-max-rows) aunque no se pida
+// límite: al pasar ese volumen la data se truncaba en silencio (pedidos sin
+// items, filas viejas desaparecidas). Paginamos con .range() hasta la última
+// página. buildQuery debe devolver un builder nuevo por llamada.
+const PAGE_SIZE = 1000;
+async function fetchAllRows(buildQuery) {
+  const all = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await buildQuery().range(from, from + PAGE_SIZE - 1);
+    if (error) return { data: null, error };
+    all.push(...(data || []));
+    if (!data || data.length < PAGE_SIZE) return { data: all, error: null };
+  }
+}
+
 // ── CLIENTES ─────────────────────────────────────────────
 
 export async function getClientes() {
   if (!useSupabase()) return lsGet('clientes', []);
-  const { data, error } = await supabase
+  const { data, error } = await fetchAllRows(() => supabase
     .from('clientes')
-    .select('*')
-    .order('created_at', { ascending: true });
+    .select('id, nombre, contacto, email, direccion, tipo_precio, saldo_inicial, foto_url, created_at')
+    .order('created_at', { ascending: true })
+    .order('id'));
   if (error) return lsGet('clientes', []);
   const mapped = data.map(r => ({
     id: r.id,
@@ -180,6 +200,48 @@ export async function saveCliente(data) {
   };
 }
 
+// Import masivo: un solo INSERT con array (en chunks) en vez de un request por
+// fila. Las filas inválidas se saltean, igual que hacía el try/catch por fila.
+const BULK_CHUNK = 500;
+
+export async function saveClientesBulk(rows) {
+  const validas = [];
+  for (const r of rows || []) {
+    if (!r.nombre || !String(r.nombre).trim()) continue;
+    const saldo = Number(r.saldo_inicial || 0);
+    validas.push({
+      nombre: String(r.nombre).trim(),
+      contacto: r.contacto || '',
+      email: r.email || '',
+      direccion: r.direccion || '',
+      tipo_precio: r.tipo_precio === 'mayorista' ? 'mayorista' : 'minorista',
+      saldo_inicial: Number.isFinite(saldo) && saldo >= 0 ? saldo : 0,
+      foto_url: null,
+    });
+  }
+  if (!useSupabase()) {
+    const arr = lsGet('clientes', []);
+    validas.forEach(v => arr.push({ ...v, id: uid() }));
+    lsSet('clientes', arr);
+    return validas.length;
+  }
+  const userId = await getUserId();
+  if (!userId) throw new Error('Not authenticated');
+  const negocioId = getCachedNegocioId();
+  let importados = 0;
+  for (let i = 0; i < validas.length; i += BULK_CHUNK) {
+    const chunk = validas.slice(i, i + BULK_CHUNK).map(v => ({
+      ...v,
+      id: uid(),
+      user_id: userId,
+      ...(negocioId ? { negocio_id: negocioId } : {}),
+    }));
+    const { error } = await supabase.from('clientes').insert(chunk);
+    if (!error) importados += chunk.length;
+  }
+  return importados;
+}
+
 export async function deleteCliente(id) {
   if (!useSupabase()) {
     const arr = lsGet('clientes', []).filter(x => x.id !== id);
@@ -201,10 +263,11 @@ export async function deleteCliente(id) {
 
 export async function getProductos() {
   if (!useSupabase()) return lsGet('productos', []);
-  const { data, error } = await supabase
+  const { data, error } = await fetchAllRows(() => supabase
     .from('productos')
-    .select('*')
-    .order('nombre', { ascending: true });
+    .select('id, nombre, marca, precio, costo, precio_mayorista, stock, stock_minimo')
+    .order('nombre', { ascending: true })
+    .order('id'));
   if (error) {
     console.error('[getProductos]', error);
     return lsGet('productos', []);
@@ -287,6 +350,47 @@ function mapProducto(r) {
   };
 }
 
+export async function saveProductosBulk(rows) {
+  const num = v => {
+    const n = Number(v ?? 0);
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  };
+  const validas = [];
+  for (const r of rows || []) {
+    if (!r.nombre || !String(r.nombre).trim()) continue;
+    validas.push({
+      nombre: String(r.nombre).trim(),
+      marca: r.marca || null,
+      precio: num(r.precio),
+      costo: num(r.costo),
+      precio_mayorista: num(r.precio_mayorista),
+      stock: num(r.stock),
+      stock_minimo: num(r.stock_minimo ?? 5),
+    });
+  }
+  if (!useSupabase()) {
+    const arr = lsGet('productos', []);
+    validas.forEach(v => arr.push({ ...v, id: uid() }));
+    lsSet('productos', arr);
+    return validas.length;
+  }
+  const userId = await getUserId();
+  if (!userId) throw new Error('Not authenticated');
+  const negocioId = getCachedNegocioId();
+  let importados = 0;
+  for (let i = 0; i < validas.length; i += BULK_CHUNK) {
+    const chunk = validas.slice(i, i + BULK_CHUNK).map(v => ({
+      ...v,
+      id: uid(),
+      user_id: userId,
+      ...(negocioId ? { negocio_id: negocioId } : {}),
+    }));
+    const { error } = await supabase.from('productos').insert(chunk);
+    if (!error) importados += chunk.length;
+  }
+  return importados;
+}
+
 export async function deleteProducto(id) {
   if (!useSupabase()) {
     const arr = lsGet('productos', []).filter(x => x.id !== id);
@@ -326,8 +430,16 @@ export async function getPedidos() {
 
   // Fetch pedidos and items in separate queries to avoid RLS join issues
   const [{ data: pedRows, error: pedErr }, { data: itemRows, error: itemErr }] = await Promise.all([
-    supabase.from('pedidos').select('*').order('created_at', { ascending: false }),
-    supabase.from('pedido_items').select('*'),
+    fetchAllRows(() => supabase
+      .from('pedidos')
+      .select('id, nro, cliente_id, fecha, total_calculado, total_final, medio_pago, cuotas, cobrado, monto_abonado, nota, created_at, dias_plazo, tasa_mora, tipo, confirmado, descuento_tipo, descuento_valor')
+      .order('created_at', { ascending: false })
+      .order('id')),
+    fetchAllRows(() => supabase
+      .from('pedido_items')
+      .select('id, pedido_id, producto_id, nombre, cantidad, precio_unitario, costo_unitario, entregado, fecha_entrega')
+      .order('pedido_id')
+      .order('id')),
   ]);
 
   if (pedErr) {
@@ -738,7 +850,7 @@ export async function convertirPresupuesto(pedidoId) {
   }
   const { data: items, error: eItems } = await supabase
     .from('pedido_items')
-    .select('*')
+    .select('producto_id, cantidad')
     .eq('pedido_id', pedidoId);
   if (eItems) throw eItems;
   const { error } = await supabase
@@ -746,9 +858,12 @@ export async function convertirPresupuesto(pedidoId) {
     .update({ tipo: 'pedido' })
     .eq('id', pedidoId);
   if (error) throw error;
+  // Deltas agrupados por producto y en paralelo (mismo patrón que savePedido)
+  const deltas = new Map();
   for (const item of items || []) {
-    if (item.producto_id) await ajustarStock(item.producto_id, -item.cantidad);
+    if (item.producto_id) deltas.set(item.producto_id, (deltas.get(item.producto_id) || 0) - Number(item.cantidad));
   }
+  await Promise.all([...deltas].map(([pid, d]) => ajustarStock(pid, d)));
   return getPedidos();
 }
 
@@ -756,10 +871,11 @@ export async function convertirPresupuesto(pedidoId) {
 
 export async function getGastos() {
   if (!useSupabase()) return lsGet('gastos', []);
-  const { data, error } = await supabase
+  const { data, error } = await fetchAllRows(() => supabase
     .from('gastos')
-    .select('*')
-    .order('fecha', { ascending: false });
+    .select('id, fecha, descripcion, monto, categoria, created_at')
+    .order('fecha', { ascending: false })
+    .order('id'));
   if (error) {
     console.error('[getGastos] failed:', error.message);
     return lsGet('gastos', []);
@@ -848,10 +964,11 @@ function validarCobro(data) {
 
 export async function getCobros() {
   if (!useSupabase()) return lsGet('cobros', []);
-  const { data, error } = await supabase
+  const { data, error } = await fetchAllRows(() => supabase
     .from('cobros')
-    .select('*')
-    .order('fecha', { ascending: false });
+    .select('id, fecha, monto, descripcion, metodo, cliente_id')
+    .order('fecha', { ascending: false })
+    .order('id'));
   if (error) {
     console.error('[getCobros] failed:', error.message);
     return lsGet('cobros', []);
@@ -1228,10 +1345,11 @@ export async function saveNegocioConfig(cfg) {
 
 export async function getDevoluciones() {
   if (!useSupabase()) return JSON.parse(localStorage.getItem('sg_devoluciones') || '[]');
-  const { data, error } = await supabase
+  const { data, error } = await fetchAllRows(() => supabase
     .from('devoluciones')
-    .select('*, devolucion_items(*)')
-    .order('fecha', { ascending: false });
+    .select('id, pedido_id, cliente_id, fecha, motivo, monto_total, devolucion_items(id, producto_id, nombre, cantidad, precio_unitario)')
+    .order('fecha', { ascending: false })
+    .order('id'));
   if (error) return [];
   return data.map(r => ({
     id: r.id,
@@ -1282,11 +1400,14 @@ export async function saveDevolucion(data) {
         precio_unitario: i.precioUnitario,
       }))
     );
+    // Deltas agrupados por producto y en paralelo (mismo patrón que savePedido)
+    const deltas = new Map();
     for (const item of data.items) {
       if (item.productoId && isUUID(item.productoId)) {
-        await ajustarStock(item.productoId, item.cantidad);
+        deltas.set(item.productoId, (deltas.get(item.productoId) || 0) + Number(item.cantidad));
       }
     }
+    await Promise.all([...deltas].map(([pid, d]) => ajustarStock(pid, d)));
   }
   return getDevoluciones();
 }
@@ -1295,7 +1416,7 @@ export async function saveDevolucion(data) {
 
 export async function getComunicaciones(clienteId) {
   if (!useSupabase()) return [];
-  let query = supabase.from('comunicaciones').select('*').order('fecha', { ascending: false });
+  let query = supabase.from('comunicaciones').select('id, cliente_id, tipo, mensaje, fecha').order('fecha', { ascending: false });
   if (clienteId) query = query.eq('cliente_id', clienteId);
   const { data, error } = await query;
   if (error) return [];

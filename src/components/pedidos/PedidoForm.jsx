@@ -164,6 +164,24 @@ function ItemRow({ item, idx, productos, tipoPrecio, onChangeProducto, onChangeC
         }}>
           {isCatalog ? 'Catálogo' : 'Manual'}
         </span>
+        <div style={{ display: 'flex', gap: 6 }}>
+        {!isCatalog && (item.manualNombre || item.manualPrecio || item.manualCosto) && (
+          <button
+            type="button"
+            onClick={() => onChangeManual(idx, { manualNombre: '', manualPrecio: '', manualCosto: '' })}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              fontSize: 12, fontWeight: 600, color: 'var(--ink-2)',
+              background: 'var(--bg-3)', border: '1px solid var(--border)',
+              borderRadius: 7, padding: '5px 10px', cursor: 'pointer',
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            </svg>
+            Limpiar
+          </button>
+        )}
         <button
           type="button"
           onClick={() => onToggleMode(idx)}
@@ -179,6 +197,7 @@ function ItemRow({ item, idx, productos, tipoPrecio, onChangeProducto, onChangeC
           </svg>
           {isCatalog ? 'Ingresar manual' : 'Elegir del catálogo'}
         </button>
+        </div>
       </div>
 
       {isCatalog ? (

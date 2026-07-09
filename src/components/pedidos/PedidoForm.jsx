@@ -9,6 +9,8 @@ function SearchableSelect({ value, options, onChange, placeholder = 'Buscar...' 
   const [hoveredIdx, setHoveredIdx] = useState(-1);
   const wrapRef = useRef(null);
   const inputRef = useRef(null);
+  const listRef = useRef(null);
+  const touchStart = useRef(null);
 
   const selected = options.find(o => o.value === value);
   const filtered = q.trim()
@@ -20,8 +22,18 @@ function SearchableSelect({ value, options, onChange, placeholder = 'Buscar...' 
     function onDown(e) {
       if (!wrapRef.current?.contains(e.target)) { setFocused(false); setQ(''); }
     }
+    // Scrollear la página con el menú abierto lo cierra sin seleccionar
+    // (el scroll interno de la lista de opciones no cuenta).
+    function onScroll(e) {
+      if (listRef.current && listRef.current.contains(e.target)) return;
+      setFocused(false); setQ('');
+    }
     document.addEventListener('pointerdown', onDown);
-    return () => document.removeEventListener('pointerdown', onDown);
+    document.addEventListener('scroll', onScroll, true);
+    return () => {
+      document.removeEventListener('pointerdown', onDown);
+      document.removeEventListener('scroll', onScroll, true);
+    };
   }, [focused]);
 
   const borderColor = focused ? 'var(--lime)' : hovered ? 'var(--ink-3)' : 'var(--border)';
@@ -53,11 +65,19 @@ function SearchableSelect({ value, options, onChange, placeholder = 'Buscar...' 
       </div>
 
       {focused && (
-        <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 8, zIndex: 999, maxHeight: 220, overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
+        <div ref={listRef} style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 8, zIndex: 999, maxHeight: 220, overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
           {filtered.map((o, i) => (
             <div
               key={o.value}
-              onPointerDown={e => { e.preventDefault(); onChange(o.value); setFocused(false); setQ(''); setHoveredIdx(-1); }}
+              // Seleccionar solo con un tap real: si el dedo se mueve (scroll)
+              // no cuenta como elección.
+              onPointerDown={e => { e.preventDefault(); touchStart.current = { x: e.clientX, y: e.clientY }; }}
+              onPointerUp={e => {
+                const s = touchStart.current;
+                touchStart.current = null;
+                if (!s || (Math.abs(e.clientX - s.x) + Math.abs(e.clientY - s.y)) > 10) return;
+                onChange(o.value); setFocused(false); setQ(''); setHoveredIdx(-1);
+              }}
               onMouseEnter={() => setHoveredIdx(i)}
               onMouseLeave={() => setHoveredIdx(-1)}
               style={{ padding: '12px 14px', fontSize: 'var(--text-sm)', color: o.value === value ? 'var(--lime)' : 'var(--ink)', cursor: 'pointer', borderBottom: '1px solid var(--border)', background: o.value === value ? 'var(--lime-bg)' : hoveredIdx === i ? 'var(--bg-3)' : 'transparent', transition: 'background 0.1s' }}

@@ -485,6 +485,34 @@ export default function App() {
     } catch (e) { toast(e.message, 'error'); }
   }
 
+  // Los ítems manuales van al catálogo: si ya existe un producto con el mismo
+  // nombre en el negocio se reutiliza, si no se crea (stock 0). Si el rol no
+  // puede crear productos (vendedor), el trigger de la DB lo cataloga igual.
+  async function catalogarItemsManuales(items) {
+    if (!Array.isArray(items)) return items;
+    const porNombre = new Map(productos.map(p => [p.nombre.trim().toLowerCase(), p]));
+    const creados = [];
+    const result = [];
+    for (const item of items) {
+      if (item.productoId || !item.nombre?.trim()) { result.push(item); continue; }
+      const key = item.nombre.trim().toLowerCase();
+      let prod = porNombre.get(key);
+      if (!prod) {
+        try {
+          prod = await saveProducto({ nombre: item.nombre.trim(), precio: item.precioUnitario, costo: item.costoUnitario || 0, stock: 0, stock_minimo: 0 });
+          porNombre.set(key, prod);
+          creados.push(prod);
+        } catch (_) {}
+      }
+      result.push(prod ? { ...item, productoId: prod.id } : item);
+    }
+    if (creados.length) {
+      markLocalMutation();
+      setProductos(prev => [...prev, ...creados]);
+    }
+    return result;
+  }
+
   async function handleSavePedido(data) {
     await claimReadyRef.current;
     const isEdit = data.id && pedidos.find(p => p.id === data.id);
@@ -496,7 +524,8 @@ export default function App() {
       setPreClienteId(null);
       setEditingPedido(null);
       toast('Pedido actualizado');
-      updatePedido(data.id, data)
+      catalogarItemsManuales(data.items)
+        .then(items => updatePedido(data.id, { ...data, items }))
         .then(updated => setPedidos(prev => prev.map(p => p.id === data.id ? { ...p, ...updated } : p)))
         .catch(e => { setPedidos(prevSnapshot); toast(e.message, 'error'); });
       return;
@@ -515,7 +544,8 @@ export default function App() {
     setPreClienteId(null);
     setEditingPedido(null);
     toast('Pedido guardado');
-    savePedido({ ...data, id: newId, nro })
+    catalogarItemsManuales(data.items)
+      .then(items => savePedido({ ...data, items, id: newId, nro }))
       .then(nuevo => setPedidos(prev => prev.map(p => p.id === newId ? nuevo : p)))
       .catch(e => {
         setPedidos(prev => prev.filter(p => p.id !== newId));

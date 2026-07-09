@@ -433,7 +433,7 @@ export function PedidoForm({ clientes, productos: initialProductos, preClienteId
   }
 
   function handleAddItem() {
-    setItems([{ mode: hasProducts ? 'catalog' : 'manual', productoId: '', cantidad: 1, _creatingNew: false, manualNombre: '', manualPrecio: '', manualCosto: '', entregado: false }, ...items]);
+    setItems([...items, { mode: hasProducts ? 'catalog' : 'manual', productoId: '', cantidad: 1, _creatingNew: false, manualNombre: '', manualPrecio: '', manualCosto: '', entregado: false }]);
   }
 
   async function handleSave() {

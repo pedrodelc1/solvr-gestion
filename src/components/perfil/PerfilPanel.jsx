@@ -1905,7 +1905,7 @@ export function PerfilPanel({ session, isOwner, userRole, clientes, pedidos, gas
               whileTap={{ scale: 0.97 }}
               className="btn btn-secondary btn-full"
               onClick={handleUpdatePassword}
-              disabled={updatingPassword || (hasPassword && !currentPassword.trim()) || !newPassword.trim() || !confirmPassword.trim()}
+              disabled={updatingPassword || (hasPassword && !isOtpLogin && !currentPassword.trim()) || !newPassword.trim() || !confirmPassword.trim()}
               style={{ minHeight: 48, fontSize: 14, borderRadius: 10 }}
             >
               {updatingPassword ? (hasPassword ? 'Cambiando...' : 'Creando...') : (hasPassword ? 'Cambiar contraseña' : 'Crear contraseña')}

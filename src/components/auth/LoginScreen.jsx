@@ -13,14 +13,36 @@ export function LoginScreen({ onBack, initialMethod = 'otp', isFirstTime = false
   const [isFirstTimeState, setIsFirstTimeState] = useState(isFirstTime);
   const [password, setPassword] = useState('');
 
-  async function sendMagicLink(emailValue, isRecovery = false) {
-    const redirectTo = isRecovery
-      ? `${window.location.origin}?flow=recovery`
-      : window.location.origin;
+  function mensajeError(err) {
+    const m = err?.message || '';
+    if (/signups? not allowed|user not found/i.test(m)) {
+      return 'No encontramos una cuenta con ese email. Revisá que esté bien escrito.';
+    }
+    if (/rate limit|too many/i.test(m)) {
+      return 'Demasiados intentos. Esperá unos minutos y probá de nuevo.';
+    }
+    return m || 'No pudimos enviar el email. Intentá de nuevo.';
+  }
 
+  async function sendMagicLink(emailValue) {
+    // shouldCreateUser: false — sin esto, un typo en el email crea una cuenta
+    // nueva y vacía en vez de fallar, y el usuario cree que perdió sus datos.
     const { error: err } = await supabase.auth.signInWithOtp({
       email: emailValue,
-      options: { emailRedirectTo: redirectTo },
+      options: {
+        emailRedirectTo: window.location.origin,
+        shouldCreateUser: false,
+      },
+    });
+    if (err) throw err;
+  }
+
+  // Recuperar contraseña usa el flujo de recovery real de Supabase. Antes esto
+  // mandaba un magic link común: el usuario entraba logueado y nunca llegaba a
+  // definir una contraseña nueva.
+  async function sendRecovery(emailValue) {
+    const { error: err } = await supabase.auth.resetPasswordForEmail(emailValue, {
+      redirectTo: `${window.location.origin}?flow=recovery`,
     });
     if (err) throw err;
   }
@@ -71,21 +93,21 @@ export function LoginScreen({ onBack, initialMethod = 'otp', isFirstTime = false
       }
     } else if (method === 'recovery') {
       try {
-        await sendMagicLink(normalized, true);
+        await sendRecovery(normalized);
         setLoading(false);
         setSent(true);
       } catch (err) {
         setLoading(false);
-        setError(err.message);
+        setError(mensajeError(err));
       }
     } else {
       try {
-        await sendMagicLink(normalized, false);
+        await sendMagicLink(normalized);
         setLoading(false);
         setSent(true);
       } catch (err) {
         setLoading(false);
-        setError(err.message);
+        setError(mensajeError(err));
       }
     }
   }

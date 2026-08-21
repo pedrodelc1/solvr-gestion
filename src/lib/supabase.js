@@ -10,7 +10,12 @@ const DUMMY_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiJ9.pla
 // la promesa del fetch nunca resuelve ni rechaza y la función async queda
 // colgada para siempre. Con el timeout, el request rechaza limpio y el manejo
 // de errores existente (fallback a caché / throw) se encarga.
-const REQUEST_TIMEOUT_MS = 8000;
+//
+// 8s era demasiado corto: en 4G flaky, una tanda de paginación de pedidos +
+// items abortaba y la app caía a la caché (vacía en un dispositivo nuevo), con
+// lo que el usuario veía su negocio sin datos. Esto es una red de seguridad
+// contra cuelgues, no un presupuesto de latencia — conviene generoso.
+const REQUEST_TIMEOUT_MS = 30000;
 
 function fetchWithTimeout(input, init = {}) {
   const controller = new AbortController();

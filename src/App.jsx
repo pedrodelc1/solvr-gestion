@@ -19,6 +19,7 @@ import {
   getCachedSnapshot,
   setCachedNegocioId,
   clearLocalCache,
+  isStale,
 } from './lib/db.js';
 import { inRange, saldoCliente, today, cuotasVencidas, formatCurrency } from './lib/utils.js';
 
@@ -123,6 +124,7 @@ export default function App() {
   const [categorias, setCategorias] = useState(cached.categorias);
   const [devoluciones, setDevoluciones] = useState([]);
   const [loading, setLoading] = useState(!hasCache);
+  const [loadError, setLoadError] = useState(false);
   const loadedOnceRef = useRef(hasCache);
   // Evita carreras: cada loadAll lleva un nº de secuencia; si llega una carga
   // más nueva, las respuestas viejas se descartan (no pisan el estado fresco).
@@ -260,6 +262,22 @@ export default function App() {
         getDevoluciones(),
       ]);
       if (seq !== loadSeqRef.current) return;
+
+      // Alguna lectura falló y devolvió caché en vez de datos frescos. Si la
+      // caché encima está vacía, mostrar la app sería mentir: el usuario vería
+      // su negocio sin un solo cliente y creería que perdió todo. Preferimos
+      // un error explícito con reintentar.
+      const fallo = [c, pr, pe, g, cob, devs].some(isStale);
+      // Solo bloqueamos si falló lo troncal. Un negocio recién creado tiene 0
+      // clientes de verdad: ahí `c` no viene stale y el onboarding sigue igual.
+      const falloTroncal = isStale(c) || isStale(pe);
+      const hayDatos = c.length > 0 || pe.length > 0;
+      if (falloTroncal && !hayDatos) {
+        setLoadError(true);
+        return;
+      }
+      setLoadError(false);
+
       setClientes(c);
       setProductos(pr);
       setGastos(g);
@@ -267,11 +285,11 @@ export default function App() {
       setCategorias(cats);
       setDevoluciones(devs);
 
-      if (c.length > 0 && pe.length === 0) {
+      if (fallo) {
         setToasts(t => {
           const id = ++_toastId;
           setTimeout(() => setToasts(prev => prev.filter(x => x.id !== id)), 8000);
-          return [...t, { id, msg: 'Pedidos no se pudieron cargar. Revisá las políticas RLS en Supabase.', type: 'error' }];
+          return [...t, { id, msg: 'Algunos datos no se pudieron actualizar. Estás viendo la última copia guardada.', type: 'error' }];
         });
       }
 
@@ -850,6 +868,35 @@ export default function App() {
         />
         <ToastContainer toasts={toasts} />
       </>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-6)', gap: 'var(--space-4)', textAlign: 'center' }}>
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 2a10 10 0 1 0 10 10" />
+          <line x1="12" y1="8" x2="12" y2="13" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+        <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, margin: 0 }}>No pudimos cargar tus datos</h2>
+        <p style={{ color: 'var(--ink-2)', fontSize: 'var(--text-sm)', lineHeight: 1.5, margin: 0, maxWidth: 320 }}>
+          Tu información está a salvo — es un problema de conexión. Revisá tu internet y reintentá.
+        </p>
+        <button
+          className="btn btn-primary"
+          onClick={() => { setLoadError(false); loadedOnceRef.current = false; loadAll(); }}
+          style={{ minWidth: 160 }}
+        >
+          Reintentar
+        </button>
+        <button
+          className="login-back-btn login-back-btn-underline"
+          onClick={async () => { clearLocalCache(); await supabase.auth.signOut(); }}
+        >
+          Cerrar sesión
+        </button>
+      </div>
     );
   }
 

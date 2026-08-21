@@ -61,6 +61,20 @@ export function clearLocalCache() {
   keys.forEach(k => { try { localStorage.removeItem(k); } catch {} });
 }
 
+// Cuando una lectura falla (red, timeout, RLS) caemos a la caché local para no
+// romper la UI, pero marcamos el array como `stale`. Sin esta marca, una caché
+// vacía es indistinguible de "el negocio no tiene datos" y la app se muestra
+// vacía como si el usuario hubiera perdido todo.
+function staleFallback(arr) {
+  const out = Array.isArray(arr) ? arr.slice() : [];
+  Object.defineProperty(out, 'stale', { value: true, enumerable: false });
+  return out;
+}
+
+export function isStale(arr) {
+  return !!(arr && arr.stale);
+}
+
 function isUUID(str) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 }
@@ -131,7 +145,7 @@ export async function getClientes() {
     .select('id, nombre, contacto, email, direccion, tipo_precio, saldo_inicial, foto_url, created_at')
     .order('created_at', { ascending: true })
     .order('id'));
-  if (error) return lsGet('clientes', []);
+  if (error) return staleFallback(lsGet('clientes', []));
   const mapped = data.map(r => ({
     id: r.id,
     nombre: r.nombre,
@@ -270,7 +284,7 @@ export async function getProductos() {
     .order('id'));
   if (error) {
     console.error('[getProductos]', error);
-    return lsGet('productos', []);
+    return staleFallback(lsGet('productos', []));
   }
   const mapped = data.map(r => ({
     id: r.id,
@@ -445,10 +459,10 @@ export async function getPedidos() {
   if (pedErr) {
     // Error real (red/RLS): caemos a la última caché conocida para no romper UI.
     console.error('[getPedidos] pedidos query failed:', pedErr.message);
-    return lsGet('pedidos', []);
+    return staleFallback(lsGet('pedidos', []));
   }
   if (!pedRows) {
-    return lsGet('pedidos', []);
+    return staleFallback(lsGet('pedidos', []));
   }
   if (pedRows.length === 0) {
     // La query funcionó y no hay pedidos: confiar en la DB y sincronizar la
@@ -497,6 +511,14 @@ export async function getPedidos() {
       fechaEntrega: i.fecha_entrega || null,
     })),
   }));
+
+  // Si los ítems fallaron, los pedidos vienen incompletos: no pisamos la caché
+  // buena con ellos y avisamos que el resultado es parcial.
+  if (itemErr) {
+    console.error('[getPedidos] items query failed:', itemErr.message);
+    return staleFallback(mapped);
+  }
+
   lsSet('pedidos', mapped);
   return mapped;
 }
@@ -878,7 +900,7 @@ export async function getGastos() {
     .order('id'));
   if (error) {
     console.error('[getGastos] failed:', error.message);
-    return lsGet('gastos', []);
+    return staleFallback(lsGet('gastos', []));
   }
   const mapped = data.map(r => ({
     id: r.id,
@@ -971,7 +993,7 @@ export async function getCobros() {
     .order('id'));
   if (error) {
     console.error('[getCobros] failed:', error.message);
-    return lsGet('cobros', []);
+    return staleFallback(lsGet('cobros', []));
   }
   const mapped = data.map(r => ({
     id: r.id,
@@ -1350,7 +1372,7 @@ export async function getDevoluciones() {
     .select('id, pedido_id, cliente_id, fecha, motivo, monto_total, devolucion_items(id, producto_id, nombre, cantidad, precio_unitario)')
     .order('fecha', { ascending: false })
     .order('id'));
-  if (error) return [];
+  if (error) return staleFallback(JSON.parse(localStorage.getItem('sg_devoluciones') || '[]'));
   return data.map(r => ({
     id: r.id,
     pedidoId: r.pedido_id,

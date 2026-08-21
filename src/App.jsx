@@ -235,6 +235,15 @@ export default function App() {
       setSession(sess);
       setAuthChecked(true);
 
+      // Detección canónica del reset de contraseña. Antes esto dependía de que
+      // sobreviviera un ?flow=recovery en la URL, que Supabase arma desde su
+      // propio template y se pierde fácil: cuando se perdía, el link de reset
+      // dejaba entrar al usuario sin pedirle nunca una contraseña nueva.
+      if (_ev === 'PASSWORD_RECOVERY') {
+        sessionStorage.setItem('sg_force_pw_change', '1');
+        setForcePasswordChange(true);
+      }
+
       if (sess) {
         supabase.auth.getUser().then(({ data: { user } }) => {
           if (user) {
